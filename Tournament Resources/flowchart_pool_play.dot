@@ -1,0 +1,50 @@
+// SAMP Cup pool play flow. Render: dot -Tpng -Gdpi=150 flowchart_pool_play.dot -o flowchart_pool_play.png
+digraph pool_play {
+  graph [rankdir=TB, fontname="Helvetica", fontsize=22, labelloc=t, nodesep=0.5, ranksep=0.45, pad=0.4,
+         label=<<b>SAMP Cup: Pool Play (seeding games)</b><br/><font point-size="14">40 teams: 120 games, 10:00 AM - 1:58 PM, 9 courts</font>>];
+  node  [fontname="Helvetica", fontsize=13, shape=box, style="rounded,filled", fillcolor="#FFFFFF", color="#4A4A4A", margin="0.2,0.1"];
+  edge  [fontname="Helvetica", fontsize=12, color="#4A4A4A"];
+
+  checkin  [label=<<b>9:00 AM  Breakfast, warm-up, check-in</b><br/>Random team-number draw (1..N)>, fillcolor="#EAF2FB"];
+  aarti    [label=<<b>9:45 AM  Aarti and Deep pragatya</b>>, fillcolor="#FFF1DC"];
+  pairs    [label=<<b>Pairings fixed by team number</b><br/>Circle method: 6 different opponents per team>, fillcolor="#EAF2FB"];
+  sched    [label=<<b>Pool timetable (scheduler)</b><br/>17-min slots = 12 min play + 5 min change-over<br/>At most 3 games in a row per team<br/>Each team: one lunch = 3 empty slots (51 min) between 12:00 and 2:00<br/>Times, courts and lunch printed on each team slip>, fillcolor="#EAF2FB"];
+  next     [label=<<b>Team's next pool game</b><br/>(time and court from the slip)>];
+
+  present  [shape=diamond, label="Both teams\npresent?", fillcolor="#FFFBE6"];
+  forfeit  [label=<<b>Forfeit</b><br/>11-0 to the team present<br/>game time 12:00>, fillcolor="#FDECEC"];
+  start    [label=<<b>Judge taps Start</b><br/>12-minute game clock runs>];
+  reach11  [shape=diamond, label="A team reaches\n11 before the\nclock ends?", fillcolor="#FFFBE6"];
+  won11    [label=<<b>Team at 11 wins</b><br/>game time = real time to the 11th point>, fillcolor="#E8F6EC"];
+  tied     [shape=diamond, label="Clock ends:\nscore tied?", fillcolor="#FFFBE6"];
+  lead     [label=<<b>Team ahead wins</b><br/>score stands, game time 12:00>, fillcolor="#E8F6EC"];
+  sudden   [label=<<b>Sudden death</b><br/>next rally winner +1 point (8-8 becomes 9-8)<br/>game time 12:00>, fillcolor="#E8F6EC"];
+  record   [label=<<b>Judge enters final score</b><br/>saved with timestamps; every change audited>];
+
+  six      [shape=diamond, label="Team has played\nall 6 games?", fillcolor="#FFFBE6"];
+  rest     [label=<<b>Rest or lunch</b><br/>until the next game on the slip>];
+  alldone  [label=<<b>All pool games finished</b><br/>40 teams: last game ends 1:58 PM>, fillcolor="#EAF2FB"];
+  rank     [label=<<b>Ranking (strict order)</b><br/>1. Most wins<br/>2. Most points scored<br/>3. Lowest average game time (clock-ended games = 12:00)<br/>4. Fewest points allowed<br/>5. Head-to-head (only a 2-team tie that played each other)<br/>6. Random draw by admin (logged)>, fillcolor="#EAF2FB"];
+  seeds    [label=<<b>Seeds 1..N posted</b><br/>Seeding break: one empty slot (1:58 - 2:15 PM)>, fillcolor="#FFF1DC"];
+  ko       [label=<<b>Knockout: Gold and Silver brackets</b><br/>see flowchart_knockout.png>, fillcolor="#F6D77A"];
+
+  checkin -> aarti -> pairs -> sched -> next -> present;
+  present -> forfeit [label="  no"];
+  present -> start   [label="  yes"];
+  start -> reach11;
+  reach11 -> won11 [label="  yes"];
+  reach11 -> tied  [label="  no"];
+  tied -> lead   [label="  no"];
+  tied -> sudden [label="  yes"];
+  {forfeit won11 lead sudden} -> record;
+  record -> six;
+  six -> rest [label="  no"];
+  rest -> next [constraint=false, style=dashed];
+  six -> alldone [label="  yes"];
+  alldone -> rank -> seeds -> ko;
+
+  {rank=same; forfeit; start}
+  {rank=same; won11; tied}
+  {rank=same; lead; sudden}
+  {rank=same; rest; alldone}
+}
