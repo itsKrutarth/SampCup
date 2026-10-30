@@ -13,6 +13,8 @@ The tournament format, day plan, rules and reference schedules live in `Tourname
 - CI: GitHub Actions
 
 ## Quick start
+Stage 0 is not finished: `.env.example`, `.gitignore` and the CI workflow are still to be added (see `Tournament Resources/05_DECISIONS_AND_OPEN_ITEMS.md`).
+
 1. Copy `.env.example` to `.env`.
 2. Run `docker compose up --build`.
 3. API health: `http://localhost:8000/health`.

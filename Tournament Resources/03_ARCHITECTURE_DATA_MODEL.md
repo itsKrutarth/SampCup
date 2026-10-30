@@ -9,14 +9,14 @@
 - Worker/async tasks: Sheets sync, email sending.
 
 ## Tables (minimum)
-- tournaments(id, name, date, courts, slot_minutes, start_time, game_minutes, lunch_start, lunch_end, sabha_start, sabha_end, last_game_end, status)
+- tournaments(id, name, date, courts, slot_minutes, start_time, game_minutes, lunch_start, lunch_end, sabha_start, sabha_end, last_game_end, group_games (8), max_in_a_row (2), max_gap_minutes (51), final_best_of (3), random_draw_seed, status)
 - teams(id, tournament_id, sheet_row_id UNIQUE, name, players, contact_email, contact_phone, team_number NULL until draw, group NULL until draw, checked_in, lunch_start NULL until schedule, notes)
 - courts(id, number, active, judge_user_id NULL)
 - users(id, name, role[admin|judge], pin_hash/password_hash)
-- matches(id, tournament_id, phase[group|knockout], group NULL, match_code (e.g. R16-3, QF-2, SF-1, F), round_label, source_a, source_b, team_a_id NULL, team_b_id NULL, court_id, scheduled_time, status[scheduled|in_progress|completed|forfeit|cancelled], prereq_match_ids[], loser_goes_to_match_id NULL, winner_goes_to_match_id NULL, admin_override_court)
+- matches(id, tournament_id, phase[group|knockout], group NULL, match_code (e.g. R16-3, QF-2, SF-1, F-1, F-2, F-3), round_label, source_a, source_b, team_a_id NULL, team_b_id NULL, court_id, scheduled_time, status[scheduled|in_progress|completed|forfeit|cancelled], prereq_match_ids[], winner_goes_to_match_id NULL, admin_override_court). Single elimination: a knockout loser goes nowhere.
 - game_results(id, match_id, started_at, ended_at, score_a, score_b, end_reason[reached_11|clock_lead|sudden_death|forfeit], seconds_for_ranking, entered_by, version)
 - score_audit(id, match_id, old_values, new_values, changed_by, changed_at, reason)
-- standings_cache(team_id, group, wins, points_for, points_against, avg_seconds, rank, tiebreak_note)
+- standings_cache(team_id, group, wins, points_for, points_against, avg_seconds, rank, decided_by[""|wins|points scored|average game time|points allowed|head-to-head|random draw])
 - announcements(id, title, body, audience[all|team|court|match], channel[banner|email|sms], target_ids, sent_at, created_by)
 - delays(id, minutes, applied_from_time, created_by, created_at)
 
@@ -27,7 +27,7 @@
 - Knockout labels like "Group A 1st" and "Winner of R16-1" in the scheduler output become source_a/source_b; the app resolves them to real teams when group standings/results exist. Match codes, prereqs and winner destinations come from the scheduler (`match_id`, `prereqs`, `winner_goes_to`).
 - Each team's lunch block comes from the scheduler and is shown on the my-team page and team slip.
 - No game is ever scheduled during Sabha (3:30-4:30 PM). All group games end before it; the knockout is after it and the Final ends by 6:37 PM. The "Running behind" tool must keep these rules (a game pushed past 3:30 moves to after Sabha), must not create more than 2 games in a row for any team, and must not leave a team waiting more than 51 minutes between group games.
-- Score entry: judge taps Start (stores started_at), enters points, presses Final (stores ended_at). Buttons: Clock Ended (if tied, forces sudden-death prompt), Sudden-Death winner, Forfeit. Validate: someone has 11, OR clock-ended flag set.
+- Score entry: judge taps Start (stores started_at), enters points, presses Final (stores ended_at). Buttons: Clock Ended (if tied, forces sudden-death prompt), Sudden-Death winner, Forfeit. Validate exactly as `ranking.check_game`: no tied final score; reached_11 needs an 11; clock-ended games cannot pass 11; sudden death ends one point apart; forfeit is 11-0.
 - seconds_for_ranking = real elapsed seconds only when end_reason = reached_11, else 720.
 - Any correction by admin writes score_audit and triggers recompute of standings and downstream matches (with warning if downstream matches already started).
 - Standings recompute is deterministic from game_results (see `Tournament Resources/ranking.py`): the random-draw seed is stored once per tournament and reused.

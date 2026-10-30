@@ -11,7 +11,7 @@ Accept: re-sync twice gives no duplicates; removed sheet row is flagged not dele
 Needs from owner: Sheet columns/format (see open items).
 
 ## Stage 2: Schedule engine
-Tasks: move `Tournament Resources/sampcup_scheduler.py` into a backend library returning structured data (match codes, prereqs, winner/loser destinations, lunch blocks); store groups, group games and knockout matches; court override; schedule lock; CSV export and printable team slips.
+Tasks: move `Tournament Resources/sampcup_scheduler.py` into a backend library returning structured data (groups, match codes, prereqs, winner destinations, lunch blocks, court plan); store groups, group games and knockout matches; court override; schedule lock; CSV export and printable team slips.
 Accept: for N=40 reproduce the reference outputs exactly (`sampcup_40team_*` files: 4 groups of 10, 160 group games 10:00 AM-3:23 PM, Round of 16 4:30 PM to best-of-3 Final 5:55-6:37 PM, court plan). `simulate_tournament.py --teams 34-42` passes as a pytest test.
 
 ## Stage 3: Admin dashboard (core)
@@ -19,12 +19,12 @@ Tasks: login; sync button; team list with check-in and number draw; schedule vie
 Accept: admin can complete pre-tournament setup without touching the DB.
 
 ## Stage 4: Judge scoring
-Tasks: mobile UI per assigned court; shows current/next match; Start timer; point buttons; Final; Clock Ended; sudden-death winner; Forfeit; offline queue and retry; confirm dialog before final.
-Accept: all end_reasons produce correct stored scores/seconds (tests for: reach 11, clock lead, clock tie then sudden death 8-8 becomes 9-8, forfeit 11-0 at 720 s).
+Tasks: mobile UI per assigned court; shows current/next match; Start timer; point buttons; Final; Clock Ended; sudden-death winner; Forfeit; offline queue and retry; confirm dialog before final. The best-of-3 Final is scored game by game on court 1 (F-1, F-2, then F-3 only at 1-1); the screen shows the game score in the series.
+Accept: all end_reasons produce correct stored scores/seconds (tests for: reach 11, clock lead, clock tie then sudden death 8-8 becomes 9-8, forfeit 11-0 at 720 s); impossible results are refused (same rules as `ranking.check_game`); the Final ends at 2 game wins and F-3 is cancelled at 2-0.
 
 ## Stage 5: Group standings and knockout
 Tasks: integrate `Tournament Resources/ranking.py` (strict order in rules doc; already rejects impossible results and returns `decided_by`); show the tiebreak step per team; rank each group separately; "Generate bracket" fills the Round of 16 from the top 4 of each group; auto-advance winners to the best-of-3 Final; cancel Final game 3 at 2-0; corrections recompute downstream.
-Accept: simulation of 300 random tournaments never errors; ranks inside each group are a permutation; the Round of 16 holds the top 4 of every group; corrections update standings and the bracket; random-draw ties are logged once and reused.
+Accept: `simulate_tournament.py` passes (200 random tournaments per team count) and the app's own full-day simulation never errors; ranks inside each group are a permutation; the Round of 16 holds the top 4 of every group; corrections update standings and the bracket; random-draw ties are logged once and reused.
 
 ## Stage 6: Live public views
 Tasks: SSE stream; public schedule, my-team page (by team number, with lunch time and next match), group standings, knockout bracket; projector mode (auto-rotate); QR code page.
