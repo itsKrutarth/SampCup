@@ -1,26 +1,29 @@
 # 02 Tournament Rules (LOCKED; change only with owner approval)
 
-Format: **pool play + Gold/Silver brackets**, adopted 2026-10-26. It replaces the earlier pool + single-elimination plan; nothing from that plan applies any more.
+Format: **group play, then a 16-team knockout with a best-of-3 Final.** Teams are split into 4 random groups and every team plays at least 8 games inside its group. The top 4 of every group go to a Round of 16, quarterfinals, semifinals and a best-of-3 Final. Adopted 2026-10-29; it replaces every earlier format.
 
-## Day plan (set by the leads)
+## Day plan (40 teams)
 | Time | What |
 |---|---|
-| 9:00 - 9:45 AM | Breakfast, warm-up, check-in, team-number draw |
+| 9:00 - 9:45 AM | Breakfast, warm-up, check-in, team-number draw (sets the groups) |
 | 9:45 - 10:00 AM | Aarti and Deep pragatya |
-| 10:00 AM | First pool game |
+| 10:00 AM - 3:23 PM | Group play: 160 games on 9 courts |
 | 12:00 - 2:00 PM | Rolling lunch (each team at its own time, no single break) |
-| about 2:00 PM | Pool play ends; 17-minute seeding break; brackets posted |
-| by 3:30 PM | Gold play-in and Gold Round of 32 complete |
-| 3:30 - 4:30 PM | Sabha, group photo, awards/gifts (no games) |
-| 4:30 - 6:30 PM | Gold Round of 16, quarterfinals, semifinals, final; Silver bracket to its final |
-| 6:30 - 7:00 PM | Wrap-up, final awards, thank-yous |
+| 3:30 - 4:30 PM | Sabha, group photo, awards/gifts (no games); group standings and the bracket are posted |
+| 4:30 PM | Round of 16 (8 games) |
+| 4:47 PM | Quarterfinals (4 games) |
+| 5:04 PM | rest (no team plays more than 2 games in a row) |
+| 5:21 PM | Semifinals (2 games) |
+| 5:38 PM | rest |
+| 5:55 PM | **Final, best of 3** (court 1): game 1 5:55, game 2 6:10, game 3 (if needed) 6:25 |
+| 6:22 or 6:37 PM | Final over (2-0 or 2-1); final awards, thank-yous, wrap-up until 7:00 |
 
 The building must be vacated by 7:00 PM.
 
 ## Constants
 - 9 courts.
 - Slot: 17 minutes = 12-minute game + 5 minutes to change courts, enter the score and drink water.
-- Team count: 32 to 42, kept even (see Team count policy).
+- Team count: any number from 34 to 42 (see Team count policy).
 
 ## Game rules
 - Doubles teams. First team to 11 points wins. No win-by-2.
@@ -28,76 +31,90 @@ The building must be vacated by 7:00 PM.
 - Clock ends with a lead: the team ahead wins and the score stands.
 - Clock ends tied: sudden death. The next rally winner gets 1 point, added to their score (8-8 becomes 9-8 or 8-9).
 - Forfeit / no-show: 11-0 for the other team, recorded game time 12:00.
-- The same rules apply to every game, pool and knockout.
+- The same rules apply to every game, including each game of the Final.
 
-## Rest and lunch
-- No team plays more than 3 games in a row (3 consecutive slots). After 3 in a row, a team sits out at least one slot.
-- Every team gets a lunch break of at least 45 minutes between 12:00 and 2:00. With 17-minute slots that means 3 empty slots in a row (51 minutes); 2 empty slots (34 minutes) is not enough.
-- Each team's lunch time is fixed by the schedule and printed on its team slip.
+## Rest and lunch (every team, all day)
+- **At most 2 games in a row** (2 consecutive slots). After 2 in a row, a team sits out at least one slot. This holds in group play and the knockout; the best-of-3 Final is one match (its games are played back to back, 3 minutes apart).
+- **No break longer than lunch.** In group play a team never waits more than 3 empty slots (51 minutes) between its games, and its first game is no later than 10:51 AM.
+- **Lunch:** every team gets one break of 3 empty slots (51 minutes) between 12:00 and 2:00 PM.
+- Each team's game times, courts and lunch are fixed by the schedule and printed on its team slip.
 - Within those rules the scheduler gives teams as few back-to-back games as possible.
 
-## Phase 1: Pool play (seeding games)
-- Every team plays 6 games against 6 different opponents (circle-method pairings by team number).
-- Team numbers are assigned by random draw at check-in so friends and family do not cluster.
-- 40 teams: 120 games, 10:00 AM to 1:58 PM.
+## Phase 1: Group play
+- Team numbers are drawn at random at check-in. Groups are consecutive team numbers (40 teams: Group A = Teams 1-10, B = 11-20, C = 21-30, D = 31-40), so the groups are random. Groups are as even as possible (largest first).
+- **Every team plays 8 group games.** In a group of 9 that is everyone once; in a group of 10 or 11 each team misses 1 or 2 group-mates. A group of 8 has only 7 opponents, so everyone also plays one group-mate a second time (the team opposite it in the group: 1st v 5th, 2nd v 6th, 3rd v 7th, 4th v 8th of the group list).
+- Odd team counts need nothing special: every group size gives every team exactly 8 games.
 
-## Ranking after pool play (strict order)
+| Teams | Group sizes (A / B / C / D) | Group games | Group play ends |
+|---|---|---|---|
+| 34 | 9 / 9 / 8 / 8 | 136 | 2:49 PM |
+| 35 | 9 / 9 / 9 / 8 | 140 | 2:49 PM |
+| 36 | 9 / 9 / 9 / 9 | 144 | 2:49 PM |
+| 37 | 10 / 9 / 9 / 9 | 148 | 3:06 PM |
+| 38 | 10 / 10 / 9 / 9 | 152 | 3:06 PM |
+| 39 | 10 / 10 / 10 / 9 | 156 | 3:06 PM |
+| 40 | 10 / 10 / 10 / 10 | 160 | 3:23 PM |
+| 41 | 11 / 10 / 10 / 10 | 164 | 3:23 PM |
+| 42 | 11 / 11 / 10 / 10 | 168 | 3:23 PM |
+
+Group games must finish by 3:30 PM: there is room for 19 slots x 9 courts = 171 games.
+
+## Group standings (strict order, inside each group)
 1. Most wins (win = 1 point, loss = 0).
-2. Highest cumulative score (sum of points scored in all pool games).
+2. Highest cumulative score (sum of points scored in all group games).
 3. Lowest average game time. Games that reach 11 use the real time from first serve to the 11th point. Games ended by the clock (lead or sudden death) count as 12:00 (720 s). Forfeits count as 12:00.
 4. Fewer points allowed.
-5. Head-to-head, only when exactly two teams are tied and they played each other.
-6. Random draw by admin (logged).
+5. Head-to-head, only when exactly two teams are still tied: the team with more wins in the games between them (in an 8-team group they may have played twice; 1-1 does not decide).
+6. Random draw (seeded and logged by the admin, so recomputing gives the same order).
 
-The UI must show which step broke each tie. Rank 1..N becomes Seed 1..N.
+The UI must show which step placed each team below the team above it (`decided_by` in `ranking.py`). Standings are final when the last group game ends; they and the bracket are posted during Sabha.
 
-## Seeding break
-One empty slot (17 minutes) after the last pool game. All pool scores must be entered; the admin clicks "Generate brackets"; seeds and the first knockout matches are posted.
+## Phase 2: Knockout (top 4 of each group, 16 teams)
+Single elimination; a loss ends the team's day. Teams from the same group cannot meet before the semifinals.
 
-## Phase 2: Gold bracket (every team)
-- Single elimination by seed in standard bracket order (Seed 1 v 32, 16 v 17, 8 v 25 ...).
-- More than 32 teams: the lowest seeds play **Gold play-in** games for the last Round of 32 places. With N teams, seeds (65 - N) to N play in and seeds 1 to (64 - N) go straight to the Round of 32. For 40 teams: seeds 25-40 play in (25 v 40 ... 32 v 33); seeds 1-24 wait for the Round of 32.
-- Gold play-in and Round of 32 are played before Sabha. Round of 16 and later are played after Sabha.
-- Gold quarterfinal losers play **5th-8th place games**. These decide a placement band, not a unique place.
-- Gold semifinal losers play the **Gold 3rd place game**.
-- The **Gold Final** is the last game of the day, played next to the Silver Final.
-
-## Phase 2: Silver bracket (losers bracket)
-- Every team that loses in the Gold play-in, Gold Round of 32 or Gold Round of 16 drops into Silver. No team is out after its first knockout loss.
-- Silver is single elimination: a loss in Silver ends the team's day.
-- The Silver champion is a separate title and does not play the Gold champion.
-- Silver rounds alternate. In a drop-in round, newly arriving Gold losers meet Silver survivors. In the next round, the survivors play each other. Pairings are reversed/half-swapped to avoid quick rematches. For 40 teams:
-  - Silver Round 1: 8 play-in losers v 8 Round of 32 losers; the other 8 Round of 32 losers go straight to Round 2.
-  - Silver Round 2: 16 teams to 8.
-  - Silver Round 3: those 8 v the 8 Gold Round of 16 losers.
-  - Silver Round 4: 8 to 4. Then the Silver Semifinal (4 to 2) and the Silver Final.
-- Why Gold quarterfinal losers play for 5th-8th instead of dropping into Silver: one more Silver round would not fit between 4:30 and 6:30 with the 3-in-a-row rule.
-
-## Guarantees (checked by `check_schedule.py`)
-- Every team plays at least 8 games (6 pool + at least 2 knockout) when the team count is even. The busiest teams play 13-14.
-- No team plays more than 3 games in a row, and no team is ever booked in two games at once.
-- Every team gets its 45+ minute lunch between 12:00 and 2:00.
-- Every team that loses early in Gold gets at least one Silver game.
-- The last game ends by 6:30 PM for every team count from 32 to 42.
-
-## 40-team reference day
-| Time | Games |
+| Round of 16 (4:30 PM, courts 1-8) | goes to |
 |---|---|
-| 10:00 AM - 1:58 PM | Pool play: 120 games on 9 courts; lunch blocks start between 11:59 AM and 1:07 PM |
-| 1:58 - 2:15 PM | Seeding break |
-| 2:15 - 3:23 PM | Gold play-in (8), Gold Round of 32 (16), Silver Rounds 1-2 begin |
-| 3:30 - 4:30 PM | Sabha |
-| 4:30 - 6:29 PM | Gold Round of 16 (8), quarterfinals (4), semifinals (2), 5th-8th (2), 3rd place (1); Silver Rounds 2-4, Silver Semifinal (2); Gold Final and Silver Final at 6:12 PM |
+| R16-1: A 1st v B 4th | QF-1 |
+| R16-2: C 2nd v D 3rd | QF-1 |
+| R16-3: D 1st v C 4th | QF-2 |
+| R16-4: B 2nd v A 3rd | QF-2 |
+| R16-5: C 1st v D 4th | QF-3 |
+| R16-6: A 2nd v B 3rd | QF-3 |
+| R16-7: B 1st v A 4th | QF-4 |
+| R16-8: D 2nd v C 3rd | QF-4 |
 
-The exact times and courts are in `sampcup_40team_knockout_schedule.csv` and `sampcup_40team_pool_schedule.csv`.
+- Quarterfinals 4:47 PM (courts 1-4): QF-1 and QF-2 feed SF-1; QF-3 and QF-4 feed SF-2.
+- Semifinals 5:21 PM (courts 1-2), after a rest slot: Round of 16 and quarterfinal are already 2 in a row.
+- **Final: best of 3** on court 1, after a rest slot. Game 1 at 5:55 PM, game 2 at 6:10 PM, game 3 at 6:25 PM only if the games are 1-1. The first team to win 2 games is the SAMP Cup champion. Every game uses the normal game rules.
+- No 3rd-place game.
+
+## Guarantees (checked by `check_schedule.py` and `simulate_tournament.py` for every team count 34-42)
+- Every team plays at least 8 group games, against group-mates only (one rematch each in a group of 8, none otherwise). Over the day teams play 8 to 14 games.
+- All group games end before Sabha; no games during Sabha.
+- No team plays more than 2 games in a row, waits more than 51 minutes between group games, or starts later than 10:51 AM; no team is ever booked in two games at once.
+- Every team gets its 51-minute lunch between 12:00 and 2:00.
+- Group standings are a full ranking of each group, every tie is resolved by the steps above, and recomputing gives the same result.
+- The Round of 16 holds exactly the top 4 of every group; same-group teams cannot meet before the semifinals.
+- The Final is won by the first team to 2 game wins; it ends by 6:37 PM (6:22 PM if 2-0).
+
+## Court release (40 teams, `sampcup_40team_court_plan.csv`)
+| Courts | Free after |
+|---|---|
+| 9 | 3:23 PM (end of group play) |
+| 5, 6, 7, 8 | 4:47 PM (after the Round of 16) |
+| 3, 4 | 5:04 PM (after the quarterfinals) |
+| 2 | 5:38 PM (after the semifinals) |
+| 1 | 6:22 PM (Final 2-0) or 6:37 PM (2-1) |
+
+All 9 courts are needed during group play; after Sabha the most needed at once is 8.
 
 ## Team count policy
-- Supported: 32 to 42 teams. Keep the count even: with an odd count some teams get only 5 pool games (7 total) and rank unfairly low, so add a house or volunteer team.
-- **Cap registration at 42 teams.** 43 teams still finish by 6:29, but 43 is odd (some teams get only 7 games) and adding a house team makes 44, which does not fit: at 44 the last game ends 7:03 PM and part of the Gold Round of 32 slips past Sabha.
-- If the count changes, regenerate with `sampcup_scheduler.py --teams N` and rerun `check_schedule.py`.
+- Supported and checked: any count from 34 to 42; odd counts are fine.
+- 43 or more teams cannot each get 8 group games before Sabha (43 x 8 / 2 = 172 games; the courts hold 171). Cap registration at 42.
+- If the count changes, regenerate with `sampcup_scheduler.py --teams N` and rerun `simulate_tournament.py --teams N`.
 
 ## Time risks (operational)
-- **The schedule has almost no slack.** At 40 teams the last game before Sabha ends at 3:23 (7 minutes spare), and the last game of the day ends at 6:29 (1 minute before wrap-up; 31 minutes before 7:00).
-- Slot length is the biggest risk. Every extra minute per slot pushes the evening about 7 minutes later and the pre-Sabha games about 19 minutes later.
-- The seeding break only works if the last pool scores are entered immediately; judges must enter scores before leaving the court.
-- Admin "Running behind" tool shifts all remaining start times and notifies affected teams. The owner decides on the day how to recover (for example a shorter change-over, or eating into wrap-up time).
+- Group play is tight: from 40 teams on it ends at 3:23 PM, 7 minutes before Sabha (at 42 teams it uses 168 of the 171 court slots). Every extra minute per slot pushes the end of group play about 19 minutes later.
+- The knockout ends 6:22-6:37 PM, leaving 23-38 minutes for awards before 7:00.
+- Teams outside the top 4 of their group are done after group play.
+- Admin "Running behind" tool shifts remaining start times and notifies affected teams. If group play runs late, the owner decides on the day (for example a shorter change-over).

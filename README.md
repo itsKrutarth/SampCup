@@ -3,7 +3,7 @@
 Stage 0 scaffold for the SampCup tournament web application.
 
 ## Tournament plan
-The tournament format, day plan, rules and reference schedules live in `Tournament Resources/`. Start with `Tournament Resources/00_README_START_HERE.md`; `02_TOURNAMENT_RULES.md` is the source of truth. Format: pool play for seeding, then a Gold bracket for every team and a Silver (losers) bracket; flow charts are in `flowchart_pool_play.png` and `flowchart_knockout.png`.
+The tournament format, day plan, rules and reference schedules live in `Tournament Resources/`. Start with `Tournament Resources/00_README_START_HERE.md`; `02_TOURNAMENT_RULES.md` is the source of truth. Format: 4 random groups with at least 8 group games per team, then the top 4 of each group play a Round of 16, quarterfinals, semifinals and a best-of-3 Final; flow charts are in `flowchart_pool_play.png` and `flowchart_knockout.png`.
 
 ## Stack
 - Backend: FastAPI, SQLAlchemy, Alembic, PostgreSQL

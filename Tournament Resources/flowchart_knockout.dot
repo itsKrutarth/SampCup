@@ -1,84 +1,53 @@
-// SAMP Cup knockout flow (40-team times from sampcup_40team_knockout_schedule.csv).
+// SAMP Cup knockout flow (40-team times and courts from sampcup_40team_knockout_schedule.csv).
 // Render: dot -Tpng -Gdpi=150 flowchart_knockout.dot -o flowchart_knockout.png
 digraph knockout {
-  graph [rankdir=TB, fontname="Helvetica", fontsize=22, labelloc=t, nodesep=0.35, ranksep=0.4, pad=0.4, newrank=true,
-         label=<<b>SAMP Cup: Knockout (Gold and Silver brackets)</b><br/><font point-size="14">40-team example: 73 games on 9 courts. Solid arrow = winner, dashed red arrow = loser.<br/>A loss in Silver ends the team's day; placement games are a team's last game.</font>>];
-  node  [fontname="Helvetica", fontsize=13, shape=box, style="rounded,filled", color="#4A4A4A", margin="0.18,0.08"];
+  graph [rankdir=TB, fontname="Helvetica", fontsize=22, labelloc=t, nodesep=0.3, ranksep=0.5, pad=0.4, newrank=true,
+         label=<<b>SAMP Cup: Knockout (top 4 of each group)</b><br/><font point-size="14">16 teams, single elimination, best-of-3 Final. Teams from the same group cannot meet before the semifinals.<br/>No team plays more than 2 games in a row: rest slots at 5:04 and 5:38.</font>>];
+  node  [fontname="Helvetica", fontsize=12, shape=box, style="rounded,filled", color="#4A4A4A", margin="0.12,0.06", fillcolor="#F6D77A"];
   edge  [fontname="Helvetica", fontsize=11, color="#4A4A4A"];
 
-  // time axis
+  // time axis with courts in use
   node [shape=plaintext, style="", fontsize=13, fontcolor="#555555", margin=0];
-  t0 [label="1:58 PM"]; t1 [label="2:15 PM"]; t2 [label="2:32 PM"]; t3 [label="2:49 PM"]; t4 [label="3:06 PM"];
-  tS [label="3:30 PM"]; t5 [label="4:30 PM"]; t6 [label="4:47 PM"]; t7 [label="5:04 PM"]; t8 [label="5:21 PM"];
-  t9 [label="5:38 PM"]; t10 [label="5:55 PM"]; t11 [label="6:12 PM"]; t12 [label="6:29 PM"]; t13 [label="6:30 PM"];
-  t0 -> t1 -> t2 -> t3 -> t4 -> tS -> t5 -> t6 -> t7 -> t8 -> t9 -> t10 -> t11 -> t12 -> t13 [style=invis];
+  tG [label=<10:00 AM - 3:23 PM<br/><font point-size="11">9 courts</font>>];
+  tS [label="3:30 PM"];
+  t1 [label=<4:30 PM<br/><font point-size="11">8 courts</font>>];
+  t2 [label=<4:47 PM<br/><font point-size="11">4 courts</font>>];
+  t3 [label=<5:04 PM<br/><font point-size="11">rest</font>>];
+  t4 [label=<5:21 PM<br/><font point-size="11">2 courts</font>>];
+  t5 [label=<5:38 PM<br/><font point-size="11">rest</font>>];
+  t6 [label=<5:55 - 6:37 PM<br/><font point-size="11">1 court</font>>];
+  t7 [label="6:37 PM"];
+  tG -> tS -> t1 -> t2 -> t3 -> t4 -> t5 -> t6 -> t7 [style=invis];
 
-  node [shape=box, style="rounded,filled", fontcolor="#1F1F1F", fontsize=13, margin="0.18,0.08"];
+  node [shape=box, style="rounded,filled", fontcolor="#1F1F1F", fontsize=12, margin="0.12,0.06"];
 
-  // seeds
-  top   [label=<<b>Seeds 1-24</b><br/>bye to the Round of 32>, fillcolor="#EAF2FB"];
-  low   [label=<<b>Seeds 25-40</b><br/>play in>, fillcolor="#EAF2FB"];
+  groups [label=<<b>Group play: 4 random groups, at least 8 games each</b><br/>Group standings decide 1st - 4th in each group>, fillcolor="#EAF2FB", width=8];
+  sabha  [label=<<b>3:30 - 4:30 PM  Sabha, group photo, awards</b>  (no games)<br/>standings and Round of 16 posted>, fillcolor="#EFE4FA", color="#8E6BB8", penwidth=2, width=8];
 
-  // Gold bracket
-  gpi   [label=<<b>Gold Play-in</b><br/>8 games  2:15<br/>25 v 40, 26 v 39 ... 32 v 33>, fillcolor="#F6D77A"];
-  g32   [label=<<b>Gold Round of 32</b><br/>16 games  2:15-2:49>, fillcolor="#F6D77A"];
-  g16   [label=<<b>Gold Round of 16</b><br/>8 games  4:30>, fillcolor="#F6D77A"];
-  gqf   [label=<<b>Gold Quarterfinals</b><br/>4 games  4:47-5:04>, fillcolor="#F6D77A"];
-  gsf   [label=<<b>Gold Semifinals</b><br/>2 games  5:21>, fillcolor="#F6D77A"];
-  gf    [label=<<b>GOLD FINAL</b><br/>6:12  court 1>, fillcolor="#E9B829", penwidth=2];
-  gch   [label=<<b>Gold champion</b>>, shape=box, style="rounded,filled,bold", fillcolor="#E9B829"];
+  r1 [label=<<b>R16-1</b><br/>A 1st v B 4th>];
+  r2 [label=<<b>R16-2</b><br/>C 2nd v D 3rd>];
+  r3 [label=<<b>R16-3</b><br/>D 1st v C 4th>];
+  r4 [label=<<b>R16-4</b><br/>B 2nd v A 3rd>];
+  r5 [label=<<b>R16-5</b><br/>C 1st v D 4th>];
+  r6 [label=<<b>R16-6</b><br/>A 2nd v B 3rd>];
+  r7 [label=<<b>R16-7</b><br/>B 1st v A 4th>];
+  r8 [label=<<b>R16-8</b><br/>D 2nd v C 3rd>];
+  q1 [label=<<b>QF-1</b>>]; q2 [label=<<b>QF-2</b>>]; q3 [label=<<b>QF-3</b>>]; q4 [label=<<b>QF-4</b>>];
+  s1 [label=<<b>SF-1</b>>]; s2 [label=<<b>SF-2</b>>];
+  f  [label=<<b>FINAL: best of 3</b>  (court 1)<br/>game 1 5:55, game 2 6:10, game 3 6:25 only at 1-1<br/>first team to win 2 games>, fillcolor="#C9A227", color="#7A5C00", penwidth=3, fontsize=15];
+  champ [label=<<b>SAMP Cup champion</b><br/>Final over 6:22 (2-0) or 6:37 (2-1); awards and wrap-up until 7:00 PM>, fillcolor="#C9A227", color="#7A5C00", penwidth=2];
 
-  // placement
-  p5    [label=<<b>Gold 5th-8th place</b><br/>2 games  5:21>, fillcolor="#FBEFC7"];
-  p3    [label=<<b>Gold 3rd place</b><br/>1 game  5:38>, fillcolor="#FBEFC7"];
+  groups -> sabha [style=invis];
+  sabha -> {r1 r2 r3 r4 r5 r6 r7 r8} [style=invis];
+  {r1 r2} -> q1; {r3 r4} -> q2; {r5 r6} -> q3; {r7 r8} -> q4;
+  {q1 q2} -> s1; {q3 q4} -> s2;
+  {s1 s2} -> f -> champ;
 
-  // Silver bracket (losers bracket)
-  s1    [label=<<b>Silver Round 1</b><br/>8 games  2:49-3:06<br/>8 play-in losers v 8 Round-of-32 losers>, fillcolor="#D9DEE5"];
-  s2    [label=<<b>Silver Round 2</b><br/>8 games  3:06-4:47<br/>R1 winners v other 8 Round-of-32 losers>, fillcolor="#D9DEE5"];
-  s3    [label=<<b>Silver Round 3</b><br/>8 games  4:47-5:04<br/>R2 winners v 8 Gold Round-of-16 losers>, fillcolor="#D9DEE5"];
-  s4    [label=<<b>Silver Round 4</b><br/>4 games  5:04-5:21>, fillcolor="#D9DEE5"];
-  ssf   [label=<<b>Silver Semifinals</b><br/>2 games  5:38-5:55>, fillcolor="#D9DEE5"];
-  sf    [label=<<b>SILVER FINAL</b><br/>6:12  court 2>, fillcolor="#AEB7C4", penwidth=2];
-  sch   [label=<<b>Silver champion</b>>, style="rounded,filled,bold", fillcolor="#AEB7C4"];
-
-  sabha [label=<<b>3:30 - 4:30 PM  Sabha, group photo, awards</b>  (no games)>, fillcolor="#EFE4FA", color="#8E6BB8", penwidth=2, width=8];
-  wrap  [label=<<b>6:30 - 7:00 PM  Wrap-up, final awards, thank-yous</b>>, fillcolor="#EFE4FA", color="#8E6BB8", penwidth=2, width=8];
-
-  // winners
-  low -> gpi;
-  top -> g32;
-  gpi -> g32;
-  g32 -> g16 -> gqf -> gsf -> gf -> gch;
-  s1 -> s2 -> s3 -> s4 -> ssf -> sf -> sch;
-
-  // losers
-  edge [style=dashed, color="#C0392B", fontcolor="#C0392B"];
-  gpi -> s1;
-  g32 -> s1 [label=" 8"];
-  g32 -> s2 [label=" 8"];
-  g16 -> s3;
-  gqf -> p5;
-  gsf -> p3;
-
-  // align with the time axis
-  {rank=same; t0; top; low}
-  {rank=same; t1; gpi}
-  {rank=same; t2; g32}
-  {rank=same; t3; s1}
-  {rank=same; t4; s2}
+  {rank=same; tG; groups}
   {rank=same; tS; sabha}
-  {rank=same; t5; g16}
-  {rank=same; t6; gqf; s3}
-  {rank=same; t7; s4}
-  {rank=same; t8; gsf; p5}
-  {rank=same; t9; p3; ssf}
-  {rank=same; t10}
-  {rank=same; t11; gf; sf}
-  {rank=same; t12; gch; sch}
-  {rank=same; t13; wrap}
-
-  // keep Sabha and wrap-up as bands across the chart
-  edge [style=invis];
-  s2 -> sabha -> g16;
-  gch -> wrap;
+  {rank=same; t1; r1; r2; r3; r4; r5; r6; r7; r8}
+  {rank=same; t2; q1; q2; q3; q4}
+  {rank=same; t4; s1; s2}
+  {rank=same; t6; f}
+  {rank=same; t7; champ}
 }
