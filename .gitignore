@@ -1,0 +1,42 @@
+# Secrets and real data: this repo is PUBLIC. Never commit these.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*service-account*.json
+*credentials*.json
+*.dump
+*.sql.gz
+data/private/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Node
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+
+# OS and editors
+.DS_Store
+.idea/
+.vscode/
+*.swp
