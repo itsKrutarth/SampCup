@@ -4,10 +4,10 @@ The working record of the build. Read this first; update it after every chunk.
 Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_STAGES.md`.
 
 ## Current position
-- **Milestone:** M0 Foundation
-- **Branch:** `app/stage-0-foundation`
-- **Doing now:** 0.6 Push, CI green, merge to `main`
-- **Next:** M1 Data model + team import
+- **Milestone:** M1 Data model + team import
+- **Branch:** `app/stage-1-data-model` (create from `main`)
+- **Doing now:** Not started; waiting on owner item 4 for the importer. The tables can start without it.
+- **Next:** 1.1 All tables and the first Alembic migration
 
 ## Needs from the owner
 | # | What | Why | Needed by | Status |
@@ -40,13 +40,13 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   for `@` and `www` pointing to the static IP; the current URL redirect gets removed.
 
 ## Milestones
-- [ ] **M0 Foundation** (Stage 0)
+- [x] **M0 Foundation** (Stage 0)
   - [x] 0.1 Tracker, CLAUDE.md, `.gitignore`, `.env.example`, remove `.DS_Store`
   - [x] 0.2 Backend: config, DB session, health/ready, Alembic, ruff, pytest 90% gate
   - [x] 0.3 Frontend: React shell, ESLint, Vitest 90% gate, lockfile
   - [x] 0.4 Docker: non-root images, `.dockerignore`, Compose with hot reload
   - [x] 0.5 CI: GitHub Actions (backend, frontend, ranking tests, secret scan)
-  - [ ] 0.6 Push, CI green, merge to `main`
+  - [x] 0.6 Push, CI green, merge to `main`
 - [ ] **M1 Data model + team import** (Stage 1): all tables, Sheets sync, number draw, groups
 - [ ] **M2 Schedule engine** (Stage 2): precomputed schedules, load into DB, lock, court override, CSV and slips
 - [ ] **M3 Auth + admin** (Stage 3): login, judge accounts, check-in, schedule views
@@ -60,3 +60,4 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
 
 ## Session log
 - 2026-11-02: Tournament structure final. Application build started. Workspace moved out of OneDrive.
+- 2026-11-02: M0 finished. Backend and frontend at 100% coverage, full stack verified in Docker, all five CI jobs green.
