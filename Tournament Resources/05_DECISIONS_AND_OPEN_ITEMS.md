@@ -43,7 +43,7 @@
 - All group scores must be entered before Sabha so the bracket can be posted.
 
 ## Known issues to fix in code
-- Repo setup (Stage 0): missing `.gitignore`, `.env.example` and CI workflow, which the README promises; no Alembic setup yet; frontend uses Node 20 (end of life). `ortools` must be added to the backend requirements when the scheduler moves into the backend.
+- None open. Build progress and later decisions are tracked in `docs/TRACKER.md`.
 
 ## Open questions for the owner (answer before the stage that needs them)
 1. Google Sheet columns and sample rows (team name, player names, contacts, division?). Needed in Stage 1.
@@ -52,7 +52,7 @@
 4. Awards: champion and runner-up only, or also group winners? Affects the 6:22-7:00 wrap-up. Stage 10.
 5. Teams outside the top 16 finish around 3:00 PM: anything for them after Sabha (friendly games on the free courts)? Optional.
 6. Any age/skill divisions or families-only rules affecting groups? Assumed none (random groups). Stage 2.
-7. Hosting budget and preferred AWS approach (ECS/RDS vs single instance). Stage 9.
+7. Hosting: AWS single Lightsail instance recommended (see `docs/TRACKER.md`); owner to confirm. Stage 9.
 8. Who decides on the day if the schedule runs late, and what is the first recovery step (shorter change-over)? Stage 10.
-9. Event date and domain/URL preference.
+9. Event date. Domain: sampcup.com (registered at Namecheap).
 10. Hand back courts as they free up (court plan)? Depends on how the venue bills. Before booking the venue.

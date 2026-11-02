@@ -6,8 +6,8 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
 ## Current position
 - **Milestone:** M0 Foundation
 - **Branch:** `app/stage-0-foundation`
-- **Doing now:** 0.3 Frontend foundation
-- **Next:** 0.4 Docker
+- **Doing now:** 0.6 Push, CI green, merge to `main`
+- **Next:** M1 Data model + team import
 
 ## Needs from the owner
 | # | What | Why | Needed by | Status |
@@ -30,14 +30,22 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   to the built frontend. No CORS, and SSE just works.
 - **Sync SQLAlchemy + psycopg 3:** simplest to test; FastAPI runs routes in a thread pool.
 - **Times:** stored in UTC; displayed in America/New_York.
+- **TypeScript 6, not 7:** `typescript-eslint` does not support 7 yet. Move up when it does.
+- **System fonts:** no external font, so pages load on poor venue Wi-Fi.
+- **Actions pinned to commit hashes:** the repo is public; Dependabot proposes updates weekly.
+- **Hosting: AWS, not Vercel (pending owner confirmation).** One Lightsail instance (2 GB, 4 GB for
+  event week) running Docker Compose with Caddy for HTTPS, FastAPI and Postgres, plus nightly
+  `pg_dump` to S3 and SES for email. Vercel suits neither long-lived SSE connections nor this
+  Python backend, and would need a separate database vendor. DNS stays at Namecheap with A records
+  for `@` and `www` pointing to the static IP; the current URL redirect gets removed.
 
 ## Milestones
 - [ ] **M0 Foundation** (Stage 0)
   - [x] 0.1 Tracker, CLAUDE.md, `.gitignore`, `.env.example`, remove `.DS_Store`
   - [x] 0.2 Backend: config, DB session, health/ready, Alembic, ruff, pytest 90% gate
-  - [ ] 0.3 Frontend: React shell, ESLint, Vitest 90% gate, lockfile
-  - [ ] 0.4 Docker: non-root images, `.dockerignore`, Compose with hot reload
-  - [ ] 0.5 CI: GitHub Actions (backend, frontend, ranking tests, secret scan)
+  - [x] 0.3 Frontend: React shell, ESLint, Vitest 90% gate, lockfile
+  - [x] 0.4 Docker: non-root images, `.dockerignore`, Compose with hot reload
+  - [x] 0.5 CI: GitHub Actions (backend, frontend, ranking tests, secret scan)
   - [ ] 0.6 Push, CI green, merge to `main`
 - [ ] **M1 Data model + team import** (Stage 1): all tables, Sheets sync, number draw, groups
 - [ ] **M2 Schedule engine** (Stage 2): precomputed schedules, load into DB, lock, court override, CSV and slips
