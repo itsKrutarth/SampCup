@@ -77,9 +77,9 @@ jobs:
       - run: docker compose up --detach --build web
       - name: Check every service answers
         run: |
-          curl --fail --silent --retry 10 --retry-delay 2 --retry-connrefused \
+          curl --fail --silent --show-error --retry 10 --retry-delay 2 --retry-all-errors \
             http://127.0.0.1:8000/api/ready
-          curl --fail --silent --retry 10 --retry-delay 2 --retry-connrefused \
+          curl --fail --silent --show-error --retry 10 --retry-delay 2 --retry-all-errors \
             http://127.0.0.1:5173/api/health
           curl --fail --silent http://127.0.0.1:5173/ | grep --quiet "SAMP Cup"
       - name: Show logs on failure
