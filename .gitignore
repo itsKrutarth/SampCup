@@ -9,6 +9,10 @@
 *.dump
 *.sql.gz
 data/private/
+# Registration exports (real player data)
+*.xlsx
+*.xls
+*.numbers
 
 # Python
 .venv/
