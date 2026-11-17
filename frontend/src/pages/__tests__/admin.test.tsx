@@ -1,0 +1,309 @@
+import { screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
+
+import { match } from '../../test/data'
+import { ADMIN, fail, JUDGE, mockApi, renderAt } from '../../test/utils'
+
+const summary = (t = {}) => ({
+  tournament: { name: 'SAMP Cup 2026', event_date: '2026-12-12', registration_open: true, team_cap: 42, draw_seed: null, schedule_locked: false, schedule_exists: false, ...t },
+  players: 80, players_on_teams: 70, teams: { active: 35, waitlist: 1, withdrawn: 0 }, checked_in: 30, pending_requests: 2,
+  tshirts: { Large: 40, Medium: 40 },
+})
+const player = (id: number, first: string, team: { id: number; name: string } | null = null, active = true) => ({
+  id, mis_id: String(1000 + id), first_name: first, last_name: 'Tester', center: 'North', zone: 'Z', tshirt_size: 'L', active, team,
+})
+const teamRow = { id: 7, name: 'Net Ninjas', number: null, group: null, center: 'North', status: 'active', lunch_start: null, checked_in: false, players: [{ id: 1, name: 'Aarav Tester' }] }
+
+describe('admin access', () => {
+  it('sends visitors to staff login and judges to their court', async () => {
+    mockApi({ 'GET /judge/matches?court=1': { court: 1, current: null, matches: [] } })
+    renderAt('/admin')
+    expect(await screen.findByRole('heading', { name: 'Staff login' })).toBeInTheDocument()
+    renderAt('/admin', JUDGE)
+    expect(await screen.findByRole('heading', { name: 'Court 1' })).toBeInTheDocument()
+  })
+})
+
+describe('overview tab', () => {
+  it('shows counts, saves settings and downloads results', async () => {
+    const { sent } = mockApi({
+      'GET /admin/summary': summary({ draw_seed: 77, schedule_exists: true, schedule_locked: true }),
+      'PATCH /admin/tournament': summary(),
+      'GET /admin/export/results.csv': fail(500, 'export failed'),
+    })
+    const user = userEvent.setup()
+    renderAt('/admin', ADMIN)
+    expect(await screen.findByText(/active teams, 1 waitlist/)).toBeInTheDocument()
+    expect(screen.getByText('Schedule: locked')).toBeInTheDocument()
+    expect(screen.getByText('Draw seed: 77')).toBeInTheDocument()
+    expect(screen.getByText('Large: 40 · Medium: 40')).toBeInTheDocument()
+    await user.clear(screen.getByLabelText('Event date'))
+    await user.type(screen.getByLabelText('Event date'), '2026-12-13')
+    await user.click(screen.getByLabelText('Players can form teams'))
+    await user.click(screen.getByRole('button', { name: 'Save settings' }))
+    expect(await screen.findByText('Settings saved')).toBeInTheDocument()
+    expect(sent('PATCH', '/admin/tournament')[0].body).toEqual({ name: 'SAMP Cup 2026', registration_open: false, team_cap: 42, event_date: '2026-12-13' })
+    await user.click(screen.getByRole('button', { name: 'Download results (CSV)' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('export failed')
+  })
+
+  it('shows a schedule that is not generated or not locked', async () => {
+    mockApi({ 'GET /admin/summary': summary({ schedule_exists: true }) })
+    renderAt('/admin', ADMIN)
+    expect(await screen.findByText('Schedule: generated, not locked')).toBeInTheDocument()
+  })
+})
+
+describe('players tab', () => {
+  it('imports the registration export and searches players', async () => {
+    const { sent } = mockApi({
+      'GET /admin/players': [player(1, 'Aarav', { id: 7, name: 'Net Ninjas' }), player(2, 'Dev', null, false)],
+      'POST /admin/players/import': {
+        added: 3, updated: 1, unchanged: 0, deactivated: 1,
+        possible_duplicates: ['Aarav Tester (North)'], skipped: [{ row: 4, reason: 'missing mis_id' }], teams_with_removed_players: ['Net Ninjas'],
+      },
+    })
+    const user = userEvent.setup()
+    renderAt('/admin/players', ADMIN)
+    expect(await screen.findByText('Dev Tester (removed)')).toBeInTheDocument()
+    await user.type(screen.getByLabelText('Search players'), 'aarav')
+    expect(screen.queryByText('Dev Tester (removed)')).not.toBeInTheDocument()
+    await user.upload(screen.getByLabelText('Registration file'), new File(['x'], 'export.xlsx'))
+    await user.click(screen.getByRole('button', { name: 'Import' }))
+    expect(await screen.findByText(/Added 3, updated 1/)).toBeInTheDocument()
+    expect(screen.getByText('Skipped rows: 4 (missing mis_id)')).toBeInTheDocument()
+    expect(screen.getByText(/Check for duplicates/)).toBeInTheDocument()
+    expect(screen.getByText('Teams with removed players: Net Ninjas')).toBeInTheDocument()
+    expect(sent('POST', '/admin/players/import')[0].body).toBeInstanceOf(FormData)
+  })
+
+  it('shows a refused file', async () => {
+    mockApi({ 'GET /admin/players': [], 'POST /admin/players/import': fail(400, 'Missing columns: mis_id') })
+    const user = userEvent.setup()
+    renderAt('/admin/players', ADMIN)
+    await user.click(await screen.findByRole('button', { name: 'Import' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Choose the registration export first')
+    await user.upload(await screen.findByLabelText('Registration file'), new File(['x'], 'bad.csv'))
+    await user.click(screen.getByRole('button', { name: 'Import' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Missing columns')
+  })
+})
+
+describe('teams tab', () => {
+  it('checks in, changes status, resets passwords, deletes and creates teams', async () => {
+    const { sent } = mockApi({
+      'GET /admin/teams': [teamRow],
+      'GET /admin/players': [player(3, 'Jay'), player(4, 'Om'), player(1, 'Aarav', { id: 7, name: 'Net Ninjas' })],
+      'GET /admin/requests': [{ id: 5, team_name: 'Pending Pair', status: 'pending', from: player(3, 'Jay'), to: player(4, 'Om'), created_at: '' }],
+      'PATCH /admin/teams/7': teamRow,
+      'DELETE /admin/teams/7': null,
+      'POST /admin/teams': teamRow,
+      'POST /admin/requests/5/cancel': {},
+    })
+    const user = userEvent.setup()
+    renderAt('/admin/teams', ADMIN)
+    await user.click(await screen.findByLabelText('Net Ninjas checked in'))
+    expect(await screen.findByText('Net Ninjas checked in')).toBeInTheDocument()
+    await user.selectOptions(screen.getByLabelText('Status of Net Ninjas'), 'withdrawn')
+    expect(await screen.findByText('Net Ninjas is now withdrawn')).toBeInTheDocument()
+    vi.spyOn(window, 'prompt').mockReturnValueOnce('newpass').mockReturnValueOnce(null)
+    await user.click(screen.getByRole('button', { name: 'Reset password' }))
+    expect(await screen.findByText('Password changed for Net Ninjas')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Reset password' }))
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(await screen.findByText('Net Ninjas deleted')).toBeInTheDocument()
+    expect(sent('PATCH', '/admin/teams/7').map((c) => c.body)).toEqual([{ checked_in: true }, { status: 'withdrawn' }, { password: 'newpass' }])
+    expect(screen.queryByRole('option', { name: /Aarav/ })).not.toBeInTheDocument()
+    await user.type(screen.getByLabelText('Team name'), 'New Pair')
+    await user.type(screen.getByLabelText('Password'), 'pass')
+    await user.selectOptions(screen.getByLabelText('Player 1'), '3')
+    await user.selectOptions(screen.getByLabelText('Player 2'), '4')
+    await user.click(screen.getByRole('button', { name: 'Create team' }))
+    expect(await screen.findByText('Team New Pair created')).toBeInTheDocument()
+    expect(sent('POST', '/admin/teams')[0].body).toEqual({ name: 'New Pair', password: 'pass', player_ids: [3, 4] })
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(await screen.findByText('Request cancelled')).toBeInTheDocument()
+  })
+
+  it('shows refused team changes', async () => {
+    mockApi({ 'GET /admin/teams': [teamRow], 'GET /admin/players': [], 'GET /admin/requests': [], 'PATCH /admin/teams/7': fail(409, 'The tournament is full') })
+    const user = userEvent.setup()
+    renderAt('/admin/teams', ADMIN)
+    await user.selectOptions(await screen.findByLabelText('Status of Net Ninjas'), 'waitlist')
+    expect(await screen.findByRole('alert')).toHaveTextContent('full')
+    expect(screen.getByText('None.')).toBeInTheDocument()
+  })
+})
+
+describe('schedule tab', () => {
+  it('draws, generates, locks, clears, shifts and moves courts', async () => {
+    let state = summary()
+    const { sent } = mockApi({
+      'GET /admin/summary': () => state,
+      'GET /public/schedule': [match(), match({ id: 2, code: 'G002', status: 'completed' })],
+      'POST /admin/draw': () => [{}, {}],
+      'POST /admin/schedule': () => {
+        state = summary({ schedule_exists: true })
+        return { matches: 177 }
+      },
+      'POST /admin/schedule/lock': () => {
+        state = summary({ schedule_exists: true, schedule_locked: !state.tournament.schedule_locked })
+        return { locked: true }
+      },
+      'DELETE /admin/schedule': () => {
+        state = summary()
+        return null
+      },
+      'POST /admin/delays': { moved: 12, warnings: ['G150 now overlaps Sabha'] },
+      'PATCH /admin/matches/1': match({ court: 5 }),
+    })
+    const user = userEvent.setup()
+    renderAt('/admin/schedule', ADMIN)
+    await user.click(await screen.findByRole('button', { name: 'Draw team numbers' }))
+    expect(await screen.findByText('Drew numbers for 2 teams')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Generate schedule' }))
+    expect(await screen.findByText('Schedule ready: 177 games')).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: 'Lock schedule' }))
+    expect(await screen.findByText('Schedule locked')).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: 'Unlock schedule' }))
+    expect(await screen.findByText('Schedule unlocked')).toBeInTheDocument()
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    await user.click(await screen.findByRole('button', { name: 'Clear schedule' }))
+    expect(await screen.findByText('Schedule cleared')).toBeInTheDocument()
+    state = summary({ schedule_exists: true })
+    await user.click(screen.getByRole('button', { name: 'Draw team numbers' }))
+    await screen.findByRole('button', { name: 'Shift games' })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Shift games' })).toBeEnabled())
+    await user.type(screen.getByLabelText('From (venue time)'), '14:00')
+    await user.type(screen.getByLabelText('Minutes (negative to pull earlier)'), '15')
+    await user.click(screen.getByRole('button', { name: 'Shift games' }))
+    expect(await screen.findByText('Moved 12 games. Check: G150 now overlaps Sabha')).toBeInTheDocument()
+    expect(sent('POST', '/admin/delays')[0].body).toEqual({ minutes: 15, from_time: '2026-12-12T19:00:00.000Z' })
+    expect(screen.getByLabelText('Court for G002')).toBeDisabled()
+    await user.selectOptions(screen.getByLabelText('Court for G001'), '5')
+    expect(await screen.findByText('G001 moved to court 5')).toBeInTheDocument()
+  })
+
+  it('shows a refused draw', async () => {
+    mockApi({ 'GET /admin/summary': summary(), 'GET /public/schedule': [], 'POST /admin/draw': fail(400, '20 active teams are checked in') })
+    const user = userEvent.setup()
+    renderAt('/admin/schedule', ADMIN)
+    await user.click(await screen.findByRole('button', { name: 'Draw team numbers' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('20 active teams')
+  })
+})
+
+describe('results tab', () => {
+  it('corrects and resets results', async () => {
+    const done = match({ status: 'completed', score_a: 11, score_b: 4, end_reason: 'reached_11', winner_id: 1 })
+    const { sent } = mockApi({
+      'GET /public/schedule': [done, match({ id: 2, code: 'G002', status: 'in_progress', score_a: 3, score_b: 2 }), match({ id: 3 })],
+      'POST /admin/matches/1/correct': { ...done, warnings: ['R16-1 is completed with other teams; check it'] },
+      'POST /admin/matches/2/reset': match({ id: 2 }),
+    })
+    const user = userEvent.setup()
+    renderAt('/admin/results', ADMIN)
+    expect(await screen.findByText('live')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Correct' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await user.click(screen.getByRole('button', { name: 'Correct' }))
+    const form = screen.getByRole('form', { name: 'Correct G001' })
+    await user.clear(within(form).getByLabelText('#1 Net Ninjas score'))
+    await user.type(within(form).getByLabelText('#1 Net Ninjas score'), '4')
+    await user.clear(within(form).getByLabelText('#2 Dink Squad score'))
+    await user.type(within(form).getByLabelText('#2 Dink Squad score'), '11')
+    await user.type(within(form).getByLabelText('Reason'), 'teams swapped')
+    await user.click(within(form).getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText(/G001 corrected. Check: R16-1/)).toBeInTheDocument()
+    expect(sent('POST', '/admin/matches/1/correct')[0].body).toEqual({ score_a: 4, score_b: 11, end_reason: 'reached_11', reason: 'teams swapped' })
+    vi.spyOn(window, 'prompt').mockReturnValueOnce('').mockReturnValueOnce('wrong game')
+    const resets = screen.getAllByRole('button', { name: 'Reset' })
+    await user.click(resets[1])
+    await user.click(resets[1])
+    expect(await screen.findByText('G002 reset')).toBeInTheDocument()
+  })
+
+  it('says when nothing has been played', async () => {
+    mockApi({ 'GET /public/schedule': [match()] })
+    renderAt('/admin/results', ADMIN)
+    expect(await screen.findByText('No games played yet.')).toBeInTheDocument()
+  })
+})
+
+describe('announcements, staff and audit tabs', () => {
+  it('posts, hides and deletes announcements', async () => {
+    const { sent } = mockApi({
+      'GET /admin/announcements': [{ id: 1, title: 'Lunch', body: 'in hall', active: true, created_at: '' }, { id: 2, title: 'Old', body: '', active: false, created_at: '' }],
+      'POST /admin/announcements': {},
+      'PATCH /admin/announcements/1': {},
+      'PATCH /admin/announcements/2': {},
+      'DELETE /admin/announcements/1': null,
+    })
+    const user = userEvent.setup()
+    renderAt('/admin/announcements', ADMIN)
+    await user.type(await screen.findByLabelText('Title'), 'Courts 8-9 closed')
+    await user.type(screen.getByLabelText('Details'), 'Use court 7')
+    await user.click(screen.getByRole('button', { name: 'Post' }))
+    expect(await screen.findByText('Announcement posted')).toBeInTheDocument()
+    expect(sent('POST', '/admin/announcements')[0].body).toEqual({ title: 'Courts 8-9 closed', body: 'Use court 7' })
+    await user.click(screen.getByRole('button', { name: 'Hide' }))
+    expect(await screen.findByText('Hidden')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Show' }))
+    expect(await screen.findByText('Shown again')).toBeInTheDocument()
+    await user.click(screen.getAllByRole('button', { name: 'Delete' })[0])
+    expect(await screen.findByText('Deleted')).toBeInTheDocument()
+  })
+
+  it('adds judges and changes courts, access and passwords', async () => {
+    const judge = { id: 3, username: 'court-1', display_name: 'Court One', role: 'judge', court: 1, active: true }
+    const { sent } = mockApi({ 'GET /admin/staff': [judge], 'POST /admin/staff': judge, 'PATCH /admin/staff/3': judge })
+    const user = userEvent.setup()
+    renderAt('/admin/staff', ADMIN)
+    await user.selectOptions(await screen.findByLabelText('Court for court-1'), '6')
+    expect(await screen.findByText('court-1: court 6')).toBeInTheDocument()
+    await user.selectOptions(screen.getByLabelText('Court for court-1'), '')
+    expect(await screen.findByText('court-1: any court')).toBeInTheDocument()
+    await user.click(screen.getByLabelText('court-1 active'))
+    expect(await screen.findByText('court-1 disabled')).toBeInTheDocument()
+    vi.spyOn(window, 'prompt').mockReturnValueOnce('9999').mockReturnValueOnce(null)
+    await user.click(screen.getByRole('button', { name: 'Reset password' }))
+    expect(await screen.findByText('Password changed for court-1')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Reset password' }))
+    await user.type(screen.getByLabelText('Username'), 'court-2')
+    await user.type(screen.getByLabelText('Name'), 'Court Two')
+    await user.type(screen.getByLabelText('Password or PIN'), '2222')
+    await user.selectOptions(screen.getAllByLabelText('Court')[0], '2')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    expect(await screen.findByText('Added court-2')).toBeInTheDocument()
+    expect(sent('POST', '/admin/staff')[0].body).toEqual({ username: 'court-2', display_name: 'Court Two', password: '2222', role: 'judge', court: 2 })
+    expect(sent('PATCH', '/admin/staff/3').map((c) => c.body)).toEqual([{ court: 6 }, { clear_court: true }, { active: false }, { password: '9999' }])
+    await user.type(screen.getByLabelText('Username'), 'boss')
+    await user.type(screen.getByLabelText('Password or PIN'), 'long-password')
+    await user.selectOptions(screen.getByLabelText('Role'), 'admin')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    await waitFor(() => expect(sent('POST', '/admin/staff')[1]?.body).toMatchObject({ role: 'admin', court: null }))
+  })
+
+  it('lists the audit log', async () => {
+    mockApi({
+      'GET /admin/audit': [
+        { id: 2, match: 'G001', action: 'correct', old: { score_a: 11, score_b: 4 }, new: { score_a: 4, score_b: 11 }, by: 'admin', reason: 'swapped', at: '2026-12-12T16:00:00Z' },
+        { id: 1, match: 'G001', action: 'start', old: { score_a: null }, new: { score_a: 0, score_b: 0 }, by: 'judge1', reason: '', at: '2026-12-12T15:00:00Z' },
+      ],
+    })
+    renderAt('/admin/audit', ADMIN)
+    expect(await screen.findByText('correct: 11-4 → 4-11')).toBeInTheDocument()
+    expect(screen.getByText('start: - → 0-0')).toBeInTheDocument()
+  })
+
+  it('logs out from the admin header', async () => {
+    mockApi({ 'GET /admin/summary': summary(), 'POST /auth/logout': null })
+    const user = userEvent.setup()
+    renderAt('/admin', ADMIN)
+    await user.click(await screen.findByRole('button', { name: 'Log out' }))
+    expect(await screen.findByRole('heading', { name: 'Staff login' })).toBeInTheDocument()
+  })
+})

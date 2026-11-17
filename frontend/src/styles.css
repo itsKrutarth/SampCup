@@ -1,22 +1,36 @@
 :root {
-  --color-bg: #f7f6f2;
-  --color-text: #28251d;
-  --color-muted: #6b6a65;
-  --color-primary: #01696f;
-  --color-primary-soft: #cedcd8;
-  --color-danger: #a12c1f;
-  --color-danger-soft: #f3d9d5;
+  --bg: #f7f6f2;
+  --surface: #ffffff;
+  --text: #23211c;
+  --muted: #6b6a65;
+  --line: #dedbd3;
+  --primary: #01696f;
+  --primary-text: #ffffff;
+  --primary-soft: #d6e6e3;
+  --danger: #a12c1f;
+  --danger-soft: #f6ddd8;
+  --warning-soft: #fbefc9;
+  --success-soft: #dcefdc;
+  --mine: #fff4c2;
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #171614;
-    --color-text: #f0efea;
-    --color-muted: #a9a8a2;
-    --color-primary: #7fd1d4;
-    --color-primary-soft: #18393b;
-    --color-danger: #f1a79c;
-    --color-danger-soft: #4a211c;
+    --bg: #161513;
+    --surface: #211f1c;
+    --text: #f0efea;
+    --muted: #a9a8a2;
+    --line: #3a3833;
+    --primary: #6fcfd3;
+    --primary-text: #0d2b2c;
+    --primary-soft: #183b3d;
+    --danger: #f1a79c;
+    --danger-soft: #4a211c;
+    --warning-soft: #4a3d12;
+    --success-soft: #1d3a1f;
+    --mine: #4a4214;
+    color-scheme: dark;
   }
 }
 
@@ -27,41 +41,455 @@
 body {
   margin: 0;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  line-height: 1.5;
-  color: var(--color-text);
-  background: var(--color-bg);
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--bg);
 }
 
-.page {
-  max-width: 40rem;
-  margin: 0 auto;
-  padding: 2rem 1rem;
+a {
+  color: var(--primary);
 }
 
 h1 {
-  margin: 0;
-  font-size: 2rem;
+  font-size: 1.6rem;
+  margin: 0.5rem 0 1rem;
 }
 
-.page p {
-  color: var(--color-muted);
+h2 {
+  font-size: 1.15rem;
+  margin: 1.5rem 0 0.5rem;
 }
 
-.page .badge {
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  border-radius: 999px;
+h2 small {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.topbar nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+}
+
+.topbar a {
+  text-decoration: none;
   font-weight: 600;
-  color: var(--color-muted);
-  background: transparent;
 }
 
-.page .badge-online {
-  color: var(--color-primary);
-  background: var(--color-primary-soft);
+.topbar a.active {
+  text-decoration: underline;
 }
 
-.page .badge-offline {
-  color: var(--color-danger);
-  background: var(--color-danger-soft);
+.brand {
+  font-size: 1.2rem;
+  color: var(--text) !important;
+}
+
+.page {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.banner {
+  background: var(--warning-soft);
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.banner p {
+  margin: 0.25rem auto;
+  max-width: 64rem;
+}
+
+.hero {
+  padding: 1rem 0;
+}
+
+.hero h1 {
+  font-size: 2rem;
+  margin-bottom: 0.25rem;
+}
+
+.badge,
+.tag {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.champion {
+  font-size: 1.3rem;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.matches {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+}
+
+.match {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  padding: 0.6rem 0.75rem;
+}
+
+.match header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-bottom: 0.35rem;
+}
+
+.match-in_progress {
+  border-color: var(--primary);
+}
+
+.match-cancelled {
+  opacity: 0.55;
+}
+
+.side {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.1rem 0;
+}
+
+.side.winner {
+  font-weight: 700;
+}
+
+.side.mine,
+tr.mine {
+  background: var(--mine);
+}
+
+.score {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.groups {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  font-size: 0.9rem;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+tr.qualifies td:first-child {
+  border-left: 3px solid var(--primary);
+}
+
+tr.inactive,
+li.inactive {
+  opacity: 0.55;
+}
+
+.bracket {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+}
+
+.bracket section {
+  display: grid;
+  gap: 0.5rem;
+  align-content: start;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+}
+
+.facts dt {
+  color: var(--muted);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.stack {
+  display: grid;
+  gap: 0.6rem;
+  max-width: 32rem;
+  margin: 1rem 0;
+}
+
+.narrow {
+  margin: 1rem auto;
+}
+
+label {
+  display: grid;
+  gap: 0.2rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+label.inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  background: var(--surface);
+  color: var(--text);
+  min-height: 2.6rem;
+}
+
+button,
+.button {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.6rem 1rem;
+  min-height: 2.75rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: var(--primary);
+  color: var(--primary-text);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+button.secondary {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+button.link {
+  background: none;
+  color: var(--primary);
+  padding: 0.25rem 0.5rem;
+  min-height: 0;
+  text-decoration: underline;
+}
+
+button.danger {
+  color: var(--danger);
+}
+
+.choices {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+}
+
+.choices button {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  text-align: left;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  padding: 0.75rem;
+  margin: 0.75rem 0;
+}
+
+.error {
+  color: var(--danger);
+  background: var(--danger-soft);
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.4rem;
+}
+
+.success {
+  background: var(--success-soft);
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.4rem;
+}
+
+.warning {
+  background: var(--warning-soft);
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.4rem;
+}
+
+.judge-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1rem;
+}
+
+.scorecard {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+
+.versus {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.versus span {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.scores {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  text-align: center;
+}
+
+.team-score {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.big-score {
+  font-size: 3.5rem;
+  font-weight: 700;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+button.big {
+  font-size: 1.4rem;
+  min-height: 4rem;
+}
+
+.timer {
+  font-size: 2rem;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  margin: 0.25rem 0 1rem;
+}
+
+.timer.done {
+  color: var(--danger);
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0.5rem 0 1rem;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 0.5rem;
+}
+
+.tabs a {
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.tabs a.active {
+  text-decoration: underline;
+}
+
+.stats {
+  display: grid;
+  gap: 0.35rem;
+  padding-left: 1.2rem;
+}
+
+.steps li {
+  margin-bottom: 0.6rem;
+}
+
+.plain {
+  list-style: none;
+  padding: 0;
+}
+
+.plain li {
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.inline-form input[type='number'] {
+  width: 4.5rem;
+}
+
+.display {
+  padding: 1rem 2rem;
+  font-size: 1.15rem;
+}
+
+.display h1 {
+  font-size: 2.4rem;
+}
+
+@media (max-width: 40rem) {
+  table {
+    display: block;
+    overflow-x: auto;
+  }
 }

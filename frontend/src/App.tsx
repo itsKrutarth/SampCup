@@ -1,31 +1,46 @@
-import { useEffect, useState } from 'react'
+import { BrowserRouter, Route, Routes } from 'react-router'
 
-import { fetchApiStatus, type ApiStatus } from './api'
+import Layout from './components/Layout'
+import { AuthProvider } from './lib/auth'
+import Admin from './pages/admin/Admin'
+import Bracket from './pages/Bracket'
+import Display from './pages/Display'
+import Home from './pages/Home'
+import Join from './pages/Join'
+import Judge from './pages/Judge'
+import { MyTeam, StaffLogin, TeamLogin } from './pages/Logins'
+import Schedule from './pages/Schedule'
+import Standings from './pages/Standings'
+import TeamPage from './pages/TeamPage'
 
-const STATUS_LABEL = {
-  checking: 'Checking…',
-  online: 'Live',
-  offline: 'Offline',
-} as const
+export function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/display" element={<Display />} />
+      <Route element={<Layout />}>
+        <Route index element={<Home />} />
+        <Route path="schedule" element={<Schedule />} />
+        <Route path="standings" element={<Standings />} />
+        <Route path="bracket" element={<Bracket />} />
+        <Route path="teams/:number" element={<TeamPage />} />
+        <Route path="join" element={<Join />} />
+        <Route path="login" element={<TeamLogin />} />
+        <Route path="my-team" element={<MyTeam />} />
+        <Route path="staff" element={<StaffLogin />} />
+        <Route path="judge" element={<Judge />} />
+        <Route path="admin/*" element={<Admin />} />
+        <Route path="*" element={<p>Page not found.</p>} />
+      </Route>
+    </Routes>
+  )
+}
 
 export default function App() {
-  const [status, setStatus] = useState<ApiStatus | 'checking'>('checking')
-
-  useEffect(() => {
-    const controller = new AbortController()
-    fetchApiStatus(controller.signal).then((result) => {
-      if (!controller.signal.aborted) setStatus(result)
-    })
-    return () => controller.abort()
-  }, [])
-
   return (
-    <main className="page">
-      <h1>SAMP Cup</h1>
-      <p>New England pickleball tournament</p>
-      <p className={`badge badge-${status}`} role="status">
-        {STATUS_LABEL[status]}
-      </p>
-    </main>
+    <AuthProvider>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
+    </AuthProvider>
   )
 }
