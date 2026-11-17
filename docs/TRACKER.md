@@ -5,9 +5,9 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
 
 ## Current position
 - **Milestone:** M8 Hardening (the application is built and tested; deploy waits on AWS)
-- **Branch:** `app/stage-1-data-model`
-- **Doing now:** Push, CI green, merge to `main`
-- **Next:** M8 load test and failure drills; M9 deploy once the AWS account exists
+- **Branch:** `main` (M1-M7 merged 2026-11-17, CI green on all six jobs)
+- **Doing now:** Waiting on the owner (AWS account, event date, judges)
+- **Next:** M8 load test and failure drills on the real server; M9 deploy once the AWS account exists
 
 ## Needs from the owner
 | # | What | Why | Needed by | Status |
