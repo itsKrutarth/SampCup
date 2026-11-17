@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     app_name: str = "SampCup API"
     app_env: str = "development"
     database_url: str = LOCAL_DATABASE_URL
+    session_hours: int = 20
+    # Built frontend to serve (production image); unset in development.
+    static_dir: str | None = None
 
     @model_validator(mode="after")
     def production_needs_real_database(self) -> "Settings":

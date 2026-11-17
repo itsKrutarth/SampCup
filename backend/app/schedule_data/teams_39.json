@@ -1,0 +1,1550 @@
+{
+ "teams": 39,
+ "slot_minutes": 17,
+ "game_minutes": 12,
+ "courts": 9,
+ "first_game": "10:00",
+ "group_play_ends": "15:06",
+ "lunch_minutes": 51,
+ "sabha": [
+  "15:30",
+  "16:30"
+ ],
+ "groups": {
+  "A": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10
+  ],
+  "B": [
+   11,
+   12,
+   13,
+   14,
+   15,
+   16,
+   17,
+   18,
+   19,
+   20
+  ],
+  "C": [
+   21,
+   22,
+   23,
+   24,
+   25,
+   26,
+   27,
+   28,
+   29,
+   30
+  ],
+  "D": [
+   31,
+   32,
+   33,
+   34,
+   35,
+   36,
+   37,
+   38,
+   39
+  ]
+ },
+ "lunch": {
+  "1": "12:50",
+  "2": "11:59",
+  "3": "13:07",
+  "4": "12:16",
+  "5": "12:16",
+  "6": "12:16",
+  "7": "12:50",
+  "8": "11:59",
+  "9": "12:50",
+  "10": "13:07",
+  "11": "12:50",
+  "12": "13:07",
+  "13": "11:59",
+  "14": "13:07",
+  "15": "12:33",
+  "16": "12:33",
+  "17": "12:50",
+  "18": "12:33",
+  "19": "11:59",
+  "20": "12:33",
+  "21": "13:07",
+  "22": "12:33",
+  "23": "13:07",
+  "24": "12:50",
+  "25": "12:16",
+  "26": "11:59",
+  "27": "12:16",
+  "28": "12:50",
+  "29": "11:59",
+  "30": "12:33",
+  "31": "12:33",
+  "32": "11:59",
+  "33": "12:16",
+  "34": "12:50",
+  "35": "13:07",
+  "36": "12:16",
+  "37": "12:33",
+  "38": "13:07",
+  "39": "11:59"
+ },
+ "pool": [
+  {
+   "slot": 0,
+   "time": "10:00",
+   "court": 1,
+   "group": "A",
+   "team_a": 3,
+   "team_b": 5
+  },
+  {
+   "slot": 0,
+   "time": "10:00",
+   "court": 2,
+   "group": "A",
+   "team_a": 9,
+   "team_b": 10
+  },
+  {
+   "slot": 0,
+   "time": "10:00",
+   "court": 3,
+   "group": "B",
+   "team_a": 17,
+   "team_b": 18
+  },
+  {
+   "slot": 0,
+   "time": "10:00",
+   "court": 4,
+   "group": "B",
+   "team_a": 19,
+   "team_b": 20
+  },
+  {
+   "slot": 0,
+   "time": "10:00",
+   "court": 5,
+   "group": "C",
+   "team_a": 21,
+   "team_b": 25
+  },
+  {
+   "slot": 0,
+   "time": "10:00",
+   "court": 6,
+   "group": "C",
+   "team_a": 27,
+   "team_b": 28
+  },
+  {
+   "slot": 0,
+   "time": "10:00",
+   "court": 7,
+   "group": "C",
+   "team_a": 29,
+   "team_b": 30
+  },
+  {
+   "slot": 0,
+   "time": "10:00",
+   "court": 8,
+   "group": "D",
+   "team_a": 32,
+   "team_b": 37
+  },
+  {
+   "slot": 0,
+   "time": "10:00",
+   "court": 9,
+   "group": "D",
+   "team_a": 38,
+   "team_b": 39
+  },
+  {
+   "slot": 1,
+   "time": "10:17",
+   "court": 1,
+   "group": "A",
+   "team_a": 1,
+   "team_b": 4
+  },
+  {
+   "slot": 1,
+   "time": "10:17",
+   "court": 2,
+   "group": "A",
+   "team_a": 7,
+   "team_b": 8
+  },
+  {
+   "slot": 1,
+   "time": "10:17",
+   "court": 3,
+   "group": "B",
+   "team_a": 11,
+   "team_b": 14
+  },
+  {
+   "slot": 1,
+   "time": "10:17",
+   "court": 4,
+   "group": "B",
+   "team_a": 12,
+   "team_b": 15
+  },
+  {
+   "slot": 1,
+   "time": "10:17",
+   "court": 5,
+   "group": "B",
+   "team_a": 13,
+   "team_b": 16
+  },
+  {
+   "slot": 1,
+   "time": "10:17",
+   "court": 6,
+   "group": "C",
+   "team_a": 21,
+   "team_b": 24
+  },
+  {
+   "slot": 1,
+   "time": "10:17",
+   "court": 7,
+   "group": "C",
+   "team_a": 22,
+   "team_b": 23
+  },
+  {
+   "slot": 1,
+   "time": "10:17",
+   "court": 8,
+   "group": "D",
+   "team_a": 31,
+   "team_b": 38
+  },
+  {
+   "slot": 1,
+   "time": "10:17",
+   "court": 9,
+   "group": "D",
+   "team_a": 35,
+   "team_b": 36
+  },
+  {
+   "slot": 2,
+   "time": "10:34",
+   "court": 1,
+   "group": "A",
+   "team_a": 2,
+   "team_b": 6
+  },
+  {
+   "slot": 2,
+   "time": "10:34",
+   "court": 2,
+   "group": "A",
+   "team_a": 3,
+   "team_b": 10
+  },
+  {
+   "slot": 2,
+   "time": "10:34",
+   "court": 3,
+   "group": "B",
+   "team_a": 11,
+   "team_b": 19
+  },
+  {
+   "slot": 2,
+   "time": "10:34",
+   "court": 4,
+   "group": "B",
+   "team_a": 17,
+   "team_b": 20
+  },
+  {
+   "slot": 2,
+   "time": "10:34",
+   "court": 5,
+   "group": "C",
+   "team_a": 25,
+   "team_b": 28
+  },
+  {
+   "slot": 2,
+   "time": "10:34",
+   "court": 6,
+   "group": "C",
+   "team_a": 26,
+   "team_b": 30
+  },
+  {
+   "slot": 2,
+   "time": "10:34",
+   "court": 7,
+   "group": "D",
+   "team_a": 32,
+   "team_b": 36
+  },
+  {
+   "slot": 2,
+   "time": "10:34",
+   "court": 8,
+   "group": "D",
+   "team_a": 33,
+   "team_b": 37
+  },
+  {
+   "slot": 2,
+   "time": "10:34",
+   "court": 9,
+   "group": "D",
+   "team_a": 34,
+   "team_b": 39
+  },
+  {
+   "slot": 3,
+   "time": "10:51",
+   "court": 1,
+   "group": "A",
+   "team_a": 1,
+   "team_b": 10
+  },
+  {
+   "slot": 3,
+   "time": "10:51",
+   "court": 2,
+   "group": "A",
+   "team_a": 5,
+   "team_b": 7
+  },
+  {
+   "slot": 3,
+   "time": "10:51",
+   "court": 3,
+   "group": "A",
+   "team_a": 8,
+   "team_b": 9
+  },
+  {
+   "slot": 3,
+   "time": "10:51",
+   "court": 4,
+   "group": "B",
+   "team_a": 12,
+   "team_b": 18
+  },
+  {
+   "slot": 3,
+   "time": "10:51",
+   "court": 5,
+   "group": "B",
+   "team_a": 14,
+   "team_b": 15
+  },
+  {
+   "slot": 3,
+   "time": "10:51",
+   "court": 6,
+   "group": "C",
+   "team_a": 22,
+   "team_b": 29
+  },
+  {
+   "slot": 3,
+   "time": "10:51",
+   "court": 7,
+   "group": "C",
+   "team_a": 24,
+   "team_b": 27
+  },
+  {
+   "slot": 3,
+   "time": "10:51",
+   "court": 8,
+   "group": "D",
+   "team_a": 31,
+   "team_b": 32
+  },
+  {
+   "slot": 3,
+   "time": "10:51",
+   "court": 9,
+   "group": "D",
+   "team_a": 35,
+   "team_b": 38
+  },
+  {
+   "slot": 4,
+   "time": "11:08",
+   "court": 1,
+   "group": "A",
+   "team_a": 2,
+   "team_b": 4
+  },
+  {
+   "slot": 4,
+   "time": "11:08",
+   "court": 2,
+   "group": "A",
+   "team_a": 3,
+   "team_b": 7
+  },
+  {
+   "slot": 4,
+   "time": "11:08",
+   "court": 3,
+   "group": "B",
+   "team_a": 11,
+   "team_b": 17
+  },
+  {
+   "slot": 4,
+   "time": "11:08",
+   "court": 4,
+   "group": "B",
+   "team_a": 16,
+   "team_b": 19
+  },
+  {
+   "slot": 4,
+   "time": "11:08",
+   "court": 5,
+   "group": "C",
+   "team_a": 21,
+   "team_b": 30
+  },
+  {
+   "slot": 4,
+   "time": "11:08",
+   "court": 6,
+   "group": "C",
+   "team_a": 23,
+   "team_b": 25
+  },
+  {
+   "slot": 4,
+   "time": "11:08",
+   "court": 7,
+   "group": "C",
+   "team_a": 26,
+   "team_b": 28
+  },
+  {
+   "slot": 4,
+   "time": "11:08",
+   "court": 8,
+   "group": "D",
+   "team_a": 33,
+   "team_b": 39
+  },
+  {
+   "slot": 4,
+   "time": "11:08",
+   "court": 9,
+   "group": "D",
+   "team_a": 34,
+   "team_b": 37
+  },
+  {
+   "slot": 5,
+   "time": "11:25",
+   "court": 1,
+   "group": "A",
+   "team_a": 5,
+   "team_b": 9
+  },
+  {
+   "slot": 5,
+   "time": "11:25",
+   "court": 2,
+   "group": "A",
+   "team_a": 6,
+   "team_b": 10
+  },
+  {
+   "slot": 5,
+   "time": "11:25",
+   "court": 3,
+   "group": "B",
+   "team_a": 12,
+   "team_b": 13
+  },
+  {
+   "slot": 5,
+   "time": "11:25",
+   "court": 4,
+   "group": "B",
+   "team_a": 14,
+   "team_b": 20
+  },
+  {
+   "slot": 5,
+   "time": "11:25",
+   "court": 5,
+   "group": "B",
+   "team_a": 16,
+   "team_b": 18
+  },
+  {
+   "slot": 5,
+   "time": "11:25",
+   "court": 6,
+   "group": "C",
+   "team_a": 22,
+   "team_b": 24
+  },
+  {
+   "slot": 5,
+   "time": "11:25",
+   "court": 7,
+   "group": "C",
+   "team_a": 27,
+   "team_b": 29
+  },
+  {
+   "slot": 5,
+   "time": "11:25",
+   "court": 8,
+   "group": "D",
+   "team_a": 31,
+   "team_b": 35
+  },
+  {
+   "slot": 5,
+   "time": "11:25",
+   "court": 9,
+   "group": "D",
+   "team_a": 36,
+   "team_b": 38
+  },
+  {
+   "slot": 6,
+   "time": "11:42",
+   "court": 1,
+   "group": "A",
+   "team_a": 1,
+   "team_b": 3
+  },
+  {
+   "slot": 6,
+   "time": "11:42",
+   "court": 2,
+   "group": "A",
+   "team_a": 2,
+   "team_b": 8
+  },
+  {
+   "slot": 6,
+   "time": "11:42",
+   "court": 3,
+   "group": "A",
+   "team_a": 4,
+   "team_b": 7
+  },
+  {
+   "slot": 6,
+   "time": "11:42",
+   "court": 4,
+   "group": "B",
+   "team_a": 13,
+   "team_b": 17
+  },
+  {
+   "slot": 6,
+   "time": "11:42",
+   "court": 5,
+   "group": "B",
+   "team_a": 15,
+   "team_b": 19
+  },
+  {
+   "slot": 6,
+   "time": "11:42",
+   "court": 6,
+   "group": "C",
+   "team_a": 23,
+   "team_b": 26
+  },
+  {
+   "slot": 6,
+   "time": "11:42",
+   "court": 7,
+   "group": "C",
+   "team_a": 28,
+   "team_b": 29
+  },
+  {
+   "slot": 6,
+   "time": "11:42",
+   "court": 8,
+   "group": "D",
+   "team_a": 32,
+   "team_b": 39
+  },
+  {
+   "slot": 6,
+   "time": "11:42",
+   "court": 9,
+   "group": "D",
+   "team_a": 33,
+   "team_b": 34
+  },
+  {
+   "slot": 7,
+   "time": "11:59",
+   "court": 1,
+   "group": "A",
+   "team_a": 4,
+   "team_b": 10
+  },
+  {
+   "slot": 7,
+   "time": "11:59",
+   "court": 2,
+   "group": "A",
+   "team_a": 5,
+   "team_b": 6
+  },
+  {
+   "slot": 7,
+   "time": "11:59",
+   "court": 3,
+   "group": "B",
+   "team_a": 12,
+   "team_b": 20
+  },
+  {
+   "slot": 7,
+   "time": "11:59",
+   "court": 4,
+   "group": "B",
+   "team_a": 14,
+   "team_b": 16
+  },
+  {
+   "slot": 7,
+   "time": "11:59",
+   "court": 5,
+   "group": "C",
+   "team_a": 21,
+   "team_b": 22
+  },
+  {
+   "slot": 7,
+   "time": "11:59",
+   "court": 6,
+   "group": "C",
+   "team_a": 23,
+   "team_b": 30
+  },
+  {
+   "slot": 7,
+   "time": "11:59",
+   "court": 7,
+   "group": "C",
+   "team_a": 25,
+   "team_b": 27
+  },
+  {
+   "slot": 7,
+   "time": "11:59",
+   "court": 8,
+   "group": "D",
+   "team_a": 33,
+   "team_b": 36
+  },
+  {
+   "slot": 7,
+   "time": "11:59",
+   "court": 9,
+   "group": "D",
+   "team_a": 35,
+   "team_b": 37
+  },
+  {
+   "slot": 8,
+   "time": "12:16",
+   "court": 1,
+   "group": "A",
+   "team_a": 1,
+   "team_b": 7
+  },
+  {
+   "slot": 8,
+   "time": "12:16",
+   "court": 2,
+   "group": "A",
+   "team_a": 3,
+   "team_b": 9
+  },
+  {
+   "slot": 8,
+   "time": "12:16",
+   "court": 3,
+   "group": "B",
+   "team_a": 11,
+   "team_b": 18
+  },
+  {
+   "slot": 8,
+   "time": "12:16",
+   "court": 4,
+   "group": "B",
+   "team_a": 15,
+   "team_b": 17
+  },
+  {
+   "slot": 8,
+   "time": "12:16",
+   "court": 5,
+   "group": "B",
+   "team_a": 16,
+   "team_b": 20
+  },
+  {
+   "slot": 8,
+   "time": "12:16",
+   "court": 6,
+   "group": "C",
+   "team_a": 22,
+   "team_b": 30
+  },
+  {
+   "slot": 8,
+   "time": "12:16",
+   "court": 7,
+   "group": "C",
+   "team_a": 24,
+   "team_b": 28
+  },
+  {
+   "slot": 8,
+   "time": "12:16",
+   "court": 8,
+   "group": "D",
+   "team_a": 31,
+   "team_b": 37
+  },
+  {
+   "slot": 8,
+   "time": "12:16",
+   "court": 9,
+   "group": "D",
+   "team_a": 34,
+   "team_b": 38
+  },
+  {
+   "slot": 9,
+   "time": "12:33",
+   "court": 1,
+   "group": "A",
+   "team_a": 1,
+   "team_b": 9
+  },
+  {
+   "slot": 9,
+   "time": "12:33",
+   "court": 2,
+   "group": "A",
+   "team_a": 7,
+   "team_b": 10
+  },
+  {
+   "slot": 9,
+   "time": "12:33",
+   "court": 3,
+   "group": "B",
+   "team_a": 11,
+   "team_b": 12
+  },
+  {
+   "slot": 9,
+   "time": "12:33",
+   "court": 4,
+   "group": "B",
+   "team_a": 14,
+   "team_b": 17
+  },
+  {
+   "slot": 9,
+   "time": "12:33",
+   "court": 5,
+   "group": "C",
+   "team_a": 21,
+   "team_b": 28
+  },
+  {
+   "slot": 9,
+   "time": "12:33",
+   "court": 6,
+   "group": "C",
+   "team_a": 23,
+   "team_b": 24
+  },
+  {
+   "slot": 9,
+   "time": "12:33",
+   "court": 7,
+   "group": "D",
+   "team_a": 34,
+   "team_b": 35
+  },
+  {
+   "slot": 10,
+   "time": "12:50",
+   "court": 1,
+   "group": "A",
+   "team_a": 2,
+   "team_b": 3
+  },
+  {
+   "slot": 10,
+   "time": "12:50",
+   "court": 2,
+   "group": "A",
+   "team_a": 8,
+   "team_b": 10
+  },
+  {
+   "slot": 10,
+   "time": "12:50",
+   "court": 3,
+   "group": "B",
+   "team_a": 12,
+   "team_b": 19
+  },
+  {
+   "slot": 10,
+   "time": "12:50",
+   "court": 4,
+   "group": "B",
+   "team_a": 13,
+   "team_b": 14
+  },
+  {
+   "slot": 10,
+   "time": "12:50",
+   "court": 5,
+   "group": "C",
+   "team_a": 21,
+   "team_b": 23
+  },
+  {
+   "slot": 10,
+   "time": "12:50",
+   "court": 6,
+   "group": "C",
+   "team_a": 26,
+   "team_b": 29
+  },
+  {
+   "slot": 10,
+   "time": "12:50",
+   "court": 7,
+   "group": "D",
+   "team_a": 32,
+   "team_b": 38
+  },
+  {
+   "slot": 10,
+   "time": "12:50",
+   "court": 8,
+   "group": "D",
+   "team_a": 35,
+   "team_b": 39
+  },
+  {
+   "slot": 11,
+   "time": "13:07",
+   "court": 1,
+   "group": "A",
+   "team_a": 4,
+   "team_b": 5
+  },
+  {
+   "slot": 11,
+   "time": "13:07",
+   "court": 2,
+   "group": "A",
+   "team_a": 6,
+   "team_b": 8
+  },
+  {
+   "slot": 11,
+   "time": "13:07",
+   "court": 3,
+   "group": "B",
+   "team_a": 13,
+   "team_b": 19
+  },
+  {
+   "slot": 11,
+   "time": "13:07",
+   "court": 4,
+   "group": "C",
+   "team_a": 25,
+   "team_b": 29
+  },
+  {
+   "slot": 11,
+   "time": "13:07",
+   "court": 5,
+   "group": "C",
+   "team_a": 26,
+   "team_b": 27
+  },
+  {
+   "slot": 11,
+   "time": "13:07",
+   "court": 6,
+   "group": "D",
+   "team_a": 32,
+   "team_b": 33
+  },
+  {
+   "slot": 11,
+   "time": "13:07",
+   "court": 7,
+   "group": "D",
+   "team_a": 36,
+   "team_b": 39
+  },
+  {
+   "slot": 12,
+   "time": "13:24",
+   "court": 1,
+   "group": "A",
+   "team_a": 2,
+   "team_b": 5
+  },
+  {
+   "slot": 12,
+   "time": "13:24",
+   "court": 2,
+   "group": "A",
+   "team_a": 4,
+   "team_b": 6
+  },
+  {
+   "slot": 12,
+   "time": "13:24",
+   "court": 3,
+   "group": "B",
+   "team_a": 15,
+   "team_b": 16
+  },
+  {
+   "slot": 12,
+   "time": "13:24",
+   "court": 4,
+   "group": "B",
+   "team_a": 18,
+   "team_b": 20
+  },
+  {
+   "slot": 12,
+   "time": "13:24",
+   "court": 5,
+   "group": "C",
+   "team_a": 22,
+   "team_b": 25
+  },
+  {
+   "slot": 12,
+   "time": "13:24",
+   "court": 6,
+   "group": "C",
+   "team_a": 27,
+   "team_b": 30
+  },
+  {
+   "slot": 12,
+   "time": "13:24",
+   "court": 7,
+   "group": "D",
+   "team_a": 31,
+   "team_b": 33
+  },
+  {
+   "slot": 12,
+   "time": "13:24",
+   "court": 8,
+   "group": "D",
+   "team_a": 36,
+   "team_b": 37
+  },
+  {
+   "slot": 13,
+   "time": "13:41",
+   "court": 1,
+   "group": "A",
+   "team_a": 1,
+   "team_b": 8
+  },
+  {
+   "slot": 13,
+   "time": "13:41",
+   "court": 2,
+   "group": "A",
+   "team_a": 7,
+   "team_b": 9
+  },
+  {
+   "slot": 13,
+   "time": "13:41",
+   "court": 3,
+   "group": "B",
+   "team_a": 11,
+   "team_b": 20
+  },
+  {
+   "slot": 13,
+   "time": "13:41",
+   "court": 4,
+   "group": "B",
+   "team_a": 13,
+   "team_b": 15
+  },
+  {
+   "slot": 13,
+   "time": "13:41",
+   "court": 5,
+   "group": "B",
+   "team_a": 17,
+   "team_b": 19
+  },
+  {
+   "slot": 13,
+   "time": "13:41",
+   "court": 6,
+   "group": "C",
+   "team_a": 24,
+   "team_b": 26
+  },
+  {
+   "slot": 13,
+   "time": "13:41",
+   "court": 7,
+   "group": "C",
+   "team_a": 28,
+   "team_b": 30
+  },
+  {
+   "slot": 13,
+   "time": "13:41",
+   "court": 8,
+   "group": "D",
+   "team_a": 31,
+   "team_b": 34
+  },
+  {
+   "slot": 13,
+   "time": "13:41",
+   "court": 9,
+   "group": "D",
+   "team_a": 37,
+   "team_b": 39
+  },
+  {
+   "slot": 14,
+   "time": "13:58",
+   "court": 1,
+   "group": "A",
+   "team_a": 2,
+   "team_b": 10
+  },
+  {
+   "slot": 14,
+   "time": "13:58",
+   "court": 2,
+   "group": "A",
+   "team_a": 3,
+   "team_b": 6
+  },
+  {
+   "slot": 14,
+   "time": "13:58",
+   "court": 3,
+   "group": "A",
+   "team_a": 4,
+   "team_b": 8
+  },
+  {
+   "slot": 14,
+   "time": "13:58",
+   "court": 4,
+   "group": "B",
+   "team_a": 12,
+   "team_b": 16
+  },
+  {
+   "slot": 14,
+   "time": "13:58",
+   "court": 5,
+   "group": "B",
+   "team_a": 14,
+   "team_b": 18
+  },
+  {
+   "slot": 14,
+   "time": "13:58",
+   "court": 6,
+   "group": "C",
+   "team_a": 21,
+   "team_b": 29
+  },
+  {
+   "slot": 14,
+   "time": "13:58",
+   "court": 7,
+   "group": "C",
+   "team_a": 23,
+   "team_b": 27
+  },
+  {
+   "slot": 14,
+   "time": "13:58",
+   "court": 8,
+   "group": "D",
+   "team_a": 32,
+   "team_b": 35
+  },
+  {
+   "slot": 14,
+   "time": "13:58",
+   "court": 9,
+   "group": "D",
+   "team_a": 33,
+   "team_b": 38
+  },
+  {
+   "slot": 15,
+   "time": "14:15",
+   "court": 1,
+   "group": "A",
+   "team_a": 1,
+   "team_b": 5
+  },
+  {
+   "slot": 15,
+   "time": "14:15",
+   "court": 2,
+   "group": "A",
+   "team_a": 2,
+   "team_b": 9
+  },
+  {
+   "slot": 15,
+   "time": "14:15",
+   "court": 3,
+   "group": "B",
+   "team_a": 11,
+   "team_b": 15
+  },
+  {
+   "slot": 15,
+   "time": "14:15",
+   "court": 4,
+   "group": "B",
+   "team_a": 13,
+   "team_b": 20
+  },
+  {
+   "slot": 15,
+   "time": "14:15",
+   "court": 5,
+   "group": "C",
+   "team_a": 22,
+   "team_b": 28
+  },
+  {
+   "slot": 15,
+   "time": "14:15",
+   "court": 6,
+   "group": "C",
+   "team_a": 24,
+   "team_b": 30
+  },
+  {
+   "slot": 15,
+   "time": "14:15",
+   "court": 7,
+   "group": "C",
+   "team_a": 25,
+   "team_b": 26
+  },
+  {
+   "slot": 15,
+   "time": "14:15",
+   "court": 8,
+   "group": "D",
+   "team_a": 31,
+   "team_b": 39
+  },
+  {
+   "slot": 15,
+   "time": "14:15",
+   "court": 9,
+   "group": "D",
+   "team_a": 34,
+   "team_b": 36
+  },
+  {
+   "slot": 16,
+   "time": "14:32",
+   "court": 1,
+   "group": "A",
+   "team_a": 3,
+   "team_b": 4
+  },
+  {
+   "slot": 16,
+   "time": "14:32",
+   "court": 2,
+   "group": "A",
+   "team_a": 6,
+   "team_b": 7
+  },
+  {
+   "slot": 16,
+   "time": "14:32",
+   "court": 3,
+   "group": "B",
+   "team_a": 12,
+   "team_b": 14
+  },
+  {
+   "slot": 16,
+   "time": "14:32",
+   "court": 4,
+   "group": "B",
+   "team_a": 16,
+   "team_b": 17
+  },
+  {
+   "slot": 16,
+   "time": "14:32",
+   "court": 5,
+   "group": "B",
+   "team_a": 18,
+   "team_b": 19
+  },
+  {
+   "slot": 16,
+   "time": "14:32",
+   "court": 6,
+   "group": "C",
+   "team_a": 21,
+   "team_b": 27
+  },
+  {
+   "slot": 16,
+   "time": "14:32",
+   "court": 7,
+   "group": "C",
+   "team_a": 23,
+   "team_b": 29
+  },
+  {
+   "slot": 16,
+   "time": "14:32",
+   "court": 8,
+   "group": "D",
+   "team_a": 33,
+   "team_b": 35
+  },
+  {
+   "slot": 16,
+   "time": "14:32",
+   "court": 9,
+   "group": "D",
+   "team_a": 37,
+   "team_b": 38
+  },
+  {
+   "slot": 17,
+   "time": "14:49",
+   "court": 1,
+   "group": "A",
+   "team_a": 1,
+   "team_b": 2
+  },
+  {
+   "slot": 17,
+   "time": "14:49",
+   "court": 2,
+   "group": "A",
+   "team_a": 5,
+   "team_b": 8
+  },
+  {
+   "slot": 17,
+   "time": "14:49",
+   "court": 3,
+   "group": "A",
+   "team_a": 6,
+   "team_b": 9
+  },
+  {
+   "slot": 17,
+   "time": "14:49",
+   "court": 4,
+   "group": "B",
+   "team_a": 11,
+   "team_b": 13
+  },
+  {
+   "slot": 17,
+   "time": "14:49",
+   "court": 5,
+   "group": "B",
+   "team_a": 15,
+   "team_b": 18
+  },
+  {
+   "slot": 17,
+   "time": "14:49",
+   "court": 6,
+   "group": "C",
+   "team_a": 22,
+   "team_b": 26
+  },
+  {
+   "slot": 17,
+   "time": "14:49",
+   "court": 7,
+   "group": "C",
+   "team_a": 24,
+   "team_b": 25
+  },
+  {
+   "slot": 17,
+   "time": "14:49",
+   "court": 8,
+   "group": "D",
+   "team_a": 31,
+   "team_b": 36
+  },
+  {
+   "slot": 17,
+   "time": "14:49",
+   "court": 9,
+   "group": "D",
+   "team_a": 32,
+   "team_b": 34
+  }
+ ],
+ "knockout": [
+  {
+   "code": "R16-1",
+   "round": "Round of 16",
+   "time": "16:30",
+   "court": 1,
+   "source_a": "A1",
+   "source_b": "B4",
+   "prereqs": [],
+   "winner_goes_to": "QF-1"
+  },
+  {
+   "code": "R16-2",
+   "round": "Round of 16",
+   "time": "16:30",
+   "court": 2,
+   "source_a": "C2",
+   "source_b": "D3",
+   "prereqs": [],
+   "winner_goes_to": "QF-1"
+  },
+  {
+   "code": "R16-3",
+   "round": "Round of 16",
+   "time": "16:30",
+   "court": 3,
+   "source_a": "D1",
+   "source_b": "C4",
+   "prereqs": [],
+   "winner_goes_to": "QF-2"
+  },
+  {
+   "code": "R16-4",
+   "round": "Round of 16",
+   "time": "16:30",
+   "court": 4,
+   "source_a": "B2",
+   "source_b": "A3",
+   "prereqs": [],
+   "winner_goes_to": "QF-2"
+  },
+  {
+   "code": "R16-5",
+   "round": "Round of 16",
+   "time": "16:30",
+   "court": 5,
+   "source_a": "C1",
+   "source_b": "D4",
+   "prereqs": [],
+   "winner_goes_to": "QF-3"
+  },
+  {
+   "code": "R16-6",
+   "round": "Round of 16",
+   "time": "16:30",
+   "court": 6,
+   "source_a": "A2",
+   "source_b": "B3",
+   "prereqs": [],
+   "winner_goes_to": "QF-3"
+  },
+  {
+   "code": "R16-7",
+   "round": "Round of 16",
+   "time": "16:30",
+   "court": 7,
+   "source_a": "B1",
+   "source_b": "A4",
+   "prereqs": [],
+   "winner_goes_to": "QF-4"
+  },
+  {
+   "code": "R16-8",
+   "round": "Round of 16",
+   "time": "16:30",
+   "court": 8,
+   "source_a": "D2",
+   "source_b": "C3",
+   "prereqs": [],
+   "winner_goes_to": "QF-4"
+  },
+  {
+   "code": "QF-1",
+   "round": "Quarterfinal",
+   "time": "16:47",
+   "court": 1,
+   "source_a": "W:R16-1",
+   "source_b": "W:R16-2",
+   "prereqs": [
+    "R16-1",
+    "R16-2"
+   ],
+   "winner_goes_to": "SF-1"
+  },
+  {
+   "code": "QF-2",
+   "round": "Quarterfinal",
+   "time": "16:47",
+   "court": 2,
+   "source_a": "W:R16-3",
+   "source_b": "W:R16-4",
+   "prereqs": [
+    "R16-3",
+    "R16-4"
+   ],
+   "winner_goes_to": "SF-1"
+  },
+  {
+   "code": "QF-3",
+   "round": "Quarterfinal",
+   "time": "16:47",
+   "court": 3,
+   "source_a": "W:R16-5",
+   "source_b": "W:R16-6",
+   "prereqs": [
+    "R16-5",
+    "R16-6"
+   ],
+   "winner_goes_to": "SF-2"
+  },
+  {
+   "code": "QF-4",
+   "round": "Quarterfinal",
+   "time": "16:47",
+   "court": 4,
+   "source_a": "W:R16-7",
+   "source_b": "W:R16-8",
+   "prereqs": [
+    "R16-7",
+    "R16-8"
+   ],
+   "winner_goes_to": "SF-2"
+  },
+  {
+   "code": "SF-1",
+   "round": "Semifinal",
+   "time": "17:21",
+   "court": 1,
+   "source_a": "W:QF-1",
+   "source_b": "W:QF-2",
+   "prereqs": [
+    "QF-1",
+    "QF-2"
+   ],
+   "winner_goes_to": "F-1"
+  },
+  {
+   "code": "SF-2",
+   "round": "Semifinal",
+   "time": "17:21",
+   "court": 2,
+   "source_a": "W:QF-3",
+   "source_b": "W:QF-4",
+   "prereqs": [
+    "QF-3",
+    "QF-4"
+   ],
+   "winner_goes_to": "F-1"
+  },
+  {
+   "code": "F-1",
+   "round": "Final game 1",
+   "time": "17:55",
+   "court": 1,
+   "source_a": "W:SF-1",
+   "source_b": "W:SF-2",
+   "prereqs": [
+    "SF-1",
+    "SF-2"
+   ],
+   "winner_goes_to": null
+  },
+  {
+   "code": "F-2",
+   "round": "Final game 2",
+   "time": "18:10",
+   "court": 1,
+   "source_a": "W:SF-1",
+   "source_b": "W:SF-2",
+   "prereqs": [
+    "F-1"
+   ],
+   "winner_goes_to": null
+  },
+  {
+   "code": "F-3",
+   "round": "Final game 3 (if needed)",
+   "time": "18:25",
+   "court": 1,
+   "source_a": "W:SF-1",
+   "source_b": "W:SF-2",
+   "prereqs": [
+    "F-2"
+   ],
+   "winner_goes_to": null
+  }
+ ]
+}

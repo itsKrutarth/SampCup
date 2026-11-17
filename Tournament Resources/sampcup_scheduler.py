@@ -46,7 +46,7 @@ DAY = dt.date(2026, 1, 1)
 
 GROUPS = "ABCD"
 GROUP_GAMES = 8              # games per team inside its group (at least)
-MIN_TEAMS, MAX_TEAMS = 34, 42  # 8 games each fit before Sabha up to 42 teams
+MIN_TEAMS, MAX_TEAMS = 32, 42  # 8 games each fit before Sabha up to 42 teams
 
 
 def at(hour, minute):

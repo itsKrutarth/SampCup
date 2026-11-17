@@ -1,25 +1,19 @@
-from sqlalchemy import ForeignKey, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Column, ForeignKey, Integer, MetaData, String, Table, UniqueConstraint
 
-from app.db.base import Base
+from app.db.base import NAMING_CONVENTION, Base
 
 
 def test_constraints_get_predictable_names() -> None:
-    class Parent(Base):
-        __tablename__ = "parent"
-        id: Mapped[int] = mapped_column(primary_key=True)
-
-    class Child(Base):
-        __tablename__ = "child"
-        __table_args__ = (UniqueConstraint("code"),)
-        id: Mapped[int] = mapped_column(primary_key=True)
-        code: Mapped[str]
-        parent_id: Mapped[int] = mapped_column(ForeignKey("parent.id"))
-
-    try:
-        names = {constraint.name for constraint in Child.__table__.constraints}
-        assert names == {"pk_child", "uq_child_code", "fk_child_parent_id_parent"}
-    finally:
-        Base.metadata.remove(Child.__table__)
-        Base.metadata.remove(Parent.__table__)
-        Base.registry.dispose()
+    metadata = MetaData(naming_convention=NAMING_CONVENTION)
+    Table("parent", metadata, Column("id", Integer, primary_key=True))
+    child = Table(
+        "child",
+        metadata,
+        Column("id", Integer, primary_key=True),
+        Column("code", String),
+        Column("parent_id", ForeignKey("parent.id")),
+        UniqueConstraint("code"),
+    )
+    names = {constraint.name for constraint in child.constraints}
+    assert names == {"pk_child", "uq_child_code", "fk_child_parent_id_parent"}
+    assert Base.metadata.naming_convention == NAMING_CONVENTION
