@@ -23,7 +23,7 @@ The building must be vacated by 7:00 PM.
 ## Constants
 - 9 courts.
 - Slot: 17 minutes = 12-minute game + 5 minutes to change courts, enter the score and drink water.
-- Team count: any number from 34 to 42 (see Team count policy).
+- Team count: any number from 32 to 42 (see Team count policy).
 
 ## Game rules
 - Doubles teams. First team to 11 points wins. No win-by-2.
@@ -47,6 +47,8 @@ The building must be vacated by 7:00 PM.
 
 | Teams | Group sizes (A / B / C / D) | Group games | Group play ends |
 |---|---|---|---|
+| 32 | 8 / 8 / 8 / 8 | 128 | 2:32 PM |
+| 33 | 9 / 8 / 8 / 8 | 132 | 2:32 PM |
 | 34 | 9 / 9 / 8 / 8 | 136 | 2:49 PM |
 | 35 | 9 / 9 / 9 / 8 | 140 | 2:49 PM |
 | 36 | 9 / 9 / 9 / 9 | 144 | 2:49 PM |
@@ -88,7 +90,7 @@ Single elimination; a loss ends the team's day. Teams from the same group cannot
 - **Final: best of 3** on court 1, after a rest slot. Game 1 at 5:55 PM, game 2 at 6:10 PM, game 3 at 6:25 PM only if the games are 1-1. The first team to win 2 games is the SAMP Cup champion. Every game uses the normal game rules.
 - No 3rd-place game.
 
-## Guarantees (checked by `check_schedule.py` and `simulate_tournament.py` for every team count 34-42)
+## Guarantees (checked by `check_schedule.py` and `simulate_tournament.py` for every team count 32-42)
 - Every team plays at least 8 group games, against group-mates only (one rematch each in a group of 8, none otherwise). Over the day teams play 8 to 14 games.
 - All group games end before Sabha; no games during Sabha.
 - No team plays more than 2 games in a row, waits more than 51 minutes between group games, or starts later than 10:51 AM; no team is ever booked in two games at once.
@@ -109,7 +111,8 @@ Single elimination; a loss ends the team's day. Teams from the same group cannot
 All 9 courts are needed during group play; after Sabha the most needed at once is 8.
 
 ## Team count policy
-- Supported and checked: any count from 34 to 42; odd counts are fine.
+- Supported and checked: any count from 32 to 42; odd counts are fine.
+- The app caps active teams at 42; later teams go on a waitlist that an admin can promote.
 - 43 or more teams cannot each get 8 group games before Sabha (43 x 8 / 2 = 172 games; the courts hold 171). Cap registration at 42.
 - If the count changes, regenerate with `sampcup_scheduler.py --teams N` and rerun `simulate_tournament.py --teams N`.
 

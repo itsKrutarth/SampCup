@@ -5,14 +5,13 @@ Each stage ends with acceptance checks. Do not skip. Keep the repo runnable with
 Tasks: monorepo (backend/, frontend/, infra/, docs/, Tournament Resources/), docker compose (api, db), linting, pytest, GitHub Actions (test on push).
 Accept: `docker compose up` runs API health check; CI green.
 
-## Stage 1: Data model + Sheets import
-Tasks: Alembic migrations for tables in 03; gspread import with service account; idempotent sync; admin endpoint and test with a sample sheet; team number random draw.
-Accept: re-sync twice gives no duplicates; removed sheet row is flagged not deleted; team numbers are a unique permutation 1..N.
-Needs from owner: Sheet columns/format (see open items).
+## Stage 1: Data model + registration import + team forming
+Tasks: Alembic migrations for tables in 03; upload of the registration export (.xlsx/.csv), idempotent by MISID; partner requests (same center, partner accepts, team name + password); team cap with waitlist; team number random draw.
+Accept: re-upload twice gives no duplicates; a removed player is flagged not deleted; team numbers are a unique permutation 1..N.
 
 ## Stage 2: Schedule engine
 Tasks: move `Tournament Resources/sampcup_scheduler.py` into a backend library returning structured data (groups, match codes, prereqs, winner destinations, lunch blocks, court plan); store groups, group games and knockout matches; court override; schedule lock; CSV export and printable team slips.
-Accept: for N=40 reproduce the reference outputs exactly (`sampcup_40team_*` files: 4 groups of 10, 160 group games 10:00 AM-3:23 PM, Round of 16 4:30 PM to best-of-3 Final 5:55-6:37 PM, court plan). `simulate_tournament.py --teams 34-42` passes as a pytest test.
+Accept: for N=40 reproduce the reference outputs exactly (`sampcup_40team_*` files: 4 groups of 10, 160 group games 10:00 AM-3:23 PM, Round of 16 4:30 PM to best-of-3 Final 5:55-6:37 PM, court plan). `simulate_tournament.py --teams 32-42` passes as a pytest test.
 
 ## Stage 3: Admin dashboard (core)
 Tasks: login; sync button; team list with check-in and number draw; schedule view by time/court/team; court override; judge accounts and court assignment; tournament status.
@@ -31,15 +30,15 @@ Tasks: SSE stream; public schedule, my-team page (by team number, with lunch tim
 Accept: score entered by judge appears on public page within 2 seconds; reconnect after network drop restores state.
 
 ## Stage 7: Announcements and delays
-Tasks: composer with audience (all, team, court, match players) and channels (banner, email; SMS if approved); "Running behind" tool that shifts remaining start times and notifies affected teams; automatic "your match is next" alerts (optional, owner choice).
-Accept: delay of 10 minutes shifts all unstarted matches and is reflected live; emails go only to chosen audience.
+Tasks: banner announcements on every page and the projector; "Running behind" tool that shifts remaining start times and notifies affected teams; automatic "your match is next" alerts (optional, owner choice).
+Accept: delay of 10 minutes shifts all unstarted matches and is reflected live; banners appear and disappear live.
 
 ## Stage 8: Dry run and hardening
 Tasks: full-day simulator (fake judges entering scores at speed); load test with ~300 concurrent public viewers; failure drills (kill API mid-game, offline judge); backups; export results CSV; security review.
 Accept: simulated day completes with correct group standings and bracket, finishing by 6:37 PM; no lost scores in failure drills.
 
 ## Stage 9: Deploy
-Tasks: Terraform (VPC, RDS or small DB, ECS/Fargate or single instance, ALB/HTTPS, SES), secrets, GitHub Actions deploy, domain/QR.
+Tasks: one Lightsail instance with Docker Compose (Caddy HTTPS, app, Postgres, backups) per `docs/DEPLOY.md`; domain/QR.
 Accept: staging deploy from main; production deployed at least one week before the event; teardown plan after event.
 
 ## Stage 10: Tournament-day runbook

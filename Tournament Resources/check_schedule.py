@@ -5,7 +5,7 @@ For each team count, builds the day, checks group play directly and plays the kn
 through many random results, tracking every team's real games. Fails (exit code 1) if any
 rule in 02_TOURNAMENT_RULES.md is broken.
 
-Run: python check_schedule.py --teams 34-42 [--trials 300]
+Run: python check_schedule.py --teams 32-42 [--trials 300]
 (simulate_tournament.py runs these checks too, plus full simulated tournaments.)
 """
 
@@ -146,7 +146,7 @@ def parse_range(text):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--teams", default="34-42", help='e.g. "40", "34-42" or "34,38,42"')
+    parser.add_argument("--teams", default="32-42", help='e.g. "40", "32-42" or "32,38,42"')
     parser.add_argument("--trials", type=int, default=300)
     args = parser.parse_args()
     failed = False

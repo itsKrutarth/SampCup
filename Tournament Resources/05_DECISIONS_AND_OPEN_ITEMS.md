@@ -5,7 +5,7 @@
 - **Best-of-3 Final (2026-10-29).** Owner request: the finalists play up to 3 games; the first to win 2 is champion. Games 3 minutes apart on court 1; game 3 only at 1-1.
 - **At least 8 group games for every team (2026-10-29).** Owner request ("more is fine, never less"). Every group size gives exactly 8; a group of 8 (only 7 opponents) adds one rematch per team.
 - **4 groups for every team count, as even as possible.** Top 4 x 4 groups = 16 teams, exactly a Round of 16.
-- **Team count 34-42.** 8 games each must fit before Sabha: 19 slots x 9 courts = 171 games; 43 teams would need 172.
+- **Team count 32-42 (32-33 added 2026-11-17).** 8 games each must fit before Sabha: 19 slots x 9 courts = 171 games; 43 teams would need 172. Owner expects 32-42 teams; the app caps registration at 42 and waitlists the rest.
 - **At most 2 games in a row, all day (2026-10-29).** Owner request ("they need rest"). In the knockout this puts rest slots before the semifinals (5:21) and before the Final (5:55). The best-of-3 Final counts as one match.
 - **No break longer than lunch (2026-10-29).** Owner request ("they will get bored"): in group play no team waits more than 3 empty slots (51 min) between games, and every team's first game is by 10:51 AM.
 - **The day now ends 6:22-6:37 PM, not 5:50.** A consequence of the best-of-3 Final plus the 2-in-a-row rule: the Final cannot start before 5:55. Still before the 7:00 PM deadline.
@@ -25,9 +25,9 @@
 - Double elimination for every team.
 - Group play with 7 games for 43+ teams (replaced by "at least 8 for everyone", range 34-42).
 
-## Validated results (`simulate_tournament.py --teams 34-42`: every rule check plus 200 full simulated tournaments per team count)
-- Every team count from 34 to 42 passes every check (1,800 simulated tournaments in total).
-- Group play ends 2:49 PM (34-36 teams), 3:06 PM (37-39) or 3:23 PM (40-42). The Final ends 6:22 PM (2-0) or 6:37 PM (2-1); it went to game 3 in about half the simulations.
+## Validated results (`simulate_tournament.py --teams 32-42`: every rule check plus 200 full simulated tournaments per team count)
+- Every team count from 32 to 42 passes every check (2,200 simulated tournaments in total; 32-33 added 2026-11-17).
+- Group play ends 2:32 PM (32-33 teams), 2:49 PM (34-36 teams), 3:06 PM (37-39) or 3:23 PM (40-42). The Final ends 6:22 PM (2-0) or 6:37 PM (2-1); it went to game 3 in about half the simulations.
 - Every team plays 8 group games; over the day 8 to 14 games. No team ever plays more than 2 in a row, waits more than 51 minutes between group games, or starts after 10:51 AM; every team gets its 51-minute lunch; no team is double-booked; courts never clash.
 - At 40 teams: at most 2 back-to-back pairs for any team in group play.
 - Standings: every group is fully ranked, every tie gets a reason, and recomputing gives the same order. With realistic random scores, the 4th/5th cut (who goes through) was decided by points scored about 55% of the time, wins about 38% and average game time about 4%; random draw did not decide it. In the forced-tie tournaments (every game 11-9) head-to-head and random draw were exercised and behaved as specified.
@@ -42,12 +42,19 @@
 - Judge timing accuracy matters for ranking step 3; the app must record timestamps automatically.
 - All group scores must be entered before Sabha so the bracket can be posted.
 
+## Application decisions (2026-11-17, owner)
+- **Registrations come from the BAPS registration export (.xlsx or .csv), uploaded by an admin.** One row per player (Region, Event, Center, Zone, FirstName, LastName, Gender, MISID, T-shirt size); no Google Sheet. Players are matched by MISID; players missing from a new upload are deactivated, never deleted. The export has no email or phone.
+- **Players form their own doubles teams in the app.** A player picks their center and their own name, then a partner from the same center, a team name and a team password. The partner accepts (or declines); then the team is locked and only an admin can change it. Both players log in with the team name and password. No identity check (owner: not needed for this event); admins fix mistakes.
+- **Public pages stay open read-only** (schedule, scores, standings, bracket, projector). A team login adds the team's own page.
+- **Announcements are in-app banners only** (no email or SMS: no contact details in the export).
+- **Team cap 42, then a waitlist** an admin can promote.
+
 ## Known issues to fix in code
 - None open. Build progress and later decisions are tracked in `docs/TRACKER.md`.
 
 ## Open questions for the owner (answer before the stage that needs them)
-1. Google Sheet columns and sample rows (team name, player names, contacts, division?). Needed in Stage 1.
-2. SMS: needs sender registration for US traffic (verify current AWS SNS/Twilio requirements and lead time). Default plan is email + in-app banner + optional web push. Needed in Stage 7.
+1. Answered 2026-11-17: registration export format (see Application decisions).
+2. Answered 2026-11-17: no email or SMS; in-app banner only.
 3. How many judges/volunteers and devices (phones/tablets)? Judge PIN login per court? Stage 3-4.
 4. Awards: champion and runner-up only, or also group winners? Affects the 6:22-7:00 wrap-up. Stage 10.
 5. Teams outside the top 16 finish around 3:00 PM: anything for them after Sabha (friendly games on the free courts)? Optional.

@@ -16,7 +16,16 @@ standings, the knockout bracket, judging and announcements.
 ## Run it locally
 1. Copy `.env.example` to `.env`.
 2. Run `docker compose up --build`.
-3. Open the app at <http://localhost:5173>. The API is at <http://localhost:8000/api/docs>.
+3. Create an admin and, if you like, 40 made-up demo teams:
+   ```sh
+   docker compose exec api python -m app.cli create-admin <username>
+   docker compose exec api python -m app.cli seed-demo     # demo team password: demo
+   ```
+4. Open <http://localhost:5173>. Staff log in at `/staff`, players join at `/join`,
+   the projector screen is `/display`. The API is at <http://localhost:8000/api/docs>.
+
+## Deploy
+See `docs/DEPLOY.md` (one AWS Lightsail server, HTTPS by Caddy, nightly backups).
 
 ## Run the checks
 ```sh

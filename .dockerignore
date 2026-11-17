@@ -1,0 +1,11 @@
+*
+!backend/requirements.txt
+!backend/alembic.ini
+!backend/migrations
+!backend/app
+!frontend
+frontend/node_modules
+frontend/dist
+frontend/coverage
+**/__pycache__
+**/.env*

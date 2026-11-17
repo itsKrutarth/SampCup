@@ -16,3 +16,4 @@ next, and what is needed from the owner. Update it as chunks finish.
 Backend (from `backend/`): `.venv/bin/ruff check .`, `.venv/bin/pytest`
 Frontend (from `frontend/`): `npm run lint`, `npm run typecheck`, `npm run test:coverage`, `npm run build`
 Everything: `docker compose up --build`
+- Schedules: `~/dev/.sampcup-tools/bin/python tools/export_schedules.py` (needs OR-Tools; rerun only if the rules change).

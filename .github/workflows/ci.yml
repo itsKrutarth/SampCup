@@ -87,6 +87,45 @@ jobs:
         if: failure()
         run: docker compose logs
 
+  production-image:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: sampcup
+          POSTGRES_USER: sampcup
+          POSTGRES_PASSWORD: ci-only-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sampcup -d sampcup"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker build --tag sampcup:ci .
+      - name: Run the production image against Postgres
+        run: |
+          docker run --detach --name app --network host \
+            -e DATABASE_URL=postgresql+psycopg://sampcup:ci-only-password@127.0.0.1:5432/sampcup \
+            sampcup:ci
+          curl --fail --silent --show-error --retry 15 --retry-delay 2 --retry-all-errors \
+            http://127.0.0.1:8000/api/ready
+          curl --fail --silent http://127.0.0.1:8000/ | grep --quiet "SAMP Cup"
+          curl --fail --silent http://127.0.0.1:8000/standings | grep --quiet "SAMP Cup"
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8000/api/docs)" = 404
+          docker exec app whoami | grep --quiet sampcup
+      - name: Check the Caddy config
+        run: |
+          docker run --rm -e SITE_DOMAIN=sampcup.com \
+            -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - name: Show logs on failure
+        if: failure()
+        run: docker logs app
+
   secrets:
     runs-on: ubuntu-latest
     steps:

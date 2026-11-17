@@ -25,8 +25,8 @@ Produces:
 
 Requires: ortools  (pip install ortools)
 Run: python sampcup_scheduler.py --teams 40
-Check: python check_schedule.py --teams 34-42
-Simulate: python simulate_tournament.py --teams 34-42
+Check: python check_schedule.py --teams 32-42
+Simulate: python simulate_tournament.py --teams 32-42
 """
 
 import argparse

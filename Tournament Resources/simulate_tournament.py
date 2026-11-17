@@ -9,7 +9,7 @@ best-of-3 Final. Every fourth tournament gives every game the same score, so tea
 everything and the head-to-head and random-draw steps are exercised. Fails (exit code 1)
 if anything is wrong.
 
-Run: python simulate_tournament.py --teams 34-42 [--tournaments 200]
+Run: python simulate_tournament.py --teams 32-42 [--tournaments 200]
 """
 
 import argparse
@@ -136,7 +136,7 @@ def simulate(day, tournaments, seed=2026):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--teams", default="34-42", help='e.g. "40", "34-42" or "34,38,42"')
+    parser.add_argument("--teams", default="32-42", help='e.g. "40", "32-42" or "32,38,42"')
     parser.add_argument("--tournaments", type=int, default=200)
     args = parser.parse_args()
     failed = False

@@ -2,7 +2,7 @@
 
 Project: web app to run SAMP Cup, a one-day pickleball tournament for the BAPS Shri Swaminarayan Mandir youth community in New England ("Samp" means unity in Gujarati). Owner: youth coordinator.
 
-Format: 4 random groups with at least 8 group games per team, then the top 4 of each group play a Round of 16, quarterfinals, semifinals and a best-of-3 Final, around the leads' day plan (Sabha 3:30-4:30 PM; Final over by 6:37 PM). No team plays more than 2 games in a row or waits longer than lunch. Works for 34-42 teams on 9 courts. Details in `02_TOURNAMENT_RULES.md`.
+Format: 4 random groups with at least 8 group games per team, then the top 4 of each group play a Round of 16, quarterfinals, semifinals and a best-of-3 Final, around the leads' day plan (Sabha 3:30-4:30 PM; Final over by 6:37 PM). No team plays more than 2 games in a row or waits longer than lunch. Works for 32-42 teams on 9 courts. Details in `02_TOURNAMENT_RULES.md`.
 
 ## How to use this kit (for you or any AI assistant)
 1. Read files in order: 01 -> 05. They are the single source of truth. Chat history is NOT needed.
@@ -37,7 +37,7 @@ Format: 4 random groups with at least 8 group games per team, then the top 4 of 
 ```
 pip install ortools
 python sampcup_scheduler.py --teams 40        # writes the sampcup_40team_* files
-python check_schedule.py --teams 34-42        # verifies every scheduling rule; exit code 1 on failure
-python simulate_tournament.py --teams 34-42   # rule checks + 200 simulated tournaments per team count
+python check_schedule.py --teams 32-42        # verifies every scheduling rule; exit code 1 on failure
+python simulate_tournament.py --teams 32-42   # rule checks + 200 simulated tournaments per team count
 python ranking.py                             # ranking self-tests
 ```

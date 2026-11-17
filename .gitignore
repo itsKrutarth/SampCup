@@ -44,3 +44,6 @@ coverage/
 .idea/
 .vscode/
 *.swp
+
+# Production backups on the server
+deploy/backups/
