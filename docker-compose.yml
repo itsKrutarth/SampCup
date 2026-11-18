@@ -9,8 +9,9 @@ services:
   api:
     build:
       context: ./backend
+    # DynamoDB Local takes a moment to listen: retry creating the table until it answers.
     command: >-
-      sh -c "python -m app.cli create-table &&
+      sh -c "until python -m app.cli create-table; do sleep 2; done &&
       exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     environment:
       APP_ENV: development
