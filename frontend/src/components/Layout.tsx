@@ -25,6 +25,35 @@ export function Banner() {
   )
 }
 
+export function BapsArt() {
+  return (
+    <img
+      className="footer-art"
+      src="/brand/baps-footer.webp"
+      width={1425}
+      height={300}
+      loading="lazy"
+      alt="Brahmaswarup Pramukh Swami Maharaj, the BAPS emblem and Pragat Brahmaswarup Mahant Swami Maharaj. BAPS Swaminarayan Sanstha"
+    />
+  )
+}
+
+function Footer() {
+  return (
+    <footer className="footer">
+      <nav className="footer-links" aria-label="Footer">
+        <NavLink to="/schedule">Order of play</NavLink>
+        <NavLink to="/standings">Group standings</NavLink>
+        <NavLink to="/bracket">Knockout bracket</NavLink>
+        <NavLink to="/login">Team area</NavLink>
+        <NavLink to="/staff">Staff area</NavLink>
+      </nav>
+      <BapsArt />
+      <p>SAMP Cup 2026 · {TAGLINE}</p>
+    </footer>
+  )
+}
+
 export default function Layout() {
   const { auth } = useAuth()
   const account =
@@ -65,7 +94,7 @@ export default function Layout() {
       <main className="page">
         <Outlet />
       </main>
-      <footer className="footer">SAMP Cup 2026 · {TAGLINE}</footer>
+      <Footer />
     </>
   )
 }

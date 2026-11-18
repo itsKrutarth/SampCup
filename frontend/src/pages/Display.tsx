@@ -1,4 +1,4 @@
-import { Banner } from '../components/Layout'
+import { BapsArt, Banner } from '../components/Layout'
 import Logo from '../components/Logo'
 import MatchCard from '../components/MatchCard'
 import StandingsTables from '../components/Standings'
@@ -42,6 +42,7 @@ export default function Display() {
           <StandingsTables groups={standings.data.groups} />
         </>
       )}
+      <BapsArt />
     </div>
   )
 }

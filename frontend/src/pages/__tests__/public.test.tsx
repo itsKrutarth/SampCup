@@ -21,9 +21,12 @@ describe('home page', () => {
     )
     expect(screen.getByText(/Registered on the MySatsang app/)).toBeInTheDocument()
     expect(screen.queryByLabelText('Questions')).not.toBeInTheDocument()
-    const numbers = screen.getByRole('list', { name: 'Tournament numbers' })
-    expect(within(numbers).getByText('12/42')).toBeInTheDocument()
-    expect(within(numbers).getByText('on the waitlist')).toBeInTheDocument()
+    const glance = screen.getByRole('list', { name: 'At a glance' })
+    expect(within(glance).getByText('Knockout spots')).toBeInTheDocument()
+    expect(screen.queryByText(/teams formed/)).not.toBeInTheDocument() // only staff see counts
+    expect(screen.getByRole('img', { name: 'Bhagwan Swaminarayan' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /BAPS Swaminarayan Sanstha/ })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Courts' })).not.toBeInTheDocument()
     expect(screen.getByRole('timer', { name: 'Countdown to the first serve' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Join with your partner' })).toHaveAttribute('href', '/join')
   })
@@ -46,10 +49,32 @@ describe('home page', () => {
     expect(screen.getByText('Champions')).toBeInTheDocument()
     expect(screen.queryByRole('timer')).not.toBeInTheDocument()
     expect(screen.getByText('Organizer (555) 010-0100')).toBeInTheDocument()
-    const live = screen.getByRole('region', { name: 'Playing now' })
-    expect(within(live).getByText('Live')).toBeInTheDocument()
-    expect(within(live).getByText('4')).toBeInTheDocument()
     expect(within(screen.getByRole('region', { name: 'Up next' })).getByText('Group A 1st')).toBeInTheDocument()
+  })
+
+  it('shows a live ticker, every court and the leaderboard during play', async () => {
+    mockApi({
+      'GET /public/overview': overview({
+        phase: 'group_play',
+        live: [match({ id: 5, status: 'in_progress', score_a: 4, score_b: 2 })],
+        upcoming: [
+          match({ id: 6, court: 2 }),
+          match({ id: 7, code: 'R16-1', phase: 'knockout', group: null, round: 'Round of 16', court: 3, team_a: null, team_b: null, source_a: 'Group A 1st', source_b: 'Group B 4th' }),
+        ],
+      }),
+      'GET /public/standings': { groups },
+    })
+    renderAt('/')
+    expect(await screen.findByRole('marquee', { name: 'Live scores' })).toHaveTextContent('Court 1 · Net Ninjas 4 - 2 Dink Squad')
+    const court1 = screen.getByRole('article', { name: 'Court 1' })
+    expect(within(court1).getByText('Live')).toBeInTheDocument()
+    expect(within(court1).getByText('4')).toBeInTheDocument()
+    expect(within(screen.getByRole('article', { name: 'Court 2' })).getByText('Next')).toBeInTheDocument()
+    expect(within(screen.getByRole('article', { name: 'Court 3' })).getByText('Group B 4th')).toBeInTheDocument()
+    expect(within(screen.getByRole('article', { name: 'Court 9' })).getByText('Free')).toBeInTheDocument()
+    const board = await screen.findByRole('region', { name: 'Leaderboard' })
+    expect(within(board).getByText('2-0')).toBeInTheDocument()
+    expect(within(board).getByRole('heading', { name: 'Group A' })).toBeInTheDocument()
   })
 
   it('shows an error when the server is down', async () => {

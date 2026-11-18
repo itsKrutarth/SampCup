@@ -1754,3 +1754,254 @@ button.big {
 .display .matches {
   grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr));
 }
+
+/* ------------------------------------------------- tournament-style home */
+
+.murti {
+  display: block;
+  width: min(15rem, 62%);
+  height: auto;
+  margin: -0.5rem auto 0.5rem;
+  filter: drop-shadow(0 10px 24px rgb(0 0 0 / 45%));
+}
+
+/* Broadcast-style live score strip */
+.ticker {
+  display: flex;
+  align-items: stretch;
+  margin: 0.25rem 0 0.75rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--navy-950);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.ticker-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: none;
+  padding: 0.45rem 0.9rem;
+  background: var(--red);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  letter-spacing: 0.1em;
+}
+
+.ticker-label .live-dot {
+  background: #fff;
+}
+
+.ticker-track {
+  flex: 1;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+}
+
+.ticker-move {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: ticker 40s linear infinite;
+}
+
+.ticker:hover .ticker-move {
+  animation-play-state: paused;
+}
+
+.ticker-item {
+  display: inline-block;
+  padding: 0.5rem 1.4rem;
+  font-weight: 600;
+  border-right: 1px solid var(--line);
+}
+
+@keyframes ticker {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* At a glance: big numbers like a tournament fact sheet */
+.glance {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  margin: 0 0 0.5rem;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, var(--navy-800), var(--navy-900));
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.glance li {
+  display: grid;
+  justify-items: center;
+  padding: 0.9rem 0.25rem;
+  text-align: center;
+}
+
+.glance li + li {
+  border-left: 1px solid var(--line);
+}
+
+.glance strong {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.9rem, 6vw, 2.8rem);
+  line-height: 1;
+  color: var(--gold);
+}
+
+.glance span {
+  margin-top: 0.2rem;
+  font-size: clamp(0.66rem, 2.4vw, 0.85rem);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Court board: one tile per court */
+.court-board {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15.5rem), 1fr));
+}
+
+.court-tile {
+  padding: 0.7rem 0.8rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: linear-gradient(160deg, var(--navy-800), var(--navy-900));
+  box-shadow: var(--shadow);
+}
+
+.court-tile.on {
+  border-color: color-mix(in srgb, var(--red) 70%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--red) 25%, transparent), var(--shadow);
+}
+
+.court-tile header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.court-no {
+  display: inline-grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 10px;
+  background: var(--cream);
+  color: var(--navy-900);
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  line-height: 1;
+}
+
+.court-tile .muted {
+  margin: 0.4rem 0 0;
+  font-size: 0.9rem;
+}
+
+/* Leaderboard: each group's top 4 */
+.leaderboard {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+}
+
+.lb-group {
+  padding: 0.8rem 0.9rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  border-top: 5px solid var(--accent);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.lb-group h3 {
+  margin-bottom: 0.4rem;
+  color: var(--accent);
+}
+
+.lb-group ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lb-group li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+}
+
+.lb-group .name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.record {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  letter-spacing: 0.04em;
+  color: var(--gold);
+}
+
+/* Footer: links and the BAPS artwork */
+.footer {
+  margin-top: 2rem;
+  border-top: 1px solid var(--line);
+  background: linear-gradient(180deg, transparent, rgb(6 15 36 / 80%));
+}
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.footer-links a {
+  color: var(--cream);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.footer-links a:hover {
+  color: var(--gold);
+}
+
+.footer-art {
+  display: block;
+  width: min(100%, 52rem);
+  height: auto;
+  margin: 0 auto 0.75rem;
+}
+
+@media (max-width: 47.99rem) {
+  .glance {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .glance li:nth-child(4) {
+    border-left: 0;
+  }
+
+  .glance li:nth-child(n + 4) {
+    border-top: 1px solid var(--line);
+  }
+}

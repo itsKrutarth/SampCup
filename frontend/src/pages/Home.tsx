@@ -1,14 +1,18 @@
 import { ChevronRight, Flame, GitBranch, LayoutGrid, ListOrdered, LogIn, MapPin, Navigation, Phone, Radio, Trophy, UserPlus, Users } from 'lucide-react'
 import { Link } from 'react-router'
 
+import CourtBoard from '../components/CourtBoard'
 import Countdown from '../components/Countdown'
 import Logo from '../components/Logo'
 import MatchCard from '../components/MatchCard'
 import Status from '../components/Status'
+import TeamAvatar from '../components/TeamAvatar'
+import Ticker from '../components/Ticker'
 import { DAY_PLAN, TAGLINE } from '../lib/brand'
 import { monthDay, weekday } from '../lib/format'
+import { accent } from '../lib/brand'
 import { useApi } from '../lib/live'
-import type { Overview } from '../lib/types'
+import type { GroupTable, Overview } from '../lib/types'
 
 const PHASE = {
   registration: 'Registration is open',
@@ -24,6 +28,49 @@ const FORMAT = [
   [GitBranch, 'Knockout', 'The top 4 of each group make the Round of 16, then quarterfinals and semifinals.'],
   [Trophy, 'The Final', 'Best of 3 on court 1. First to 11, no win-by-2, 12-minute clock.'],
 ] as const
+
+const GLANCE = [
+  ['9', 'Courts'],
+  ['4', 'Groups'],
+  ['8+', 'Games each'],
+  ['16', 'Knockout spots'],
+  ['3', 'Game final'],
+] as const
+
+function Leaderboard() {
+  const { data } = useApi<{ groups: Record<string, GroupTable> }>('/public/standings')
+  const groups = Object.entries(data?.groups ?? {})
+  if (!groups.length) return null
+  return (
+    <section aria-label="Leaderboard">
+      <div className="section-head">
+        <h2>
+          <Trophy size={22} /> Leaderboard
+        </h2>
+        <Link to="/standings">Full standings</Link>
+      </div>
+      <div className="leaderboard">
+        {groups.map(([letter, table]) => (
+          <div key={letter} className="lb-group" style={accent(letter)}>
+            <h3>Group {letter}</h3>
+            <ol>
+              {table.rows.slice(0, 4).map((row) => (
+                <li key={row.team_id}>
+                  <span className={`rank rank-${row.rank}`}>{row.rank}</span>
+                  <TeamAvatar team={{ id: row.team_id, name: row.team_name, number: row.team_number, group: letter }} />
+                  <span className="name">{row.team_name}</span>
+                  <span className="record">
+                    {row.wins}-{row.losses}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
 
 export function ChampionCard({ name }: { name: string }) {
   return (
@@ -46,7 +93,9 @@ export default function Home() {
   const [, name, year] = tournament.name.match(/^(.*?)(\d{4})?$/) ?? ['', tournament.name, '']
   return (
     <>
+      {data.live.length > 0 && <Ticker matches={data.live} />}
       <section className="hero">
+        <img className="murti" src="/brand/swaminarayan.webp" width={497} height={332} alt="Bhagwan Swaminarayan" />
         <div className="hero-top">
           <Logo size={96} />
           <h1 className="wordmark">
@@ -116,62 +165,24 @@ export default function Home() {
 
       {data.champion && <ChampionCard name={data.champion.name} />}
 
-      <ul className="stats" aria-label="Tournament numbers">
-        <li className="stat">
-          <span className="stat-icon">
-            <Users size={20} />
-          </span>
-          <div>
-            <strong>
-              {data.teams}/{tournament.team_cap}
-            </strong>
-            <span>teams formed</span>
-          </div>
-        </li>
-        {data.waitlist > 0 && (
-          <li className="stat">
-            <span className="stat-icon">
-              <UserPlus size={20} />
-            </span>
-            <div>
-              <strong>{data.waitlist}</strong>
-              <span>on the waitlist</span>
-            </div>
+      <ul className="glance" aria-label="At a glance">
+        {GLANCE.map(([value, label]) => (
+          <li key={label}>
+            <strong>{value}</strong>
+            <span>{label}</span>
           </li>
-        )}
-        <li className="stat">
-          <span className="stat-icon">
-            <LayoutGrid size={20} />
-          </span>
-          <div>
-            <strong>9</strong>
-            <span>courts</span>
-          </div>
-        </li>
-        <li className="stat">
-          <span className="stat-icon">
-            <Trophy size={20} />
-          </span>
-          <div>
-            <strong>8+</strong>
-            <span>games per team</span>
-          </div>
-        </li>
+        ))}
       </ul>
 
-      {data.live.length > 0 && (
-        <section aria-label="Playing now">
+      {data.phase !== 'registration' && data.phase !== 'finished' && (
+        <section aria-label="Courts">
           <div className="section-head">
             <h2>
-              <span className="live-dot" /> Playing now
+              {data.live.length > 0 && <span className="live-dot" />} Courts
             </h2>
-            <Link to="/schedule">Schedule</Link>
+            <Link to="/schedule">Order of play</Link>
           </div>
-          <div className="matches">
-            {data.live.map((m) => (
-              <MatchCard key={m.id} match={m} />
-            ))}
-          </div>
+          <CourtBoard live={data.live} upcoming={data.upcoming} />
         </section>
       )}
       {data.upcoming.length > 0 && (
@@ -187,6 +198,8 @@ export default function Home() {
           </div>
         </section>
       )}
+
+      {data.phase !== 'registration' && <Leaderboard />}
 
       <div className="two-col">
         <section aria-label="How it works">
