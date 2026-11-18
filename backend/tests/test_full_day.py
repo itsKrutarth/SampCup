@@ -3,11 +3,11 @@
 import random
 
 from fastapi.testclient import TestClient
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from app.models import Match, Team
-from tests.factories import seeded
+from app.services.scoring import refresh_bracket
+from app.store import Store
+from tests.factories import find, seeded
 
 
 def play(
@@ -40,10 +40,10 @@ def play(
     return response.json()
 
 
-def test_a_whole_tournament_day(client: TestClient, db: Session, admin: dict) -> None:
+def test_a_whole_tournament_day(client: TestClient, store: Store, admin: dict) -> None:
     rng = random.Random(40)
     assert client.get("/api/public/overview").json()["phase"] == "registration"
-    seeded(db, 40)
+    seeded(store, 40)
     overview = client.get("/api/public/overview").json()
     assert (
         overview["phase"] == "scheduled"
@@ -115,18 +115,15 @@ def test_a_whole_tournament_day(client: TestClient, db: Session, admin: dict) ->
 
 
 def test_final_goes_to_game_three_after_a_split(
-    client: TestClient, db: Session, admin: dict
+    client: TestClient, store: Store, admin: dict
 ) -> None:
-    seeded(db, 32)
-    sf_winners = db.scalars(select(Team).limit(2)).all()
+    seeded(store, 32)
+    sf_winners = store.all(Team)[:2]
     for code, winner in (("SF-1", sf_winners[0]), ("SF-2", sf_winners[1])):
-        match = db.scalar(select(Match).where(Match.code == code))
+        match = find(store, Match, code=code)
         match.status, match.winner_id = "completed", winner.id
-    db.commit()
-    from app.services.scoring import refresh_bracket
-
-    refresh_bracket(db)
-    db.commit()
+        store.save(match)
+    refresh_bracket(store)
     rng = random.Random(1)
     games = {m["code"]: m for m in client.get("/api/public/bracket").json()["matches"]}
     play(client, admin, games["F-1"], rng, winner="a")
@@ -137,8 +134,8 @@ def test_final_goes_to_game_three_after_a_split(
     assert client.get("/api/public/bracket").json()["champion"]["id"] == sf_winners[1].id
 
 
-def test_public_and_team_pages(client: TestClient, db: Session) -> None:
-    seeded(db, 32)
+def test_public_and_team_pages(client: TestClient, store: Store) -> None:
+    seeded(store, 32)
     teams = client.get("/api/public/teams").json()
     assert len(teams) == 32 and teams[0]["number"] == 1
     page = client.get("/api/public/teams/1").json()
@@ -197,18 +194,15 @@ def test_tournament_settings(client: TestClient, admin: dict) -> None:
 
 
 def test_correcting_the_final_reopens_game_three(
-    client: TestClient, db: Session, admin: dict
+    client: TestClient, store: Store, admin: dict
 ) -> None:
-    seeded(db, 32)
-    a, b = db.scalars(select(Team).limit(2)).all()
+    seeded(store, 32)
+    a, b = store.all(Team)[:2]
     for code, winner in (("SF-1", a), ("SF-2", b)):
-        match = db.scalar(select(Match).where(Match.code == code))
+        match = find(store, Match, code=code)
         match.status, match.winner_id = "completed", winner.id
-    db.commit()
-    from app.services.scoring import refresh_bracket
-
-    refresh_bracket(db)
-    db.commit()
+        store.save(match)
+    refresh_bracket(store)
     rng = random.Random(2)
     games = {m["code"]: m for m in client.get("/api/public/bracket").json()["matches"]}
     play(client, admin, games["F-1"], rng, winner="a")

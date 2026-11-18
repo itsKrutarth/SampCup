@@ -3,10 +3,20 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
-from app.api.deps import Db, SessionDep, TeamDep, bearer_token, limit, login_limiter
+from app.api.deps import (
+    LOGIN_PER_ACCOUNT,
+    LOGIN_PER_IP,
+    Db,
+    SessionDep,
+    TeamDep,
+    bearer_token,
+    limit,
+)
 from app.api.public import team_page
-from app.api.serializers import staff_out, team_out
+from app.api.serializers import Lookup, staff_out
+from app.models import StaffUser, Team
 from app.services import auth
+from app.services.teams import name_key
 
 router = APIRouter(tags=["auth"])
 
@@ -22,31 +32,35 @@ class StaffLogin(BaseModel):
 
 
 @router.post("/auth/team-login")
-def team_login(body: TeamLogin, db: Db, request: Request) -> dict[str, Any]:
-    limit(login_limiter, request)
-    token, team = auth.team_login(db, body.team_name, body.password)
-    return {"token": token, "kind": "team", "team": team_out(team)}
+def team_login(body: TeamLogin, store: Db, request: Request) -> dict[str, Any]:
+    limit(store, request, "login-ip", LOGIN_PER_IP)
+    limit(store, request, "login", LOGIN_PER_ACCOUNT, name_key(body.team_name))
+    token, team = auth.team_login(store, body.team_name, body.password)
+    return {"token": token, "kind": "team", "team": Lookup(store).team(team)}
 
 
 @router.post("/auth/staff-login")
-def staff_login(body: StaffLogin, db: Db, request: Request) -> dict[str, Any]:
-    limit(login_limiter, request)
-    token, user = auth.staff_login(db, body.username, body.password)
+def staff_login(body: StaffLogin, store: Db, request: Request) -> dict[str, Any]:
+    limit(store, request, "login-ip", LOGIN_PER_IP)
+    limit(store, request, "login", LOGIN_PER_ACCOUNT, body.username.strip().lower())
+    token, user = auth.staff_login(store, body.username, body.password)
     return {"token": token, "kind": "staff", "user": staff_out(user)}
 
 
 @router.post("/auth/logout", status_code=204)
-def logout(db: Db, token: Annotated[str, Depends(bearer_token)]) -> None:
-    auth.logout(db, token)
+def logout(store: Db, token: Annotated[str, Depends(bearer_token)]) -> None:
+    auth.logout(store, token)
 
 
 @router.get("/auth/me")
-def me(session: SessionDep) -> dict[str, Any]:
-    if session.staff is not None:
-        return {"kind": "staff", "user": staff_out(session.staff)}
-    return {"kind": "team", "team": team_out(session.team)} if session.team else {"kind": "none"}
+def me(store: Db, session: SessionDep) -> dict[str, Any]:
+    if session.staff_id and (user := store.get(StaffUser, session.staff_id)):
+        return {"kind": "staff", "user": staff_out(user)}
+    if session.team_id and (team := store.get(Team, session.team_id)):
+        return {"kind": "team", "team": Lookup(store).team(team)}
+    return {"kind": "none"}
 
 
 @router.get("/team/me")
-def my_team(team: TeamDep, db: Db) -> dict[str, Any]:
-    return {**team_page(db, team), "players": team_out(team)["players"]}
+def my_team(team: TeamDep, store: Db) -> dict[str, Any]:
+    return {**team_page(store, team), "players": Lookup(store).team(team)["players"]}

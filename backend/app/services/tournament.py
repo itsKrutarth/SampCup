@@ -1,18 +1,18 @@
 from datetime import UTC, date, datetime, time
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
-
 from app.models import Match, Tournament
+from app.store import ConflictError, Store
 
 
-def get_tournament(db: Session) -> Tournament:
-    tournament = db.scalar(select(Tournament).order_by(Tournament.id).limit(1))
+def get_tournament(store: Store) -> Tournament:
+    tournament = store.get(Tournament, 1)
     if tournament is None:
         tournament = Tournament()
-        db.add(tournament)
-        db.flush()
+        try:
+            store.save(tournament, create=True)
+        except ConflictError:  # pragma: no cover - two first requests at once
+            tournament = store.get(Tournament, 1) or tournament
     return tournament
 
 
@@ -22,5 +22,5 @@ def local_to_utc(tournament: Tournament, day: date, hhmm: str) -> datetime:
     return local.astimezone(UTC)
 
 
-def schedule_exists(db: Session) -> bool:
-    return bool(db.scalar(select(func.count()).select_from(Match)))
+def schedule_exists(store: Store) -> bool:
+    return store.exists(Match)

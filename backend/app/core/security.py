@@ -1,10 +1,6 @@
 import hashlib
 import hmac
 import secrets
-import threading
-import time
-from collections import deque
-from collections.abc import Callable
 
 SCRYPT_N, SCRYPT_R, SCRYPT_P = 2**14, 8, 1
 
@@ -45,29 +41,3 @@ def new_token() -> str:
 
 def token_digest(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
-
-
-class RateLimiter:
-    """At most `limit` hits per key in any `window` seconds (in memory, one process)."""
-
-    def __init__(
-        self, limit: int, window: float, clock: Callable[[], float] = time.monotonic
-    ) -> None:
-        self.limit, self.window, self.clock = limit, window, clock
-        self._hits: dict[str, deque[float]] = {}
-        self._lock = threading.Lock()
-
-    def allow(self, key: str) -> bool:
-        now = self.clock()
-        with self._lock:
-            hits = self._hits.setdefault(key, deque())
-            while hits and now - hits[0] >= self.window:
-                hits.popleft()
-            if len(hits) >= self.limit:
-                return False
-            hits.append(now)
-            return True
-
-    def reset(self) -> None:
-        with self._lock:
-            self._hits.clear()

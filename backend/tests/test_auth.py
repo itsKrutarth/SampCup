@@ -2,11 +2,11 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
-from app.models import AuthSession
+from app.models import Session
 from app.services.auth import create_staff, update_staff
 from app.services.errors import ServiceError
+from app.store import Store
 from tests.conftest import login
 from tests.factories import make_team
 
@@ -15,8 +15,8 @@ def team_login(client: TestClient, name: str, password: str = "pass"):
     return client.post("/api/auth/team-login", json={"team_name": name, "password": password})
 
 
-def test_team_login_and_my_team_page(client: TestClient, db: Session) -> None:
-    team = make_team(db, name="Net Ninjas")
+def test_team_login_and_my_team_page(client: TestClient, store: Store) -> None:
+    team = make_team(store, name="Net Ninjas")
     response = team_login(client, "NET NINJAS")
     assert response.status_code == 200
     headers = {"Authorization": f"Bearer {response.json()['token']}"}
@@ -30,10 +30,10 @@ def test_team_login_and_my_team_page(client: TestClient, db: Session) -> None:
 
 
 def test_wrong_team_password_unknown_team_and_withdrawn_team(
-    client: TestClient, db: Session
+    client: TestClient, store: Store
 ) -> None:
-    make_team(db, name="Gone", status="withdrawn")
-    make_team(db, name="Here")
+    make_team(store, name="Gone", status="withdrawn")
+    make_team(store, name="Here")
     assert team_login(client, "Here", "nope").status_code == 401
     assert team_login(client, "Nobody").status_code == 401
     response = team_login(client, "Gone")
@@ -41,13 +41,13 @@ def test_wrong_team_password_unknown_team_and_withdrawn_team(
 
 
 def test_staff_login_roles_and_guards(
-    client: TestClient, db: Session, admin: dict, judge: dict
+    client: TestClient, store: Store, admin: dict, judge: dict
 ) -> None:
     assert client.get("/api/auth/me", headers=judge).json()["user"]["role"] == "judge"
     assert client.get("/api/admin/summary", headers=judge).status_code == 403
     assert client.get("/api/admin/summary", headers=admin).status_code == 200
     assert client.get("/api/team/me", headers=admin).status_code == 403
-    team_token = team_login(client, make_team(db).name).json()["token"]
+    team_token = team_login(client, make_team(store).name).json()["token"]
     team_headers = {"Authorization": f"Bearer {team_token}"}
     assert client.get("/api/judge/matches", headers=team_headers).status_code == 403
     assert client.get("/api/judge/matches", headers={"Authorization": "Basic x"}).status_code == 401
@@ -55,10 +55,10 @@ def test_staff_login_roles_and_guards(
     assert bad.status_code == 401
 
 
-def test_expired_sessions_are_refused(client: TestClient, db: Session, admin: dict) -> None:
-    for session in db.query(AuthSession):
+def test_expired_sessions_are_refused(client: TestClient, store: Store, admin: dict) -> None:
+    for session in store.all(Session):
         session.expires_at = datetime.now(UTC) - timedelta(minutes=1)
-    db.commit()
+        store.save(session)
     assert client.get("/api/auth/me", headers=admin).status_code == 401
 
 
@@ -67,7 +67,7 @@ def test_logins_are_rate_limited(client: TestClient) -> None:
     assert codes[:10] == [401] * 10 and codes[10] == 429
 
 
-def test_staff_accounts(client: TestClient, db: Session, admin: dict) -> None:
+def test_staff_accounts(client: TestClient, store: Store, admin: dict) -> None:
     created = client.post(
         "/api/admin/staff",
         headers=admin,
@@ -108,14 +108,14 @@ def test_staff_accounts(client: TestClient, db: Session, admin: dict) -> None:
         ({"username": "admin", "password": "12345678", "role": "admin"}, "taken"),
     ],
 )
-def test_staff_rules(db: Session, kwargs: dict, message: str) -> None:
-    create_staff(db, "admin", "admin-password", "admin")
+def test_staff_rules(store: Store, kwargs: dict, message: str) -> None:
+    create_staff(store, "admin", "admin-password", "admin")
     with pytest.raises(ServiceError, match=message):
-        create_staff(db, **kwargs)
+        create_staff(store, **kwargs)
 
 
-def test_staff_password_change(db: Session) -> None:
-    user = create_staff(db, "judge9", "1234", "judge")
+def test_staff_password_change(store: Store) -> None:
+    user = create_staff(store, "judge9", "1234", "judge")
     with pytest.raises(ServiceError, match="too short"):
-        update_staff(db, user.id, password="1")
-    assert update_staff(db, user.id, password="5678").password_hash != ""
+        update_staff(store, user.id, password="1")
+    assert update_staff(store, user.id, password="5678").password_hash != ""

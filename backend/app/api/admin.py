@@ -7,37 +7,16 @@ from typing import Any
 from fastapi import APIRouter, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
 
 from app.api.deps import Admin, Db
-from app.api.serializers import (
-    announcement_out,
-    iso,
-    match_out,
-    player_out,
-    request_out,
-    staff_out,
-    team_out,
-)
-from app.models import (
-    Announcement,
-    Delay,
-    Match,
-    PartnerRequest,
-    Player,
-    ScoreAudit,
-    StaffUser,
-    Team,
-)
-from app.services import auth, events, players, schedule, scoring, teams
+from app.api.public import ordered
+from app.api.serializers import Lookup, announcement_out, iso, staff_out
+from app.models import Announcement, Delay, Match, PartnerRequest, ScoreAudit, StaffUser
+from app.services import auth, players, schedule, scoring, teams
 from app.services.errors import NotFound, ServiceError
 from app.services.tournament import get_tournament, schedule_exists
 
 router = APIRouter(prefix="/admin", tags=["admin"])
-
-
-def _publish(scope: str) -> None:
-    events.broadcaster.publish("update", scope=scope)
 
 
 class TournamentPatch(BaseModel):
@@ -123,17 +102,12 @@ class StaffPatch(BaseModel):
 
 
 @router.get("/summary")
-def summary(_: Admin, db: Db) -> dict[str, Any]:
-    tournament = get_tournament(db)
-    active_players = db.scalars(select(Player).where(Player.active)).all()
-    team_counts = dict(db.execute(select(Team.status, func.count()).group_by(Team.status)).all())
-    checked_in = db.scalar(
-        select(func.count()).select_from(Team).where(Team.status == "active", Team.checked_in)
-    )
-    pending = db.scalar(
-        select(func.count()).select_from(PartnerRequest).where(PartnerRequest.status == "pending")
-    )
-    db.commit()
+def summary(_: Admin, store: Db) -> dict[str, Any]:
+    tournament = get_tournament(store)
+    look = Lookup(store)
+    active_players = [p for p in look.players.values() if p.active]
+    statuses = Counter(t.status for t in look.teams.values())
+    pending = sum(r.status == "pending" for r in store.all(PartnerRequest))
     return {
         "tournament": {
             "name": tournament.name,
@@ -143,147 +117,140 @@ def summary(_: Admin, db: Db) -> dict[str, Any]:
             "team_cap": tournament.team_cap,
             "draw_seed": tournament.draw_seed,
             "schedule_locked": tournament.schedule_locked,
-            "schedule_exists": schedule_exists(db),
+            "schedule_exists": schedule_exists(store),
         },
         "players": len(active_players),
         "players_on_teams": sum(1 for p in active_players if p.team_id),
-        "teams": {s: team_counts.get(s, 0) for s in ("active", "waitlist", "withdrawn")},
-        "checked_in": checked_in,
+        "teams": {s: statuses.get(s, 0) for s in ("active", "waitlist", "withdrawn")},
+        "checked_in": sum(t.status == "active" and t.checked_in for t in look.teams.values()),
         "pending_requests": pending,
         "tshirts": dict(sorted(Counter(p.tshirt_size or "?" for p in active_players).items())),
     }
 
 
 @router.patch("/tournament")
-def update_tournament(body: TournamentPatch, _: Admin, db: Db) -> dict[str, Any]:
-    tournament = get_tournament(db)
+def update_tournament(body: TournamentPatch, user: Admin, store: Db) -> dict[str, Any]:
+    tournament = get_tournament(store)
     changes = body.model_dump(exclude_unset=True)
-    if "event_date" in changes and schedule_exists(db):
+    if "event_date" in changes and schedule_exists(store):
         raise ServiceError("Clear the schedule before changing the date")
     for field, value in changes.items():
         if value is not None:
             setattr(tournament, field, value)
-    db.commit()
-    _publish("tournament")
-    return summary(_, db)
+    store.save(tournament)
+    return summary(user, store)
 
 
 # ------------------------------------------------------------- players
 
 
 @router.post("/players/import")
-async def import_players(file: UploadFile, _: Admin, db: Db) -> dict[str, Any]:
+async def import_players(file: UploadFile, _: Admin, store: Db) -> dict[str, Any]:
     content = await file.read(players.MAX_BYTES + 1)
-    report = players.import_players(db, content)
-    _publish("registration")
-    return report
+    return players.import_players(store, content)
 
 
 @router.get("/players")
-def list_players(_: Admin, db: Db) -> list[dict[str, Any]]:
-    rows = db.scalars(select(Player).order_by(Player.center, Player.first_name, Player.last_name))
-    return [player_out(p, admin=True) for p in rows]
+def list_players(_: Admin, store: Db) -> list[dict[str, Any]]:
+    look = Lookup(store)
+    rows = sorted(look.players.values(), key=lambda p: (p.center, p.first_name, p.last_name))
+    return [look.player(p, admin=True) for p in rows]
 
 
 # --------------------------------------------------------------- teams
 
 
 @router.get("/teams")
-def list_teams(_: Admin, db: Db) -> list[dict[str, Any]]:
-    rows = db.scalars(select(Team).order_by(Team.team_number, Team.created_at))
-    return [team_out(t, admin=True) for t in rows]
+def list_teams(_: Admin, store: Db) -> list[dict[str, Any]]:
+    look = Lookup(store)
+    rows = sorted(
+        look.teams.values(), key=lambda t: (t.team_number is None, t.team_number or 0, t.created_at)
+    )
+    return [look.team(t, admin=True) for t in rows]
 
 
 @router.post("/teams", status_code=201)
-def create_team(body: TeamCreate, _: Admin, db: Db) -> dict[str, Any]:
-    team = teams.admin_create_team(db, body.name, body.password, body.player_ids, body.status)
-    _publish("teams")
-    return team_out(team, admin=True)
+def create_team(body: TeamCreate, _: Admin, store: Db) -> dict[str, Any]:
+    team = teams.admin_create_team(store, body.name, body.password, body.player_ids, body.status)
+    return Lookup(store).team(team, admin=True)
 
 
 @router.patch("/teams/{team_id}")
-def update_team(team_id: int, body: TeamPatch, _: Admin, db: Db) -> dict[str, Any]:
-    team = teams.admin_update_team(db, team_id, **body.model_dump(exclude_unset=True))
-    _publish("teams")
-    return team_out(team, admin=True)
+def update_team(team_id: int, body: TeamPatch, _: Admin, store: Db) -> dict[str, Any]:
+    team = teams.admin_update_team(store, team_id, **body.model_dump(exclude_unset=True))
+    return Lookup(store).team(team, admin=True)
 
 
 @router.delete("/teams/{team_id}", status_code=204)
-def delete_team(team_id: int, _: Admin, db: Db) -> None:
-    teams.admin_delete_team(db, team_id)
-    _publish("teams")
+def delete_team(team_id: int, _: Admin, store: Db) -> None:
+    teams.admin_delete_team(store, team_id)
 
 
 @router.get("/requests")
-def list_requests(_: Admin, db: Db) -> list[dict[str, Any]]:
-    rows = db.scalars(
-        select(PartnerRequest).where(PartnerRequest.status == "pending").order_by(PartnerRequest.id)
-    )
-    return [request_out(r) for r in rows]
+def list_requests(_: Admin, store: Db) -> list[dict[str, Any]]:
+    look = Lookup(store)
+    return [look.request(r) for r in store.all(PartnerRequest) if r.status == "pending"]
 
 
 @router.post("/requests/{request_id}/cancel")
-def cancel_request(request_id: int, _: Admin, db: Db) -> dict[str, Any]:
-    out = request_out(teams.cancel_request(db, request_id, None))
-    _publish("registration")
-    return out
+def cancel_request(request_id: int, _: Admin, store: Db) -> dict[str, Any]:
+    return Lookup(store).request(teams.cancel_request(store, request_id, None))
 
 
 # ------------------------------------------------------------ schedule
 
 
 @router.post("/draw")
-def draw(body: Draw, _: Admin, db: Db) -> list[dict[str, Any]]:
-    drawn = schedule.draw_numbers(db, body.seed)
-    _publish("teams")
-    return [team_out(t, admin=True) for t in drawn]
+def draw(body: Draw, _: Admin, store: Db) -> list[dict[str, Any]]:
+    drawn = schedule.draw_numbers(store, body.seed)
+    look = Lookup(store)
+    return [look.team(t, admin=True) for t in drawn]
 
 
 @router.post("/schedule")
-def generate(_: Admin, db: Db) -> dict[str, int]:
-    count = schedule.generate_schedule(db)
-    _publish("schedule")
-    return {"matches": count}
+def generate(_: Admin, store: Db) -> dict[str, int]:
+    return {"matches": schedule.generate_schedule(store)}
 
 
 @router.delete("/schedule", status_code=204)
-def clear(_: Admin, db: Db) -> None:
-    schedule.clear_schedule(db)
-    _publish("schedule")
+def clear(_: Admin, store: Db) -> None:
+    schedule.clear_schedule(store)
 
 
 @router.post("/schedule/lock")
-def lock(body: Lock, _: Admin, db: Db) -> dict[str, bool]:
-    schedule.set_locked(db, body.locked)
+def lock(body: Lock, _: Admin, store: Db) -> dict[str, bool]:
+    schedule.set_locked(store, body.locked)
     return {"locked": body.locked}
 
 
 @router.patch("/matches/{match_id}")
-def move_court(match_id: int, body: CourtPatch, _: Admin, db: Db) -> dict[str, Any]:
-    match = schedule.set_court(db, match_id, body.court)
-    _publish("schedule")
-    return match_out(match)
+def move_court(match_id: int, body: CourtPatch, _: Admin, store: Db) -> dict[str, Any]:
+    return Lookup(store).match(schedule.set_court(store, match_id, body.court))
 
 
 @router.post("/matches/{match_id}/correct")
-def correct(match_id: int, body: Correction, user: Admin, db: Db) -> dict[str, Any]:
+def correct(match_id: int, body: Correction, user: Admin, store: Db) -> dict[str, Any]:
     match, warnings = scoring.correct_match(
-        db, match_id, body.score_a, body.score_b, body.end_reason, body.seconds, body.reason, user
+        store,
+        match_id,
+        body.score_a,
+        body.score_b,
+        body.end_reason,
+        body.seconds,
+        body.reason,
+        user,
     )
-    _publish("scores")
-    return {**match_out(match), "warnings": warnings}
+    return {**Lookup(store).match(match), "warnings": warnings}
 
 
 @router.post("/matches/{match_id}/reset")
-def reset(match_id: int, body: Reset, user: Admin, db: Db) -> dict[str, Any]:
-    match, warnings = scoring.reset_match(db, match_id, body.reason, user)
-    _publish("scores")
-    return {**match_out(match), "warnings": warnings}
+def reset(match_id: int, body: Reset, user: Admin, store: Db) -> dict[str, Any]:
+    match, warnings = scoring.reset_match(store, match_id, body.reason, user)
+    return {**Lookup(store).match(match), "warnings": warnings}
 
 
 @router.get("/delays")
-def list_delays(_: Admin, db: Db) -> list[dict[str, Any]]:
-    rows = db.scalars(select(Delay).order_by(Delay.id.desc()))
+def list_delays(_: Admin, store: Db) -> list[dict[str, Any]]:
     return [
         {
             "id": d.id,
@@ -293,31 +260,24 @@ def list_delays(_: Admin, db: Db) -> list[dict[str, Any]]:
             "created_by": d.created_by,
             "created_at": iso(d.created_at),
         }
-        for d in rows
+        for d in reversed(store.all(Delay))
     ]
 
 
 @router.post("/delays")
-def add_delay(body: DelayIn, user: Admin, db: Db) -> dict[str, object]:
+def add_delay(body: DelayIn, user: Admin, store: Db) -> dict[str, object]:
     if body.from_time.tzinfo is None:
         raise ServiceError("from_time needs a timezone")
-    result = schedule.apply_delay(db, body.minutes, body.from_time, user.username)
-    _publish("schedule")
-    return result
+    return schedule.apply_delay(store, body.minutes, body.from_time, user.username)
 
 
 @router.get("/audit")
-def audit(_: Admin, db: Db, limit: int = 200) -> list[dict[str, Any]]:
-    rows = db.execute(
-        select(ScoreAudit, Match.code)
-        .join(Match, Match.id == ScoreAudit.match_id)
-        .order_by(ScoreAudit.id.desc())
-        .limit(min(limit, 1000))
-    ).all()
+def audit(_: Admin, store: Db, limit: int = 200) -> list[dict[str, Any]]:
+    rows = list(reversed(store.all(ScoreAudit)))[: min(limit, 1000)]
     return [
         {
             "id": a.id,
-            "match": code,
+            "match": a.match_code,
             "action": a.action,
             "old": a.old_values,
             "new": a.new_values,
@@ -325,7 +285,7 @@ def audit(_: Admin, db: Db, limit: int = 200) -> list[dict[str, Any]]:
             "reason": a.reason,
             "at": iso(a.changed_at),
         }
-        for a, code in rows
+        for a in rows
     ]
 
 
@@ -333,65 +293,59 @@ def audit(_: Admin, db: Db, limit: int = 200) -> list[dict[str, Any]]:
 
 
 @router.get("/announcements")
-def list_announcements(_: Admin, db: Db) -> list[dict[str, Any]]:
-    return [
-        announcement_out(a)
-        for a in db.scalars(select(Announcement).order_by(Announcement.id.desc()))
-    ]
+def list_announcements(_: Admin, store: Db) -> list[dict[str, Any]]:
+    return [announcement_out(a) for a in reversed(store.all(Announcement))]
 
 
 @router.post("/announcements", status_code=201)
-def add_announcement(body: AnnouncementIn, user: Admin, db: Db) -> dict[str, Any]:
-    item = Announcement(**body.model_dump(), created_by=user.username)
-    db.add(item)
-    db.commit()
-    _publish("announcements")
+def add_announcement(body: AnnouncementIn, user: Admin, store: Db) -> dict[str, Any]:
+    item = Announcement(
+        id=store.next_id(Announcement), created_by=user.username, **body.model_dump()
+    )
+    store.save(item, create=True)
     return announcement_out(item)
 
 
-def _announcement(db: Db, item_id: int) -> Announcement:
-    item = db.get(Announcement, item_id)
+def _announcement(store: Db, item_id: int) -> Announcement:
+    item = store.get(Announcement, item_id)
     if item is None:
         raise NotFound("Announcement not found")
     return item
 
 
 @router.patch("/announcements/{item_id}")
-def edit_announcement(item_id: int, body: AnnouncementPatch, _: Admin, db: Db) -> dict[str, Any]:
-    item = _announcement(db, item_id)
+def edit_announcement(item_id: int, body: AnnouncementPatch, _: Admin, store: Db) -> dict[str, Any]:
+    item = _announcement(store, item_id)
     for field, value in body.model_dump(exclude_unset=True).items():
         if value is not None:
             setattr(item, field, value)
-    db.commit()
-    _publish("announcements")
+    store.save(item)
     return announcement_out(item)
 
 
 @router.delete("/announcements/{item_id}", status_code=204)
-def delete_announcement(item_id: int, _: Admin, db: Db) -> None:
-    db.delete(_announcement(db, item_id))
-    db.commit()
-    _publish("announcements")
+def delete_announcement(item_id: int, _: Admin, store: Db) -> None:
+    store.delete(_announcement(store, item_id))
 
 
 # ---------------------------------------------------------------- staff
 
 
 @router.get("/staff")
-def list_staff(_: Admin, db: Db) -> list[dict[str, Any]]:
-    return [staff_out(u) for u in db.scalars(select(StaffUser).order_by(StaffUser.username))]
+def list_staff(_: Admin, store: Db) -> list[dict[str, Any]]:
+    return [staff_out(u) for u in sorted(store.all(StaffUser), key=lambda u: u.username)]
 
 
 @router.post("/staff", status_code=201)
-def add_staff(body: StaffIn, _: Admin, db: Db) -> dict[str, Any]:
-    return staff_out(auth.create_staff(db, **body.model_dump()))
+def add_staff(body: StaffIn, _: Admin, store: Db) -> dict[str, Any]:
+    return staff_out(auth.create_staff(store, **body.model_dump()))
 
 
 @router.patch("/staff/{user_id}")
-def edit_staff(user_id: int, body: StaffPatch, user: Admin, db: Db) -> dict[str, Any]:
+def edit_staff(user_id: int, body: StaffPatch, user: Admin, store: Db) -> dict[str, Any]:
     if user_id == user.id and body.active is False:
         raise ServiceError("You cannot deactivate yourself")
-    return staff_out(auth.update_staff(db, user_id, **body.model_dump(exclude_unset=True)))
+    return staff_out(auth.update_staff(store, user_id, **body.model_dump(exclude_unset=True)))
 
 
 # --------------------------------------------------------------- export
@@ -408,7 +362,8 @@ def _csv(rows: list[list[Any]], name: str) -> Response:
 
 
 @router.get("/export/results.csv")
-def export_results(_: Admin, db: Db) -> Response:
+def export_results(_: Admin, store: Db) -> Response:
+    look = Lookup(store)
     rows: list[list[Any]] = [
         [
             "code",
@@ -424,15 +379,16 @@ def export_results(_: Admin, db: Db) -> Response:
             "status",
         ]
     ]
-    for m in db.scalars(select(Match).order_by(Match.scheduled_at, Match.court)):
+    for m in ordered(store.all(Match)):
+        a, b = look.team_of(m.team_a_id), look.team_of(m.team_b_id)
         rows.append(
             [
                 m.code,
                 m.round_label,
                 iso(m.scheduled_at),
                 m.court,
-                m.team_a.name if m.team_a else "",
-                m.team_b.name if m.team_b else "",
+                a.name if a else "",
+                b.name if b else "",
                 m.score_a,
                 m.score_b,
                 m.end_reason,

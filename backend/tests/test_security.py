@@ -1,7 +1,9 @@
+import datetime as dt
+
 import pytest
 
-from app.core.security import RateLimiter, hash_password, token_digest, verify_password
-from app.db.types import UTCDateTime
+from app.core.security import hash_password, token_digest, verify_password
+from app.store import Store, _stored
 
 
 def test_password_hash_round_trip() -> None:
@@ -21,22 +23,13 @@ def test_token_digest_is_stable_and_hides_the_token() -> None:
     assert token_digest("abc") == token_digest("abc") != "abc"
 
 
-def test_rate_limiter_allows_a_burst_then_blocks_until_the_window_passes() -> None:
-    now = [0.0]
-    limiter = RateLimiter(limit=2, window=10, clock=lambda: now[0])
-    assert limiter.allow("ip") and limiter.allow("ip")
-    assert not limiter.allow("ip")
-    assert limiter.allow("other-ip")
-    now[0] = 10.0
-    assert limiter.allow("ip")
-    limiter.reset()
-    assert limiter.allow("ip") and limiter.allow("ip")
+def test_rate_counter_counts_per_window(store: Store) -> None:
+    assert [store.hit("ip", 10, clock=5) for _ in range(3)] == [1, 2, 3]
+    assert store.hit("other-ip", 10, clock=5) == 1
+    assert store.hit("ip", 10, clock=12) == 1  # next window
 
 
-def test_utc_datetime_refuses_naive_values() -> None:
-    from datetime import datetime
-
+def test_times_must_carry_a_timezone() -> None:
     with pytest.raises(ValueError, match="naive"):
-        UTCDateTime().process_bind_param(datetime(2026, 1, 1), None)
-    assert UTCDateTime().process_bind_param(None, None) is None
-    assert UTCDateTime().process_result_value(None, None) is None
+        _stored(dt.datetime(2026, 1, 1))
+    assert _stored(1.5) == _stored(1.5)

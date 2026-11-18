@@ -4,15 +4,13 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from app.models import Match, Team
 from app.services import schedule
-from app.services.errors import ServiceError
-from app.services.tournament import get_tournament
+from app.services.errors import Conflict, ServiceError
+from app.store import Store
 from app.tournament.templates import DATA_DIR, MAX_TEAMS, MIN_TEAMS, load_template
-from tests.factories import EVENT_DATE, make_team, seeded
+from tests.factories import EVENT_DATE, find, make_team, seeded
 
 
 @pytest.mark.parametrize("n_teams", range(MIN_TEAMS, MAX_TEAMS + 1))
@@ -50,10 +48,10 @@ def test_template_range_and_files() -> None:
     assert json.loads((DATA_DIR / "teams_40.json").read_text())["teams"] == 40
 
 
-def test_draw_generate_lock_and_clear(client: TestClient, db: Session, admin: dict) -> None:
+def test_draw_generate_lock_and_clear(client: TestClient, store: Store, admin: dict) -> None:
     for _ in range(34):
-        make_team(db)
-    make_team(db, checked_in=False)  # not here yet: left out of the draw
+        make_team(store)
+    make_team(store, checked_in=False)  # not here yet: left out of the draw
     response = client.post("/api/admin/schedule", headers=admin)
     assert response.status_code == 400 and "event date" in response.json()["detail"]
     client.patch(
@@ -67,15 +65,15 @@ def test_draw_generate_lock_and_clear(client: TestClient, db: Session, admin: di
     ]
     assert again == [t["id"] for t in drawn]  # same seed, same draw
     assert client.post("/api/admin/schedule", headers=admin).json() == {"matches": 136 + 17}
-    first = db.scalar(select(Match).order_by(Match.scheduled_at).limit(1))
-    assert first.scheduled_at == datetime(2026, 12, 12, 15, 0, tzinfo=UTC)  # 10:00 AM in Boston
-    team = db.scalar(select(Team).where(Team.team_number == 1))
+    first = min(store.all(Match), key=lambda m: m.scheduled_at)
+    assert first.scheduled_at == datetime(2026, 12, 6, 15, 0, tzinfo=UTC)  # 10:00 AM in Boston
+    team = find(store, Team, team_number=1)
     assert team.lunch_start is not None
     summary = client.get("/api/admin/summary", headers=admin).json()
     assert summary["tournament"]["schedule_exists"] and summary["checked_in"] == 34
     assert client.post("/api/admin/draw", headers=admin, json={}).status_code == 409
     date_change = client.patch(
-        "/api/admin/tournament", headers=admin, json={"event_date": "2026-12-13"}
+        "/api/admin/tournament", headers=admin, json={"event_date": "2026-12-07"}
     )
     assert date_change.status_code == 400
     assert client.post("/api/admin/schedule/lock", headers=admin, json={"locked": True}).json()[
@@ -85,40 +83,39 @@ def test_draw_generate_lock_and_clear(client: TestClient, db: Session, admin: di
     assert client.delete("/api/admin/schedule", headers=admin).status_code == 409
     client.post("/api/admin/schedule/lock", headers=admin, json={"locked": False})
     assert client.delete("/api/admin/schedule", headers=admin).status_code == 204
-    db.expire_all()
-    assert db.scalar(select(Team).where(Team.team_number == 1)).lunch_start is None
+    assert find(store, Team, team_number=1).lunch_start is None
     lock = client.post("/api/admin/schedule/lock", headers=admin, json={"locked": True})
     assert lock.status_code == 400
 
 
-def test_draw_needs_32_to_42_checked_in_teams(db: Session) -> None:
+def test_draw_needs_32_to_42_checked_in_teams(store: Store) -> None:
     for _ in range(31):
-        make_team(db)
+        make_team(store)
     with pytest.raises(ServiceError, match="31 active teams"):
-        schedule.draw_numbers(db)
+        schedule.draw_numbers(store)
 
 
-def test_generate_refuses_gaps_in_numbers(db: Session) -> None:
-    seeded(db, 32)
-    team = db.scalar(select(Team).where(Team.team_number == 32))
+def test_generate_refuses_gaps_in_numbers(store: Store) -> None:
+    seeded(store, 32)
+    team = find(store, Team, team_number=32)
     team.team_number = 99
-    get_tournament(db).schedule_locked = False
-    db.commit()
+    store.save(team)
     with pytest.raises(ServiceError, match="gaps"):
-        schedule.generate_schedule(db)
+        schedule.generate_schedule(store)
 
 
-def test_unlock_refused_once_games_started(db: Session) -> None:
-    seeded(db, 32)
-    db.scalar(select(Match).limit(1)).status = "in_progress"
-    db.commit()
+def test_unlock_refused_once_games_started(store: Store) -> None:
+    seeded(store, 32)
+    match = store.all(Match)[0]
+    match.status = "in_progress"
+    store.save(match)
     with pytest.raises(ServiceError, match="stays locked"):
-        schedule.set_locked(db, False)
+        schedule.set_locked(store, False)
 
 
-def test_court_override(client: TestClient, db: Session, admin: dict) -> None:
-    seeded(db, 32)
-    match = db.scalar(select(Match).limit(1))
+def test_court_override(client: TestClient, store: Store, admin: dict) -> None:
+    seeded(store, 32)
+    match = store.all(Match)[0]
     moved = client.patch(f"/api/admin/matches/{match.id}", headers=admin, json={"court": 9}).json()
     assert moved["court"] == 9
     assert (
@@ -132,7 +129,7 @@ def test_court_override(client: TestClient, db: Session, admin: dict) -> None:
         == 404
     )
     match.status = "completed"
-    db.commit()
+    store.save(match)
     assert (
         client.patch(f"/api/admin/matches/{match.id}", headers=admin, json={"court": 2}).status_code
         == 409
@@ -140,22 +137,21 @@ def test_court_override(client: TestClient, db: Session, admin: dict) -> None:
 
 
 def test_running_behind_shifts_later_games_and_warns(
-    client: TestClient, db: Session, admin: dict
+    client: TestClient, store: Store, admin: dict
 ) -> None:
     no_schedule = client.post(
         "/api/admin/delays",
         headers=admin,
-        json={"minutes": 10, "from_time": "2026-12-12T15:00:00Z"},
+        json={"minutes": 10, "from_time": "2026-12-06T15:00:00Z"},
     )
     assert no_schedule.status_code == 400
-    seeded(db, 40)
-    two_pm = datetime(2026, 12, 12, 19, 0, tzinfo=UTC)
-    before = {m.id: m.scheduled_at for m in db.scalars(select(Match))}
+    seeded(store, 40)
+    two_pm = datetime(2026, 12, 6, 19, 0, tzinfo=UTC)
+    before = {m.id: m.scheduled_at for m in store.all(Match)}
     result = client.post(
         "/api/admin/delays", headers=admin, json={"minutes": 20, "from_time": two_pm.isoformat()}
     ).json()
-    db.expire_all()
-    after = {m.id: m.scheduled_at for m in db.scalars(select(Match))}
+    after = {m.id: m.scheduled_at for m in store.all(Match)}
     moved = [i for i in before if after[i] != before[i]]
     assert result["moved"] == len(moved) and all(before[i] >= two_pm for i in moved)
     assert all(after[i] - before[i] == timedelta(minutes=20) for i in moved)
@@ -168,6 +164,30 @@ def test_running_behind_shifts_later_games_and_warns(
         )
         assert response.status_code == 400
     naive = client.post(
-        "/api/admin/delays", headers=admin, json={"minutes": 5, "from_time": "2026-12-12T14:00:00"}
+        "/api/admin/delays", headers=admin, json={"minutes": 5, "from_time": "2026-12-06T14:00:00"}
     )
     assert naive.status_code == 400
+
+
+def test_a_game_that_starts_while_shifting_keeps_its_time(
+    store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seeded(store, 32)
+    calls = iter([True])
+
+    def flaky(store: Store, match: Match) -> None:
+        if next(calls, False):
+            raise Conflict("changed")
+        store.save(match)
+
+    monkeypatch.setattr(schedule, "save_match", flaky)
+    result = schedule.apply_delay(store, 5, datetime(2026, 12, 6, 15, 0, tzinfo=UTC), "admin")
+    assert result["warnings"][-1] == "1 game(s) started while shifting and kept their time"
+
+
+def test_versions_stop_two_devices_overwriting_each_other(store: Store) -> None:
+    seeded(store, 32)
+    first, second = store.get(Match, 1), store.get(Match, 1)
+    schedule.save_match(store, first)
+    with pytest.raises(Conflict, match="another device"):
+        schedule.save_match(store, second)

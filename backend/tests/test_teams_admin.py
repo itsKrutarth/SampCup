@@ -1,18 +1,18 @@
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
 from app.models import Player
 from app.services.errors import ServiceError
 from app.services.teams import admin_update_team
 from app.services.tournament import get_tournament
+from app.store import Store
 from tests.factories import make_player, make_team
 
 
 def test_admin_creates_edits_and_deletes_teams(
-    client: TestClient, db: Session, admin: dict
+    client: TestClient, store: Store, admin: dict
 ) -> None:
-    a, b = make_player(db), make_player(db, center="South")  # admins may pair across centers
+    a, b = make_player(store), make_player(store, center="South")  # admins may pair across centers
     created = client.post(
         "/api/admin/teams",
         headers=admin,
@@ -21,7 +21,7 @@ def test_admin_creates_edits_and_deletes_teams(
     assert created.status_code == 201
     team = created.json()
     assert team["status"] == "active" and team["checked_in"] is False
-    c = make_player(db)
+    c = make_player(store)
     patched = client.patch(
         f"/api/admin/teams/{team['id']}",
         headers=admin,
@@ -34,7 +34,7 @@ def test_admin_creates_edits_and_deletes_teams(
     ).json()
     assert patched["name"] == "Dinkers United" and patched["checked_in"] is True
     assert {p["id"] for p in patched["players"]} == {a.id, c.id}
-    assert db.get(Player, b.id).team_id is None
+    assert store.get(Player, b.id).team_id is None
     login = client.post(
         "/api/auth/team-login", json={"team_name": "dinkers united", "password": "newpass"}
     )
@@ -45,16 +45,16 @@ def test_admin_creates_edits_and_deletes_teams(
     assert renamed.json()["name"] == "DINKERS UNITED"
     assert len(client.get("/api/admin/teams", headers=admin).json()) == 1
     assert client.delete(f"/api/admin/teams/{team['id']}", headers=admin).status_code == 204
-    assert db.get(Player, a.id).team_id is None
+    assert store.get(Player, a.id).team_id is None
     assert client.delete(f"/api/admin/teams/{team['id']}", headers=admin).status_code == 404
 
 
-def test_team_rules(client: TestClient, db: Session, admin: dict) -> None:
-    existing = make_team(db, name="First")
-    a, b = make_player(db), make_player(db)
+def test_team_rules(client: TestClient, store: Store, admin: dict) -> None:
+    existing = make_team(store, name="First")
+    a, b = make_player(store), make_player(store)
     body = {"name": "Second", "password": "pass", "player_ids": [a.id, a.id]}
     assert client.post("/api/admin/teams", headers=admin, json=body).status_code == 400
-    body["player_ids"] = [a.id, existing.players[0].id]
+    body["player_ids"] = [a.id, next(p.id for p in store.all(Player) if p.team_id == existing.id)]
     response = client.post("/api/admin/teams", headers=admin, json=body)
     assert response.status_code == 409 and "another team" in response.json()["detail"]
     body["player_ids"] = [a.id, b.id]
@@ -66,16 +66,19 @@ def test_team_rules(client: TestClient, db: Session, admin: dict) -> None:
         ).status_code
         == 200
     )
-    other = make_team(db, name="Third")
+    other = make_team(store, name="Third")
     clash = client.patch(f"/api/admin/teams/{other.id}", headers=admin, json={"name": "SECOND"})
     assert clash.status_code == 409
 
 
-def test_team_cap_waitlist_and_status_changes(client: TestClient, db: Session, admin: dict) -> None:
-    get_tournament(db).team_cap = 1
-    db.commit()
-    make_team(db)
-    a, b = make_player(db), make_player(db)
+def test_team_cap_waitlist_and_status_changes(
+    client: TestClient, store: Store, admin: dict
+) -> None:
+    tournament = get_tournament(store)
+    tournament.team_cap = 1
+    store.save(tournament)
+    make_team(store)
+    a, b = make_player(store), make_player(store)
     waiting = client.post(
         "/api/admin/teams",
         headers=admin,
@@ -92,22 +95,22 @@ def test_team_cap_waitlist_and_status_changes(client: TestClient, db: Session, a
     assert same.status_code == 200
 
 
-def test_numbered_teams_keep_their_status(db: Session) -> None:
-    team = make_team(db)
+def test_numbered_teams_keep_their_status(store: Store) -> None:
+    team = make_team(store)
     team.team_number = 1
-    db.commit()
+    store.save(team)
     with pytest.raises(ServiceError, match="Clear the schedule"):
-        admin_update_team(db, team.id, status="withdrawn")
+        admin_update_team(store, team.id, status="withdrawn")
     from app.services.teams import admin_delete_team
 
     with pytest.raises(ServiceError, match="Withdraw it instead"):
-        admin_delete_team(db, team.id)
+        admin_delete_team(store, team.id)
 
 
 def test_admin_sees_and_cancels_pending_requests(
-    client: TestClient, db: Session, admin: dict
+    client: TestClient, store: Store, admin: dict
 ) -> None:
-    a, b = make_player(db), make_player(db)
+    a, b = make_player(store), make_player(store)
     client.post(
         "/api/registration/requests",
         json={

@@ -1,11 +1,10 @@
 from typing import Annotated
 
+from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
 
-from app.db.session import get_db
+from app.models import Tournament
+from app.store import Store, get_store
 
 router = APIRouter()
 
@@ -17,10 +16,10 @@ def health() -> dict[str, str]:
 
 
 @router.get("/ready")
-def ready(db: Annotated[Session, Depends(get_db)]) -> dict[str, str]:
+def ready(store: Annotated[Store, Depends(get_store)]) -> dict[str, str]:
     """Readiness: the app can reach its database."""
     try:
-        db.execute(text("SELECT 1"))
-    except SQLAlchemyError as exc:
+        store.get(Tournament, 1)
+    except (BotoCoreError, ClientError) as exc:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "database unavailable") from exc
     return {"status": "ready"}

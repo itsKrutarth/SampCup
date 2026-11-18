@@ -7,11 +7,10 @@ from collections import Counter
 from typing import Any
 
 from openpyxl import load_workbook
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 
-from app.models import Player
+from app.models import Player, Team
 from app.services.errors import ServiceError
+from app.store import Store
 
 FIELDS = {
     "misid": "mis_id",
@@ -82,35 +81,46 @@ def parse_players(content: bytes) -> tuple[list[dict[str, str]], list[dict[str, 
     return players, skipped
 
 
-def import_players(db: Session, content: bytes) -> dict[str, Any]:
+def import_players(store: Store, content: bytes) -> dict[str, Any]:
     """Add or update players by MISID. Players missing from the file are deactivated,
     never deleted, so teams and history stay intact."""
     records, skipped = parse_players(content)
-    existing = {p.mis_id: p for p in db.scalars(select(Player))}
+    players = store.all(Player)
+    existing = {p.mis_id: p for p in players}
+    teams = {t.id: t for t in store.all(Team)}
     report: dict[str, Any] = {"added": 0, "updated": 0, "unchanged": 0, "deactivated": 0}
+    changed: list[Player] = []
+    new = [r for r in records if r["mis_id"] not in existing]
+    next_id = store.next_id(Player, len(new)) if new else 0
     for record in records:
         player = existing.get(record["mis_id"])
         if player is None:
-            db.add(Player(**record))
+            player = Player(id=next_id, **record)
+            next_id += 1
+            players.append(player)
+            changed.append(player)
             report["added"] += 1
             continue
-        changed = not player.active or any(getattr(player, f) != v for f, v in record.items())
-        for field, value in record.items():
-            setattr(player, field, value)
-        player.active = True
-        report["updated" if changed else "unchanged"] += 1
+        if not player.active or any(getattr(player, f) != v for f, v in record.items()):
+            for field, value in record.items():
+                setattr(player, field, value)
+            player.active = True
+            changed.append(player)
+            report["updated"] += 1
+        else:
+            report["unchanged"] += 1
     present = {r["mis_id"] for r in records}
-    teams_affected = []
-    for mis_id, player in existing.items():
-        if mis_id not in present and player.active:
+    teams_affected = set()
+    for player in existing.values():
+        if player.mis_id not in present and player.active:
             player.active = False
+            changed.append(player)
             report["deactivated"] += 1
-            if player.team is not None:
-                teams_affected.append(player.team.name)
-    db.flush()
+            if player.team_id in teams:
+                teams_affected.add(teams[player.team_id].name)
+    store.save_many(changed)
     names = Counter(
-        (p.first_name.casefold(), p.last_name.casefold(), p.center)
-        for p in db.scalars(select(Player).where(Player.active))
+        (p.first_name.casefold(), p.last_name.casefold(), p.center) for p in players if p.active
     )
     report["possible_duplicates"] = sorted(
         f"{first.title()} {last.title()} ({center})"
@@ -118,6 +128,5 @@ def import_players(db: Session, content: bytes) -> dict[str, Any]:
         if count > 1
     )
     report["skipped"] = skipped
-    report["teams_with_removed_players"] = sorted(set(teams_affected))
-    db.commit()
+    report["teams_with_removed_players"] = sorted(teams_affected)
     return report

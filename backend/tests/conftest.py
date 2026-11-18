@@ -1,55 +1,33 @@
-import os
 from collections.abc import Iterator
 
+import boto3
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from moto import mock_aws
 
-import app.models  # noqa: F401
-from app.api.deps import login_limiter, registration_limiter
-from app.db.base import Base
-from app.db.session import get_db
 from app.main import app
 from app.services.auth import create_staff
-
-# CI points this at Postgres; locally the tests use in-memory SQLite.
-TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
+from app.store import Store, create_table, get_store
 
 
-@pytest.fixture
-def engine() -> Iterator[Engine]:
-    if TEST_DATABASE_URL:
-        engine = create_engine(TEST_DATABASE_URL)
-        Base.metadata.drop_all(engine)
-    else:
-        engine = create_engine(
-            "sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
-        )
-    Base.metadata.create_all(engine)
-    yield engine
-    Base.metadata.drop_all(engine)
-    engine.dispose()
+@pytest.fixture(autouse=True)
+def fake_aws(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Never touch a real AWS account from tests."""
+    monkeypatch.delenv("AWS_PROFILE", raising=False)
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
 
 
 @pytest.fixture
-def db(engine: Engine) -> Iterator[Session]:
-    with Session(engine, expire_on_commit=False) as session:
-        yield session
+def store() -> Iterator[Store]:
+    with mock_aws():
+        yield Store(create_table(boto3.resource("dynamodb", region_name="us-east-1"), "test"))
 
 
 @pytest.fixture
-def client(engine: Engine) -> Iterator[TestClient]:
-    factory = sessionmaker(bind=engine, expire_on_commit=False)
-
-    def override() -> Iterator[Session]:
-        with factory() as session:
-            yield session
-
-    app.dependency_overrides[get_db] = override
-    login_limiter.reset()
-    registration_limiter.reset()
+def client(store: Store) -> Iterator[TestClient]:
+    app.dependency_overrides[get_store] = lambda: store
     yield TestClient(app)
     app.dependency_overrides.clear()
 
@@ -63,12 +41,12 @@ def login(client: TestClient, username: str, password: str) -> dict[str, str]:
 
 
 @pytest.fixture
-def admin(client: TestClient, db: Session) -> dict[str, str]:
-    create_staff(db, "admin", "admin-password", "admin", "Admin")
+def admin(client: TestClient, store: Store) -> dict[str, str]:
+    create_staff(store, "admin", "admin-password", "admin", "Admin")
     return login(client, "admin", "admin-password")
 
 
 @pytest.fixture
-def judge(client: TestClient, db: Session) -> dict[str, str]:
-    create_staff(db, "judge1", "1234", "judge", "Judge One", court=1)
+def judge(client: TestClient, store: Store) -> dict[str, str]:
+    create_staff(store, "judge1", "1234", "judge", "Judge One", court=1)
     return login(client, "judge1", "1234")

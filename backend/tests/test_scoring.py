@@ -1,18 +1,20 @@
+import datetime as dt
+
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from app.models import Match, ScoreAudit
+from app.services import scoring
 from app.services.auth import create_staff
+from app.store import ConflictError, Store
 from tests.conftest import login
-from tests.factories import seeded
+from tests.factories import find, seeded
 
 
 @pytest.fixture
-def game(db: Session) -> Match:
-    seeded(db, 32)
-    return db.scalar(select(Match).where(Match.court == 1).order_by(Match.scheduled_at).limit(1))
+def game(store: Store) -> Match:
+    seeded(store, 32)
+    return min((m for m in store.all(Match) if m.court == 1), key=lambda m: m.scheduled_at)
 
 
 def act(client: TestClient, headers: dict, match: Match, action: str, **body: object):
@@ -22,7 +24,7 @@ def act(client: TestClient, headers: dict, match: Match, action: str, **body: ob
 
 
 def test_judge_plays_a_game_to_11(
-    client: TestClient, db: Session, judge: dict, game: Match
+    client: TestClient, store: Store, judge: dict, game: Match
 ) -> None:
     board = client.get("/api/judge/matches", headers=judge).json()
     assert board["court"] == 1 and board["current"]["id"] == game.id
@@ -42,13 +44,11 @@ def test_judge_plays_a_game_to_11(
     other = act(client, judge, game, "finish", score_a=11, score_b=8, end_reason="reached_11")
     assert other.status_code == 409
     assert act(client, judge, game, "start").status_code == 409
-    actions = [
-        a.action for a in db.scalars(select(ScoreAudit).where(ScoreAudit.match_id == game.id))
-    ]
+    actions = [a.action for a in store.all(ScoreAudit) if a.match_id == game.id]
     assert actions == ["start", "final"]
 
 
-def test_clock_endings(client: TestClient, db: Session, judge: dict, game: Match) -> None:
+def test_clock_endings(client: TestClient, store: Store, judge: dict, game: Match) -> None:
     act(client, judge, game, "start")
     tied = act(client, judge, game, "finish", score_a=8, score_b=8, end_reason="clock_lead")
     assert tied.status_code == 400 and "sudden-death" in tied.json()["detail"]
@@ -67,7 +67,7 @@ def test_clock_endings(client: TestClient, db: Session, judge: dict, game: Match
 
 
 def test_finish_without_start_and_impossible_scores(
-    client: TestClient, db: Session, judge: dict, game: Match
+    client: TestClient, store: Store, judge: dict, game: Match
 ) -> None:
     bad = act(client, judge, game, "finish", score_a=11, score_b=11, end_reason="reached_11")
     assert bad.status_code == 400 and "tied" in bad.json()["detail"]
@@ -79,7 +79,7 @@ def test_finish_without_start_and_impossible_scores(
     assert lead["status"] == "completed" and lead["seconds"] == 720
 
 
-def test_forfeit(client: TestClient, db: Session, judge: dict, game: Match) -> None:
+def test_forfeit(client: TestClient, store: Store, judge: dict, game: Match) -> None:
     assert act(client, judge, game, "forfeit", winner="c").status_code == 400
     result = act(client, judge, game, "forfeit", winner="b").json()
     assert (result["score_a"], result["score_b"], result["end_reason"]) == (0, 11, "forfeit")
@@ -87,36 +87,37 @@ def test_forfeit(client: TestClient, db: Session, judge: dict, game: Match) -> N
 
 
 def test_judges_stay_on_their_court(
-    client: TestClient, db: Session, judge: dict, game: Match
+    client: TestClient, store: Store, judge: dict, game: Match
 ) -> None:
-    elsewhere = db.scalar(select(Match).where(Match.court == 2).limit(1))
+    elsewhere = min((m for m in store.all(Match) if m.court == 2), key=lambda m: m.scheduled_at)
     response = act(client, judge, elsewhere, "start")
     assert response.status_code == 400 and "court 1" in response.json()["detail"]
-    create_staff(db, "floater", "1234", "judge")
+    create_staff(store, "floater", "1234", "judge")
     floater = login(client, "floater", "1234")
     assert act(client, floater, elsewhere, "start").status_code == 200
     board = client.get("/api/judge/matches?court=2", headers=floater).json()
     assert board["court"] == 2 and board["current"]["id"] == elsewhere.id
     assert client.get("/api/judge/matches", headers=floater).json()["court"] is None
-    assert act(client, floater, Match(id=99999), "start").status_code == 404
+    missing = client.post("/api/judge/matches/99999/start", headers=floater)
+    assert missing.status_code == 404
 
 
 def test_knockout_games_wait_for_their_teams_and_earlier_rounds(
-    client: TestClient, db: Session, admin: dict, game: Match
+    client: TestClient, store: Store, admin: dict, game: Match
 ) -> None:
-    r16 = db.scalar(select(Match).where(Match.code == "R16-1"))
+    r16 = find(store, Match, code="R16-1")
     response = act(client, admin, r16, "start")
     assert response.status_code == 409 and "not known" in response.json()["detail"]
     assert act(client, admin, r16, "forfeit", winner="a").status_code == 409
-    f2 = db.scalar(select(Match).where(Match.code == "F-2"))
+    f2 = find(store, Match, code="F-2")
     f2.team_a_id, f2.team_b_id = game.team_a_id, game.team_b_id
-    db.commit()
+    store.save(f2)
     response = act(client, admin, f2, "start")
     assert response.status_code == 409 and "Finish F-1 first" in response.json()["detail"]
 
 
 def test_admin_corrections_and_resets(
-    client: TestClient, db: Session, admin: dict, judge: dict, game: Match
+    client: TestClient, store: Store, admin: dict, judge: dict, game: Match
 ) -> None:
     url = f"/api/admin/matches/{game.id}"
     body = {
@@ -151,3 +152,48 @@ def test_admin_corrections_and_resets(
     log = client.get("/api/admin/audit", headers=admin).json()
     assert [entry["action"] for entry in log] == ["reset", "correct", "correct", "final", "start"]
     assert log[1]["reason"] == "judge swapped teams"
+
+
+def test_bracket_refresh_retries_after_a_clash(
+    store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seeded(store, 32)
+    for match in store.all(Match):
+        if match.phase == "group":
+            match.status, match.score_a, match.score_b = "completed", 11, 3
+            match.end_reason, match.seconds, match.winner_id = "reached_11", 400, match.team_a_id
+            store.save(match)
+    real_save = store.save
+    clashes = iter([True])
+
+    def clashing(record: object, **kw: object) -> None:
+        if kw.get("version") is not None and next(clashes, False):
+            raise ConflictError("clash")
+        real_save(record, **kw)
+
+    monkeypatch.setattr(store, "save", clashing)
+    assert scoring.refresh_bracket(store) == []
+    assert find(store, Match, code="R16-1").team_a_id is not None
+
+
+def test_bracket_refresh_gives_up_politely(store: Store, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        scoring,
+        "_bracket_changes",
+        lambda store: (
+            [
+                Match(
+                    id=1,
+                    code="X",
+                    phase="knockout",
+                    round_label="x",
+                    court=1,
+                    scheduled_at=dt.datetime.now(dt.UTC),
+                )
+            ],
+            [],
+        ),
+    )
+    assert scoring.refresh_bracket(store, attempts=2) == [
+        "The bracket is busy; it updates with the next result"
+    ]

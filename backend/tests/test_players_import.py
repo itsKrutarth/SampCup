@@ -1,12 +1,11 @@
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from app.models import Player
 from app.services.errors import ServiceError
 from app.services.players import import_players, parse_players
-from tests.factories import HEADER, make_team, row, xlsx
+from app.store import Store
+from tests.factories import HEADER, find, make_team, members, row, xlsx
 
 
 def upload(client: TestClient, headers: dict[str, str], content: bytes, name: str = "export.xlsx"):
@@ -26,12 +25,13 @@ def test_import_adds_players_from_the_registration_export(client: TestClient, ad
     assert players[0]["tshirt_size"] == "Large"
 
 
-def test_reimport_updates_by_misid_and_deactivates_missing_players(db: Session) -> None:
-    import_players(db, xlsx([row(1, "Aarav"), row(2, "Dev"), row(3, "Jay")]))
-    team = make_team(db)
-    db.get(Player, team.players[0].id).mis_id = "4"
-    db.commit()
-    report = import_players(db, xlsx([row(1, "Aarav"), row(2, "Devan"), row(5, "Om")]))
+def test_reimport_updates_by_misid_and_deactivates_missing_players(store: Store) -> None:
+    import_players(store, xlsx([row(1, "Aarav"), row(2, "Dev"), row(3, "Jay")]))
+    team = make_team(store)
+    player = members(store, team)[0]
+    player.mis_id = "4"
+    store.save(player)
+    report = import_players(store, xlsx([row(1, "Aarav"), row(2, "Devan"), row(5, "Om")]))
     assert report == {
         "added": 1,
         "updated": 1,
@@ -41,9 +41,9 @@ def test_reimport_updates_by_misid_and_deactivates_missing_players(db: Session) 
         "skipped": [],
         "teams_with_removed_players": [team.name],
     }
-    report = import_players(db, xlsx([row(1, "Aarav"), row(2, "Devan"), row(3, "Jay")]))
+    report = import_players(store, xlsx([row(1, "Aarav"), row(2, "Devan"), row(3, "Jay")]))
     assert report["updated"] == 1  # Jay came back
-    assert db.scalar(select(Player).where(Player.mis_id == "3")).active
+    assert find(store, Player, mis_id="3").active
 
 
 def test_rows_with_problems_are_skipped_and_reported() -> None:
@@ -57,15 +57,15 @@ def test_rows_with_problems_are_skipped_and_reported() -> None:
     ]
 
 
-def test_same_names_in_one_center_are_flagged_not_merged(db: Session) -> None:
-    report = import_players(db, xlsx([row(1, "Aarav", "Patel"), row(2, "aarav", "PATEL")]))
+def test_same_names_in_one_center_are_flagged_not_merged(store: Store) -> None:
+    report = import_players(store, xlsx([row(1, "Aarav", "Patel"), row(2, "aarav", "PATEL")]))
     assert report["added"] == 2
     assert report["possible_duplicates"] == ["Aarav Patel (North)"]
 
 
-def test_csv_exports_work_too(db: Session) -> None:
+def test_csv_exports_work_too(store: Store) -> None:
     content = ("﻿" + ",".join(HEADER) + "\n" + "NE,Cup,North,Z,Aarav,Tester,Male,77,M\n").encode()
-    assert import_players(db, content)["added"] == 1
+    assert import_players(store, content)["added"] == 1
 
 
 @pytest.mark.parametrize(

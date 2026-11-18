@@ -1,19 +1,19 @@
 from collections import Counter
 from typing import Any
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-
 from app.models import Match, Team
 from app.services.tournament import get_tournament
+from app.store import Store
 from app.tournament.ranking import rank_teams
 
 
-def group_standings(db: Session) -> dict[str, dict[str, Any]]:
+def group_standings(
+    store: Store, teams: list[Team] | None = None, matches: list[Match] | None = None
+) -> dict[str, dict[str, Any]]:
     """Each group ranked by the rules (ranking.py), keyed by team number."""
-    seed = get_tournament(db).draw_seed or 0
-    teams = db.scalars(select(Team).where(Team.group.is_not(None))).all()
-    matches = db.scalars(select(Match).where(Match.phase == "group")).all()
+    seed = get_tournament(store).draw_seed or 0
+    teams = [t for t in (store.all(Team) if teams is None else teams) if t.group]
+    matches = [m for m in (store.all(Match) if matches is None else matches) if m.phase == "group"]
     out: dict[str, dict[str, Any]] = {}
     for group in sorted({t.group for t in teams if t.group}):
         members = {t.team_number: t for t in teams if t.group == group}

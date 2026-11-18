@@ -1,8 +1,5 @@
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, select
-from sqlalchemy.orm import Session
-
 from app.core.config import get_settings
 from app.core.security import (
     DUMMY_HASH,
@@ -11,61 +8,67 @@ from app.core.security import (
     token_digest,
     verify_password,
 )
-from app.models import AuthSession, StaffUser, Team
+from app.models import Session, StaffUser, Team
 from app.services.errors import Conflict, NotFound, ServiceError
 from app.services.teams import name_key
+from app.store import ConflictError, Store
+
+USERNAME = "USERNAME"  # lock kind: usernames are unique
 
 
 class LoginFailed(ServiceError):
     status_code = 401
 
 
-def _new_session(db: Session, **owner: int) -> str:
+def _new_session(store: Store, **owner: int) -> str:
     token = new_token()
-    now = datetime.now(UTC)
-    db.execute(delete(AuthSession).where(AuthSession.expires_at < now))
-    db.add(
-        AuthSession(
-            token_hash=token_digest(token),
-            expires_at=now + timedelta(hours=get_settings().session_hours),
-            **owner,
-        )
+    expires = datetime.now(UTC) + timedelta(hours=get_settings().session_hours)
+    store.save(
+        Session(id=token_digest(token), expires_at=expires, ttl=int(expires.timestamp()), **owner)
     )
-    db.commit()
     return token
 
 
-def team_login(db: Session, team_name: str, password: str) -> tuple[str, Team]:
-    team = db.scalar(select(Team).where(Team.name_key == name_key(team_name)))
+def team_login(store: Store, team_name: str, password: str) -> tuple[str, Team]:
+    key = name_key(team_name)
+    team = next((t for t in store.all(Team) if t.name_key == key), None)
     if not verify_password(password, team.password_hash if team else DUMMY_HASH) or not team:
         raise LoginFailed("Team name or password is wrong")
     if team.status == "withdrawn":
         raise LoginFailed("This team has withdrawn. Ask an admin.")
-    return _new_session(db, team_id=team.id), team
+    return _new_session(store, team_id=team.id), team
 
 
-def staff_login(db: Session, username: str, password: str) -> tuple[str, StaffUser]:
-    user = db.scalar(select(StaffUser).where(StaffUser.username == username.strip().lower()))
+def staff_login(store: Store, username: str, password: str) -> tuple[str, StaffUser]:
+    wanted = username.strip().lower()
+    user = next((u for u in store.all(StaffUser) if u.username == wanted), None)
     ok = verify_password(password, user.password_hash if user else DUMMY_HASH)
     if not ok or user is None or not user.active:
         raise LoginFailed("Username or password is wrong")
-    return _new_session(db, staff_id=user.id), user
+    return _new_session(store, staff_id=user.id), user
 
 
-def session_for(db: Session, token: str) -> AuthSession | None:
-    session = db.scalar(select(AuthSession).where(AuthSession.token_hash == token_digest(token)))
+def session_for(store: Store, token: str) -> Session | None:
+    session = store.get(Session, token_digest(token))
     if session is None or session.expires_at <= datetime.now(UTC):
         return None
     return session
 
 
-def logout(db: Session, token: str) -> None:
-    db.execute(delete(AuthSession).where(AuthSession.token_hash == token_digest(token)))
-    db.commit()
+def logout(store: Store, token: str) -> None:
+    session = store.get(Session, token_digest(token))
+    if session:
+        store.delete(session)
 
 
-def end_team_sessions(db: Session, team_id: int) -> None:
-    db.execute(delete(AuthSession).where(AuthSession.team_id == team_id))
+def end_sessions(store: Store, *, team_id: int | None = None, staff_id: int | None = None) -> None:
+    for session in store.all(Session):
+        if (team_id and session.team_id == team_id) or (staff_id and session.staff_id == staff_id):
+            store.delete(session)
+
+
+def end_team_sessions(store: Store, team_id: int) -> None:
+    end_sessions(store, team_id=team_id)
 
 
 def _check_staff(username: str, role: str, court: int | None) -> str:
@@ -80,7 +83,7 @@ def _check_staff(username: str, role: str, court: int | None) -> str:
 
 
 def create_staff(
-    db: Session,
+    store: Store,
     username: str,
     password: str,
     role: str,
@@ -92,22 +95,25 @@ def create_staff(
         raise ServiceError("Admin passwords need at least 8 characters")
     if len(password) < 4:
         raise ServiceError("Password must be at least 4 characters")
-    if db.scalar(select(StaffUser.id).where(StaffUser.username == username)):
-        raise Conflict("That username is taken")
     user = StaffUser(
+        id=store.next_id(StaffUser),
         username=username,
         display_name=display_name.strip() or username,
         role=role,
         password_hash=hash_password(password),
         court=court,
     )
-    db.add(user)
-    db.commit()
+    try:
+        store.transact(
+            [store.tx_put(user, create=True), store.tx_lock(USERNAME, username, f"staff:{user.id}")]
+        )
+    except ConflictError as exc:
+        raise Conflict("That username is taken") from exc
     return user
 
 
 def update_staff(
-    db: Session,
+    store: Store,
     user_id: int,
     *,
     court: int | None = None,
@@ -116,7 +122,7 @@ def update_staff(
     password: str | None = None,
     display_name: str | None = None,
 ) -> StaffUser:
-    user = db.get(StaffUser, user_id)
+    user = store.get(StaffUser, user_id)
     if user is None:
         raise NotFound("Staff user not found")
     if court is not None:
@@ -132,7 +138,7 @@ def update_staff(
         user.password_hash = hash_password(password)
     if active is not None:
         user.active = active
+    store.save(user)
     if password is not None or active is False:
-        db.execute(delete(AuthSession).where(AuthSession.staff_id == user.id))
-    db.commit()
+        end_sessions(store, staff_id=user.id)
     return user

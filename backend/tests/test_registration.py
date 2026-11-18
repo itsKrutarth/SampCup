@@ -1,8 +1,10 @@
+import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
-from app.models import PartnerRequest, Team
+from app.api import registration
+from app.models import PartnerRequest, Player, Team
 from app.services.tournament import get_tournament
+from app.store import Store
 from tests.factories import make_player, make_team
 
 
@@ -19,9 +21,9 @@ def answer(client: TestClient, request_id: int, action: str, player_id: int):
     )
 
 
-def test_players_pick_a_partner_and_the_partner_accepts(client: TestClient, db: Session) -> None:
-    a, b, c = make_player(db), make_player(db), make_player(db)
-    make_player(db, center="South")
+def test_players_pick_a_partner_and_the_partner_accepts(client: TestClient, store: Store) -> None:
+    a, b, c = make_player(store), make_player(store), make_player(store)
+    make_player(store, center="South")
     assert client.get("/api/registration/centers").json() == [
         {"center": "North", "players": 3, "on_teams": 0},
         {"center": "South", "players": 1, "on_teams": 0},
@@ -39,7 +41,7 @@ def test_players_pick_a_partner_and_the_partner_accepts(client: TestClient, db: 
     team = answer(client, sent.json()["id"], "accept", b.id).json()
     assert team["name"] == "Smash Bros" and team["status"] == "active"
     assert {p["id"] for p in team["players"]} == {a.id, b.id}
-    assert db.get(PartnerRequest, third.json()["id"]).status == "cancelled"
+    assert store.get(PartnerRequest, third.json()["id"]).status == "cancelled"
     status = client.get(f"/api/registration/players/{a.id}").json()
     assert status["team"]["name"] == "Smash Bros" and status["outgoing"] is None
     login = client.post(
@@ -53,10 +55,11 @@ def test_players_pick_a_partner_and_the_partner_accepts(client: TestClient, db: 
     }
 
 
-def test_request_rules(client: TestClient, db: Session) -> None:
-    a, b, c, d = (make_player(db) for _ in range(4))
-    south = make_player(db, center="South")
-    teamed = make_team(db, name="Taken Name").players[0]
+def test_request_rules(client: TestClient, store: Store) -> None:
+    a, b, c, d = (make_player(store) for _ in range(4))
+    south = make_player(store, center="South")
+    taken = make_team(store, name="Taken Name")
+    teamed = next(p for p in store.all(Player) if p.team_id == taken.id)
     checks = [
         (ask(client, a.id, a.id), 400, "someone else"),
         (ask(client, a.id, south.id), 400, "from your center"),
@@ -75,8 +78,8 @@ def test_request_rules(client: TestClient, db: Session) -> None:
     assert response.status_code == 409 and "waiting on another request" in response.json()["detail"]
 
 
-def test_answers_must_come_from_the_right_player(client: TestClient, db: Session) -> None:
-    a, b = make_player(db), make_player(db)
+def test_answers_must_come_from_the_right_player(client: TestClient, store: Store) -> None:
+    a, b = make_player(store), make_player(store)
     request_id = ask(client, a.id, b.id).json()["id"]
     assert answer(client, request_id, "accept", a.id).status_code == 400
     assert answer(client, request_id, "cancel", b.id).status_code == 400
@@ -89,39 +92,44 @@ def test_answers_must_come_from_the_right_player(client: TestClient, db: Session
 
 
 def test_accepting_after_one_player_joined_another_team_fails(
-    client: TestClient, db: Session
+    client: TestClient, store: Store
 ) -> None:
-    a, b, c = make_player(db), make_player(db), make_player(db)
+    a, b, c = make_player(store), make_player(store), make_player(store)
     first = ask(client, a.id, b.id).json()["id"]
-    team = make_team(db)
-    db.get(type(c), c.id).team_id = team.id
-    db.get(type(a), a.id).team_id = team.id
-    db.commit()
+    team = make_team(store)
+    for player in (a, c):
+        player.team_id = team.id
+        store.save(player)
     assert answer(client, first, "accept", b.id).status_code == 409
 
 
-def test_teams_past_the_cap_go_on_the_waitlist(client: TestClient, db: Session) -> None:
-    get_tournament(db).team_cap = 1
-    db.commit()
-    make_team(db)
-    a, b = make_player(db), make_player(db)
+def test_teams_past_the_cap_go_on_the_waitlist(client: TestClient, store: Store) -> None:
+    tournament = get_tournament(store)
+    tournament.team_cap = 1
+    store.save(tournament)
+    make_team(store)
+    a, b = make_player(store), make_player(store)
     request_id = ask(client, a.id, b.id).json()["id"]
     assert answer(client, request_id, "accept", b.id).json()["status"] == "waitlist"
 
 
 def test_closed_registration_refuses_new_requests_and_accepts(
-    client: TestClient, db: Session
+    client: TestClient, store: Store
 ) -> None:
-    a, b, c, d = (make_player(db) for _ in range(4))
+    a, b, c, d = (make_player(store) for _ in range(4))
     request_id = ask(client, a.id, b.id).json()["id"]
-    get_tournament(db).registration_open = False
-    db.commit()
+    tournament = get_tournament(store)
+    tournament.registration_open = False
+    store.save(tournament)
     assert ask(client, c.id, d.id, name="Late").status_code == 409
     assert answer(client, request_id, "accept", b.id).status_code == 409
-    assert db.query(Team).count() == 0
+    assert store.all(Team) == []
 
 
-def test_request_spam_is_rate_limited(client: TestClient, db: Session) -> None:
-    a = make_player(db)
+def test_request_spam_is_rate_limited(
+    client: TestClient, store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(registration, "REGISTRATION_PER_IP", (30, 600))
+    a = make_player(store)
     codes = {ask(client, a.id, a.id).status_code for _ in range(31)}
     assert codes == {400, 429}
