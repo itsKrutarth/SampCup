@@ -7,8 +7,7 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
 - **State:** the app is built, tested and was proven on real AWS with a full dummy-user
   tournament. **The AWS stack is torn down** (owner's request while offline). Only the
   Terraform state bucket `sampcup-tfstate-<account>` remains (a few KB, ~$0).
-- **Branch:** `app/serverless` (pushed). `main` still has the older Postgres version; merge
-  `app/serverless` once CI is green on it.
+- **Branch:** `main` (serverless version merged 2026-11-17; all six CI jobs green).
 - **To bring everything back:** `infra/deploy.sh apply` (about 5 minutes), then the
   "After a fresh deploy" steps in `docs/DEPLOY.md` (create your admin, create the 9 judges).
 - **Next:**
