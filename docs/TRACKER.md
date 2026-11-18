@@ -61,7 +61,7 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
 - **Serverless AWS (owner, 2026-11-17):** CloudFront → S3 (site) and → Lambda function URL
   (API, Python 3.12 arm64, Mangum). DynamoDB on-demand with point-in-time recovery. No API
   Gateway, VPC, NAT or server. Everything by Terraform (`infra/`); state in S3 with native
-  locking. DNS stays at Namecheap (free) instead of Route 53.
+  locking.
 - **Only CloudFront can call the API:** CloudFront adds a secret header; the app refuses
   requests without it. The function URL itself answers 403 to direct calls.
 - **DynamoDB design:** one table, `pk` = record kind, `sk` = id. Each request reads whole kinds
