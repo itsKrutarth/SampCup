@@ -1,6 +1,6 @@
 import { KeyRound, LogIn, LogOut, ShieldCheck } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-import { Navigate, useNavigate } from 'react-router'
+import { Link, Navigate, useNavigate } from 'react-router'
 
 import Logo from '../components/Logo'
 import Status from '../components/Status'
@@ -71,11 +71,18 @@ export function TeamLogin() {
           Password
           <input name="password" type="password" required autoComplete="current-password" />
         </label>
-        {error && <p role="alert" className="error">{error}</p>}
+        {error && (
+          <p role="alert" className="error">
+            {error}. Judges and admins log in on the staff page.
+          </p>
+        )}
         <button type="submit">
           <LogIn size={18} />
           Log in
         </button>
+        <p className="hint">
+          Judge or admin? <Link to="/staff">Staff login</Link>
+        </p>
       </form>
     </AuthCard>
   )
@@ -109,6 +116,9 @@ export function StaffLogin() {
           <ShieldCheck size={18} />
           Log in
         </button>
+        <p className="hint">
+          Playing in the tournament? <Link to="/login">Team login</Link>
+        </p>
       </form>
     </AuthCard>
   )
