@@ -4,19 +4,19 @@ The working record of the build. Read this first; update it after every chunk.
 Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_STAGES.md`.
 
 ## Current position (2026-11-18)
-- **State:** live again at https://d289ph8jefh18c.cloudfront.net (redeployed 2026-11-18).
-  Empty except the 9 judge accounts and the event date. Registration is open but has no
-  players until the real export is uploaded.
-- **Branch:** `app/route53`, then merge to `main`.
+- **State:** live at **https://sampcup.com** (www redirects there; HTTPS certificate from ACM,
+  auto-renewing). Empty except the 9 judge accounts and the event date. Registration is open
+  but has no players until the real export is uploaded.
+- **Branch:** `main` (Route 53 work merged 2026-11-18; all six CI jobs green).
 - **Domain (owner, 2026-11-18): Route 53.** `infra/foundation` holds the hosted zone and the
   certificate and is kept through teardowns, so Namecheap's nameservers are set once.
-  Certificate: pending until Namecheap points at Route 53.
+  Namecheap nameservers point at Route 53 (owner, 2026-11-18); certificate ISSUED.
 - **Judges:** court-1..court-9 created; PINs are in `~/dev/sampcup-judge-pins.txt` on the
   owner's Mac (outside the repo, owner-only file permissions). Never commit them.
 - **Next:**
-  1. Owner: set Namecheap nameservers (below), create the admin account, give an alert email.
-  2. After the certificate is issued: `infra/deploy.sh apply` attaches sampcup.com.
-  3. Owner uploads the real registration export (Admin → Players).
+  1. Owner: create the admin account, give an alert email.
+  2. Owner uploads the real registration export (Admin → Players).
+  3. Share https://sampcup.com/join with players once the export is in.
   4. M10: tournament-day runbook and paper fallback; failure drill on AWS.
 - **Event date:** Sunday, December 6, 2026. 9 judges (one per court); the owner is the admin.
 
@@ -31,7 +31,7 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
 | 6 | Open `~/dev/SampCup` in VS Code from now on | Code stays out of OneDrive | Now | Waiting |
 | 7 | Awards | Not part of the app (owner's lead decides) | - | Closed |
 | 8 | Email address for alarm emails | Alerts on errors | Before the event | Waiting |
-| 9 | Namecheap nameservers -> Route 53 (4 names from `infra/foundation.sh output name_servers`) | sampcup.com | Before registration opens | Waiting |
+| 9 | Namecheap nameservers -> Route 53 | sampcup.com | Before registration opens | Done 2026-11-18 |
 | 11 | Create the admin account (`create-admin`, owner types the password) | Admin login | Now | Waiting |
 | 12 | Any email on @sampcup.com today (Namecheap forwarding)? | Must be re-created in Route 53 or it stops | Before the nameserver change | Waiting |
 | 10 | Optional: Service Quotas case to raise Lambda concurrency above 10 | Headroom | Before the event | Optional |
@@ -128,7 +128,9 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
 - 2026-11-17: Registration export received (kept out of git). Range extended to 32-42. App
   built (M1-M7) on Postgres, merged to `main`.
 - 2026-11-18: Owner back; chose Route 53. Added `infra/foundation` (zone + certificate),
-  redeployed the app, set the event date, created the 9 judge accounts.
+  redeployed the app, set the event date, created the 9 judge accounts. Owner switched the
+  nameservers; certificate issued; sampcup.com live. An apply cut off mid-run left a stale
+  state lock (released after checking no Terraform process held it) and was re-applied.
 - 2026-11-17: Owner chose serverless AWS with Terraform. Backend moved to DynamoDB + Lambda,
   frontend to polling, infrastructure written and deployed (28 resources), dummy tournament
   passed on AWS, two bugs fixed, then the stack was destroyed at the owner's request.
