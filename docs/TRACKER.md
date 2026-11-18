@@ -4,21 +4,24 @@ The working record of the build. Read this first; update it after every chunk.
 Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_STAGES.md`.
 
 ## Current position
-- **Milestone:** M8 Hardening (the application is built and tested; deploy waits on AWS)
-- **Branch:** `main` (M1-M7 merged 2026-11-17, CI green on all six jobs)
-- **Doing now:** Waiting on the owner (AWS account, event date, judges)
-- **Next:** M8 load test and failure drills on the real server; M9 deploy once the AWS account exists
+- **Milestone:** S Serverless move (owner, 2026-11-17: AWS, Terraform only, serverless, as cheap as possible, logs and alarms)
+- **Branch:** `app/serverless`
+- **Plan:** S1 DynamoDB data layer + Lambda adapter -> S2 frontend polling -> S3 Terraform
+  (state bucket, DynamoDB, Lambda + function URL, S3 site, CloudFront, logs, alarms, dashboard)
+  -> S4 deploy -> S5 full dummy-user tournament on the live site, then wipe -> S6 docs
+- **Doing now:** S1
+- **Event date:** Sunday, December 6, 2026. 9 judges (one per court); the owner is the admin.
 
 ## Needs from the owner
 | # | What | Why | Needed by | Status |
 |---|---|---|---|---|
-| 1 | Confirm hosting: AWS Lightsail (see Decisions) | Deploy target | M9 | Waiting |
-| 2 | Create an AWS account, MFA on the root user, billing alarm | Hosting | M9 | Waiting |
-| 3 | Event date (admins can also set it in the app) | Schedule times | Before the draw | Waiting |
+| 1 | Hosting: AWS serverless | Deploy target | M9 | Done 2026-11-17 |
+| 2 | AWS account and CLI access (user `mac`) | Hosting | M9 | Done 2026-11-17 |
+| 3 | Event date | Schedule times | Before the draw | Done: 2026-12-06 |
 | 4 | Registration export format | Player import | M1 | Done 2026-11-17 |
-| 5 | Number of judges and devices; one PIN per court? | Judge accounts | Event week | Waiting |
+| 5 | Judges | Judge accounts | Event week | Done: 9 judges, one per court |
 | 6 | Open `~/dev/SampCup` in VS Code from now on | Code stays out of OneDrive | Now | Waiting |
-| 7 | Awards: champion and runner-up only? | Wrap-up screen, runbook | M10 | Waiting |
+| 7 | Awards | Not part of the app (owner's lead decides) | - | Closed |
 
 ## Decisions (made while building)
 - **Workspace:** clone at `~/dev/SampCup`; GitHub is the source of truth. OneDrive would sync
