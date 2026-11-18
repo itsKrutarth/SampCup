@@ -19,6 +19,10 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
     with address and directions, countdown, MySatsang note, contacts. Phone tab bar,
     scoreboard judge screen with ring timer, standings with medals, projector screen,
     installable on phones (manifest).
+  - Home page (owner request): Bhagwan Swaminarayan murti image as the header, BAPS footer
+    artwork on every page (owner-supplied images, WebP in `frontend/public/brand/`), live
+    score ticker, court-by-court board, at-a-glance strip, group leaderboard. Team counts
+    removed from public pages (admins still see them).
   - Venue, address, age group, ribbon text and contacts are settings in Admin -> Overview,
     stored in DynamoDB (contacts with phone numbers stay out of the public repo).
 - **Judges:** court-1..court-9; PINs in `~/dev/sampcup-judge-pins.txt` (owner's Mac only).
