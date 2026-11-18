@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
@@ -107,11 +107,15 @@ describe('the player page', () => {
     const user = userEvent.setup()
     renderAt('/my-team', PLAYER)
     const declines = await screen.findAllByRole('button', { name: 'Decline' })
+    expect(await screen.findByRole('heading', { name: 'Or invite someone else' })).toBeInTheDocument()
     await user.click(declines[1])
     expect(await screen.findByRole('alert')).toHaveTextContent('already cancelled')
     await user.click(screen.getAllByRole('button', { name: 'Accept' })[0])
-    expect(await screen.findByRole('status')).toHaveTextContent('Welcome to Net Ninjas!')
-    expect(await screen.findByText('Aarav Tester & Dev Tester')).toBeInTheDocument()
+    expect(await screen.findByRole('status')).toHaveTextContent("You're on Net Ninjas!")
+    const mine = await screen.findByRole('region', { name: 'My team' })
+    expect(within(mine).getByText('Aarav Tester & Dev Tester')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Partner')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Accept' })).not.toBeInTheDocument()
   })
 
   it('shows refused invitations and lets the sender cancel', async () => {

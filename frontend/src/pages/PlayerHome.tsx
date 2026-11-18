@@ -1,6 +1,6 @@
 import { Check, Handshake, LogOut, PartyPopper, Send, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-import { Navigate } from 'react-router'
+import { Navigate, useNavigate } from 'react-router'
 
 import Status from '../components/Status'
 import { api, ApiError } from '../lib/api'
@@ -18,7 +18,7 @@ type Me = {
 
 const fullName = (p: PlayerLite) => `${p.first_name} ${p.last_name}`
 
-function PartnerForm({ me, token, onSent }: { me: PlayerLite; token: string; onSent: () => void }) {
+function PartnerForm({ me, token, onSent, invited }: { me: PlayerLite; token: string; onSent: () => void; invited: boolean }) {
   const { data } = useApi<PlayerLite[]>('/registration/players', token)
   const [error, setError] = useState('')
   const partners = data?.filter((p) => p.state !== 'teamed') ?? []
@@ -38,7 +38,7 @@ function PartnerForm({ me, token, onSent }: { me: PlayerLite; token: string; onS
   }
   return (
     <form onSubmit={submit} className="stack card">
-      <h2>Pick your partner</h2>
+      <h2>{invited ? 'Or invite someone else' : 'Pick your partner'}</h2>
       <p className="hint">
         Your partner must be from {me.center}. They accept when they log in; after that only an admin can change the
         team.
@@ -74,6 +74,7 @@ export default function PlayerHome() {
   const { auth, signOut } = useAuth()
   const token = auth?.kind === 'player' ? auth.token : null
   const { data, loading, error, reload } = useApi<Me>(token ? '/player/me' : null, token)
+  const navigate = useNavigate()
   const [message, setMessage] = useState('')
   const [actionError, setActionError] = useState('')
   if (!token) return <Navigate to="/login" replace />
@@ -92,8 +93,13 @@ export default function PlayerHome() {
     try {
       await api(`/registration/requests/${request.id}/${action}`, { method: 'POST', token })
       setActionError('')
-      setMessage(action === 'accept' ? `Welcome to ${request.team_name}!` : '')
+      setMessage(action === 'accept' ? `You're on ${request.team_name}!` : '')
       reload()
+      if (action === 'accept') {
+        // straight to the team view: no more picking partners
+        navigate('/my-team', { replace: true })
+        window.scrollTo?.({ top: 0 })
+      }
     } catch (e) {
       setActionError((e as ApiError).message)
     }
@@ -119,7 +125,10 @@ export default function PlayerHome() {
       )}
       {actionError && <p role="alert" className="error">{actionError}</p>}
       {team ? (
-        <TeamDetails team={team} />
+        <section aria-label="My team">
+          <h2 className="eyebrow">My team</h2>
+          <TeamDetails team={team} />
+        </section>
       ) : (
         <>
           {incoming.map((r) => (
@@ -153,7 +162,7 @@ export default function PlayerHome() {
               </button>
             </section>
           ) : (
-            <PartnerForm me={player} token={token} onSent={reload} />
+            <PartnerForm me={player} token={token} onSent={reload} invited={incoming.length > 0} />
           )}
         </>
       )}

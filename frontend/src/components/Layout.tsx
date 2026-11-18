@@ -39,13 +39,14 @@ export function BapsArt() {
 }
 
 function Footer() {
+  const { auth } = useAuth()
   return (
     <footer className="footer">
       <nav className="footer-links" aria-label="Footer">
         <NavLink to="/schedule">Order of play</NavLink>
         <NavLink to="/standings">Group standings</NavLink>
         <NavLink to="/bracket">Knockout bracket</NavLink>
-        <NavLink to="/login">Player login</NavLink>
+        {auth?.kind === 'player' ? <NavLink to="/my-team">My account</NavLink> : <NavLink to="/login">Player login</NavLink>}
         <NavLink to="/staff">Staff area</NavLink>
       </nav>
       <BapsArt />

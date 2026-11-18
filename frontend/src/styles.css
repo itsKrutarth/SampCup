@@ -2277,3 +2277,10 @@ button.big {
     display: none;
   }
 }
+
+.eyebrow {
+  margin: 0.5rem 0 0.75rem;
+  font-size: 1.1rem;
+  letter-spacing: 0.18em;
+  color: var(--gold);
+}

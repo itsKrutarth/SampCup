@@ -9,6 +9,7 @@ import Status from '../components/Status'
 import TeamAvatar from '../components/TeamAvatar'
 import Ticker from '../components/Ticker'
 import { DAY_PLAN, TAGLINE } from '../lib/brand'
+import { useAuth } from '../lib/auth'
 import { monthDay, weekday } from '../lib/format'
 import { accent } from '../lib/brand'
 import { useApi } from '../lib/live'
@@ -84,7 +85,39 @@ export function ChampionCard({ name }: { name: string }) {
   )
 }
 
+/** What the hero offers depends on who is looking: visitor, player (with or without a team) or staff. */
+function AccountActions({ registrationOpen }: { registrationOpen: boolean }) {
+  const { auth } = useAuth()
+  const player = auth?.kind === 'player'
+  const me = useApi<{ team: unknown }>(player ? '/player/me' : null, auth?.token)
+  if (auth?.kind === 'staff') return null
+  if (player) {
+    if (!me.data) return null
+    return (
+      <Link className="button" to="/my-team">
+        <Users size={18} />
+        {me.data.team ? 'My team' : 'Pick your partner'}
+      </Link>
+    )
+  }
+  return (
+    <>
+      {registrationOpen && (
+        <Link className="button" to="/join">
+          <UserPlus size={18} />
+          Create your account
+        </Link>
+      )}
+      <Link className="button secondary" to="/login">
+        <LogIn size={18} />
+        Log in
+      </Link>
+    </>
+  )
+}
+
 export default function Home() {
+  const { auth } = useAuth()
   const { data, loading, error } = useApi<Overview>('/public/overview')
   if (!data) return <Status loading={loading} error={error} />
   const { tournament } = data
@@ -136,17 +169,8 @@ export default function Home() {
         </div>
         {tournament.event_date && data.phase !== 'finished' && <Countdown eventDate={tournament.event_date} />}
         <div className="cta-row">
-          {data.phase === 'registration' && tournament.registration_open && (
-            <Link className="button" to="/join">
-              <UserPlus size={18} />
-              Create your account
-            </Link>
-          )}
           {data.phase === 'registration' ? (
-            <Link className="button secondary" to="/login">
-              <LogIn size={18} />
-              Log in
-            </Link>
+            <AccountActions registrationOpen={tournament.registration_open} />
           ) : (
             <Link className="button" to="/schedule">
               Full schedule
@@ -158,7 +182,7 @@ export default function Home() {
             Standings
           </Link>
         </div>
-        {data.phase === 'registration' && (
+        {data.phase === 'registration' && !auth && (
           <p className="tagline">Registered on the MySatsang app? Create your account, then invite your partner.</p>
         )}
       </section>

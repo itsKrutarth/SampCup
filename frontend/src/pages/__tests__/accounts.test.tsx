@@ -1,9 +1,9 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
 import { groups, match, overview } from '../../test/data'
-import { ADMIN, fail, JUDGE, mockApi, renderAt } from '../../test/utils'
+import { ADMIN, fail, JUDGE, mockApi, PLAYER, renderAt } from '../../test/utils'
 
 const tempJudge = { username: 'court-3', display_name: 'Court 3 judge', role: 'judge', court: 3, must_change_password: true }
 
@@ -110,5 +110,31 @@ describe('home page states', () => {
     renderAt('/standings')
     expect(await screen.findByText('Standings appear once the draw is done.')).toBeInTheDocument()
     expect(groups.A.rows).toHaveLength(2)
+  })
+})
+
+describe('home page buttons depend on who is looking', () => {
+  it('offers My team to a player with a team, and no sign-up', async () => {
+    mockApi({ 'GET /public/overview': overview(), 'GET /player/me': { team: { id: 1 } } })
+    renderAt('/', PLAYER)
+    await waitFor(() => expect(screen.getAllByRole('link', { name: 'My team' })).toHaveLength(2)) // header and hero
+    expect(screen.queryByRole('link', { name: 'Create your account' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Log in' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Registered on the MySatsang app/)).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'My account' })).toHaveAttribute('href', '/my-team')
+  })
+
+  it('offers Pick your partner to a player without a team', async () => {
+    mockApi({ 'GET /public/overview': overview(), 'GET /player/me': { team: null } })
+    renderAt('/', PLAYER)
+    expect(await screen.findByRole('link', { name: 'Pick your partner' })).toHaveAttribute('href', '/my-team')
+  })
+
+  it('shows staff no join or login buttons', async () => {
+    mockApi({ 'GET /public/overview': overview() })
+    renderAt('/', ADMIN)
+    expect(await screen.findByText('Registration is open')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Create your account' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Log in' })).not.toBeInTheDocument()
   })
 })
