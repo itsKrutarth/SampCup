@@ -4,7 +4,6 @@ import contextlib
 from datetime import UTC, datetime
 from typing import Any
 
-from app.core.security import hash_password
 from app.models import PartnerRequest, Player, Team
 from app.services.errors import Conflict, NotFound, ServiceError
 from app.services.tournament import get_tournament, schedule_exists
@@ -24,11 +23,6 @@ def clean_team_name(name: str) -> str:
     if not 2 <= len(name) <= 40:
         raise ServiceError("Team name must be 2-40 characters")
     return name
-
-
-def check_password(password: str) -> None:
-    if not 4 <= len(password) <= 72:
-        raise ServiceError("Password must be 4-72 characters")
 
 
 def get_player(store: Store, player_id: int) -> Player:
@@ -81,9 +75,7 @@ def _pending_put(store: Store, request: PartnerRequest) -> dict[str, Any]:
     )
 
 
-def request_partner(
-    store: Store, from_id: int, to_id: int, team_name: str, password: str
-) -> PartnerRequest:
+def request_partner(store: Store, from_id: int, to_id: int, team_name: str) -> PartnerRequest:
     tournament = get_tournament(store)
     if not tournament.registration_open:
         raise Conflict("Team registration is closed. Ask an admin.")
@@ -97,7 +89,6 @@ def request_partner(
     if pending_requests(store, me)[1] is not None:
         raise Conflict("You already have a request waiting. Cancel it first.")
     name = clean_team_name(team_name)
-    check_password(password)
     key = ensure_name_free(store, name)
     request = PartnerRequest(
         id=store.next_id(PartnerRequest),
@@ -105,7 +96,6 @@ def request_partner(
         to_player_id=partner.id,
         team_name=name,
         name_key=key,
-        password_hash=hash_password(password),
     )
     try:
         store.transact(
@@ -157,7 +147,6 @@ def accept_request(store: Store, request_id: int, player_id: int) -> Team:
         id=store.next_id(Team),
         name=request.team_name,
         name_key=key,
-        password_hash=request.password_hash,
         center=a.center,
         status="waitlist" if full else "active",
         created_at=now,
@@ -254,17 +243,15 @@ def get_team(store: Store, team_id: int) -> Team:
 
 
 def admin_create_team(
-    store: Store, name: str, password: str, player_ids: list[int], status: str | None = None
+    store: Store, name: str, player_ids: list[int], status: str | None = None
 ) -> Team:
     name = clean_team_name(name)
-    check_password(password)
     key = ensure_name_free(store, name)
     cap = get_tournament(store).team_cap
     team = Team(
         id=store.next_id(Team),
         name=name,
         name_key=key,
-        password_hash=hash_password(password),
         center="",
         status="waitlist",
     )
@@ -293,7 +280,6 @@ def admin_update_team(
     status: str | None = None,
     checked_in: bool | None = None,
     player_ids: list[int] | None = None,
-    password: str | None = None,
 ) -> Team:
     team = get_team(store, team_id)
     writes: list[dict[str, Any]] = []
@@ -311,18 +297,11 @@ def admin_update_team(
         _check_status(store, team, status)
     if checked_in is not None:
         team.checked_in = checked_in
-    if password is not None:
-        check_password(password)
-        team.password_hash = hash_password(password)
     writes += [store.tx_put(team), *(_player_put(store, p, team.id) for p in players)]
     try:
         store.transact(writes)
     except ConflictError as exc:
         raise Conflict(RETRY) from exc
-    if password is not None:
-        from app.services.auth import end_team_sessions
-
-        end_team_sessions(store, team.id)
     return team
 
 

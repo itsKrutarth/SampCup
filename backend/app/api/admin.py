@@ -12,7 +12,7 @@ from app.api.deps import Admin, Db
 from app.api.public import ordered
 from app.api.serializers import Lookup, announcement_out, iso, staff_out
 from app.models import Announcement, Delay, Match, PartnerRequest, ScoreAudit, StaffUser
-from app.services import auth, players, schedule, scoring, teams
+from app.services import accounts, auth, players, schedule, scoring, teams
 from app.services.errors import NotFound, ServiceError
 from app.services.tournament import get_tournament, schedule_exists
 
@@ -33,7 +33,6 @@ class TournamentPatch(BaseModel):
 
 class TeamCreate(BaseModel):
     name: str = Field(max_length=60)
-    password: str = Field(max_length=72)
     player_ids: list[int]
     status: str | None = None
 
@@ -43,6 +42,10 @@ class TeamPatch(BaseModel):
     status: str | None = None
     checked_in: bool | None = None
     player_ids: list[int] | None = None
+
+
+class PlayerLogin(BaseModel):
+    username: str | None = Field(default=None, max_length=40)
     password: str | None = Field(default=None, max_length=72)
 
 
@@ -168,6 +171,18 @@ def list_players(_: Admin, store: Db) -> list[dict[str, Any]]:
     return [look.player(p, admin=True) for p in rows]
 
 
+@router.put("/players/{player_id}/login")
+def set_player_login(player_id: int, body: PlayerLogin, _: Admin, store: Db) -> dict[str, Any]:
+    """Create or reset a player's login; the password is temporary."""
+    player = accounts.admin_set_login(store, player_id, body.username, body.password)
+    return Lookup(store).player(player, admin=True)
+
+
+@router.delete("/players/{player_id}/login")
+def release_player_login(player_id: int, _: Admin, store: Db) -> dict[str, Any]:
+    return Lookup(store).player(accounts.release_account(store, player_id), admin=True)
+
+
 # --------------------------------------------------------------- teams
 
 
@@ -182,7 +197,7 @@ def list_teams(_: Admin, store: Db) -> list[dict[str, Any]]:
 
 @router.post("/teams", status_code=201)
 def create_team(body: TeamCreate, _: Admin, store: Db) -> dict[str, Any]:
-    team = teams.admin_create_team(store, body.name, body.password, body.player_ids, body.status)
+    team = teams.admin_create_team(store, body.name, body.player_ids, body.status)
     return Lookup(store).team(team, admin=True)
 
 

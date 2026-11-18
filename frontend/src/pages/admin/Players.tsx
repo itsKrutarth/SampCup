@@ -15,6 +15,8 @@ export type AdminPlayer = {
   tshirt_size: string
   active: boolean
   team: { id: number; name: string } | null
+  username: string | null
+  must_change_password: boolean
 }
 
 type Report = {
@@ -25,6 +27,46 @@ type Report = {
   possible_duplicates: string[]
   skipped: { row: number; reason: string }[]
   teams_with_removed_players: string[]
+}
+
+function Account({ player, onChange }: { player: AdminPlayer; onChange: () => void }) {
+  const { run, message } = useAction()
+  const [open, setOpen] = useState(false)
+  const url = `/admin/players/${player.id}/login`
+  const save = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const body = { username: form.get('username') || null, password: form.get('password') || null }
+    if (await run(url, 'PUT', body, () => 'Login saved. The password is temporary.')) {
+      setOpen(false)
+      onChange()
+    }
+  }
+  const release = async () => {
+    if (window.confirm(`Release ${player.first_name}'s account? They can create it again.`) && (await run(url, 'DELETE', undefined, () => 'Account released'))) onChange()
+  }
+  return (
+    <div className="stack" style={{ margin: 0, gap: '0.3rem' }}>
+      <span>
+        {player.username ?? <span className="muted">No account</span>}
+        {player.must_change_password && <small className="muted"> · temporary password</small>}
+      </span>
+      {open ? (
+        <form className="inline-form" onSubmit={save} aria-label={`Login for ${player.first_name} ${player.last_name}`}>
+          <input name="username" defaultValue={player.username ?? ''} placeholder="username" aria-label="Username" autoCapitalize="none" />
+          <input name="password" placeholder="temporary password" aria-label="Temporary password" autoComplete="off" minLength={6} />
+          <button type="submit">Save</button>
+          <button type="button" className="link" onClick={() => setOpen(false)}>Cancel</button>
+        </form>
+      ) : (
+        <div className="toolbar">
+          <button type="button" className="link" onClick={() => setOpen(true)}>Set login</button>
+          {player.username && <button type="button" className="link danger" onClick={release}>Release</button>}
+        </div>
+      )}
+      <Message message={message} />
+    </div>
+  )
 }
 
 export default function Players() {
@@ -77,7 +119,7 @@ export default function Players() {
       <div className="table-wrap">
       <table>
         <thead>
-          <tr><th>Name</th><th>Center</th><th>MISID</th><th>Shirt</th><th>Team</th></tr>
+          <tr><th>Name</th><th>Center</th><th>MISID</th><th>Shirt</th><th>Team</th><th>Account</th></tr>
         </thead>
         <tbody>
           {shown.map((p) => (
@@ -87,6 +129,9 @@ export default function Players() {
               <td>{p.mis_id}</td>
               <td>{p.tshirt_size}</td>
               <td>{p.team?.name ?? '-'}</td>
+              <td>
+                <Account player={p} onChange={reload} />
+              </td>
             </tr>
           ))}
         </tbody>

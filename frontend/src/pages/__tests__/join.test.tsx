@@ -3,123 +3,150 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
 import type { PartnerRequest, PlayerLite } from '../../lib/types'
-import { fail, mockApi, renderAt } from '../../test/utils'
+import { teamPage } from '../../test/data'
+import { fail, mockApi, PLAYER, renderAt } from '../../test/utils'
 
-const p = (id: number, first: string, state: PlayerLite['state'] = 'free', team_name: string | null = null): PlayerLite => ({
-  id, first_name: first, last_name: 'Tester', center: 'North', zone: 'Zone 1', state, team_name,
+const p = (id: number, first: string, state: PlayerLite['state'] = 'free'): PlayerLite => ({
+  id, first_name: first, last_name: 'Tester', center: 'North', zone: 'Zone 1', state, team_name: null,
 })
-const players = [p(1, 'Aarav'), p(2, 'Dev', 'pending'), p(3, 'Jay', 'teamed', 'Smashers')]
+const me = p(1, 'Aarav')
 const request = (id: number, from: PlayerLite, to: PlayerLite): PartnerRequest => ({
   id, team_name: 'Net Ninjas', status: 'pending', from, to, created_at: '',
 })
-const status = (overrides = {}) => ({ player: players[0], team: null, incoming: [], outgoing: null, ...overrides })
+const page = (overrides = {}) => ({ player: me, team: null, incoming: [], outgoing: null, ...overrides })
 
-const common = {
-  'GET /registration/status': { open: true, team_cap: 42, teams: 1 },
-  'GET /registration/centers': [{ center: 'North', players: 3, on_teams: 2 }],
-  'GET /registration/players': players,
-}
-
-describe('joining with a partner', () => {
-  it('walks a player from center to sending a request', async () => {
-    let sentRequest = false
+describe('creating your account', () => {
+  it('matches the registration and logs the player in', async () => {
     const { sent } = mockApi({
-      ...common,
-      'GET /registration/players/1': () => (sentRequest ? status({ outgoing: request(5, players[0], players[1]) }) : status()),
-      'POST /registration/requests': () => {
-        sentRequest = true
-        return request(5, players[0], players[1])
-      },
+      'GET /registration/status': { open: true, team_cap: 42 },
+      'GET /registration/centers': ['North', 'South'],
+      'POST /players/claim': { token: 'tok', kind: 'player', player: { id: 1, first_name: 'Aarav' } },
+      'GET /player/me': page(),
+      'GET /registration/players': [],
     })
     const user = userEvent.setup()
     renderAt('/join')
-    await user.click(await screen.findByRole('button', { name: /North/ }))
-    expect(await screen.findByText(/Smashers/)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /Aarav Tester/ }))
-    expect(await screen.findByText(/^Hi/)).toBeInTheDocument()
-    const partner = await screen.findByRole('option', { name: /Dev Tester/ })
-    expect(partner).toHaveTextContent('has a pending request')
-    expect(screen.queryByRole('option', { name: /Jay/ })).not.toBeInTheDocument()
-    await user.selectOptions(screen.getByLabelText('Partner'), partner)
-    await user.type(screen.getByLabelText('Team name'), 'Net Ninjas')
-    await user.type(screen.getByLabelText('Team password'), 'pass1')
-    await user.type(screen.getByLabelText('Password again'), 'pass2')
-    await user.click(screen.getByRole('button', { name: 'Send request' }))
+    await user.type(screen.getByLabelText('First name'), 'aarav')
+    await user.type(screen.getByLabelText('Last name'), 'tester')
+    await user.selectOptions(await screen.findByLabelText('Center'), 'North')
+    await user.type(screen.getByLabelText('Username'), 'aarav_t')
+    await user.type(screen.getByLabelText('Password'), 'secret1')
+    await user.type(screen.getByLabelText('Password again'), 'secret2')
+    await user.click(screen.getByRole('button', { name: 'Create account' }))
     expect(screen.getByRole('alert')).toHaveTextContent('do not match')
     await user.clear(screen.getByLabelText('Password again'))
-    await user.type(screen.getByLabelText('Password again'), 'pass1')
-    await user.click(screen.getByRole('button', { name: 'Send request' }))
-    expect(await screen.findByText(/Waiting for/)).toBeInTheDocument()
-    expect(sent('POST', '/registration/requests')[0].body).toEqual({
-      from_player_id: 1, to_player_id: 2, team_name: 'Net Ninjas', password: 'pass1',
+    await user.type(screen.getByLabelText('Password again'), 'secret1')
+    await user.click(screen.getByRole('button', { name: 'Create account' }))
+    expect(await screen.findByText(/^Hi/)).toBeInTheDocument()
+    expect(sent('POST', '/players/claim')[0].body).toEqual({
+      first_name: 'aarav', last_name: 'tester', center: 'North', username: 'aarav_t', password: 'secret1',
     })
-    await user.click(screen.getByRole('button', { name: '← Back' }))
-    expect(await screen.findByText('2. Who are you?')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '← Back' }))
-    expect(await screen.findByText('1. Your center')).toBeInTheDocument()
   })
 
-  it('shows request errors from the server', async () => {
-    mockApi({ ...common, 'GET /registration/players/1': status(), 'POST /registration/requests': fail(409, 'That team name is taken') })
+  it('explains when the player is not found, registration is closed or nothing is loaded', async () => {
+    mockApi({
+      'GET /registration/status': { open: false, team_cap: 42 },
+      'GET /registration/centers': [],
+      'POST /players/claim': fail(404, "We couldn't find you."),
+    })
     const user = userEvent.setup()
-    renderAt('/join?center=North&me=1')
-    await user.selectOptions(await screen.findByLabelText('Partner'), await screen.findByRole('option', { name: /Dev/ }))
-    await user.type(screen.getByLabelText('Team name'), 'Taken')
-    await user.type(screen.getByLabelText('Team password'), 'pass1')
-    await user.type(screen.getByLabelText('Password again'), 'pass1')
-    await user.click(screen.getByRole('button', { name: 'Send request' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('That team name is taken')
+    renderAt('/join')
+    expect(await screen.findByText(/registration is closed/)).toBeInTheDocument()
+    expect(await screen.findByText(/have not been loaded yet/)).toBeInTheDocument()
+    await user.type(screen.getByLabelText('First name'), 'x')
+    await user.type(screen.getByLabelText('Last name'), 'y')
+    mockApi({ 'GET /registration/centers': ['North'], 'POST /players/claim': fail(404, "We couldn't find you.") })
+    expect(screen.getByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/login')
   })
 
-  it('lets the partner accept or decline, and the sender cancel', async () => {
-    let accepted = false
+  it('sends logged-in players to their page', async () => {
+    mockApi({ 'GET /player/me': page(), 'GET /registration/players': [] })
+    renderAt('/join', PLAYER)
+    expect(await screen.findByRole('heading', { name: 'Pick your partner' })).toBeInTheDocument()
+  })
+})
+
+describe('the player page', () => {
+  it('invites a partner from the same center', async () => {
+    let invited = false
     const { sent } = mockApi({
-      ...common,
-      'GET /registration/players/2': () =>
+      'GET /player/me': () => (invited ? page({ outgoing: request(5, me, p(2, 'Dev')) }) : page()),
+      'GET /registration/players': [p(2, 'Dev', 'pending'), p(3, 'Jay', 'teamed')],
+      'POST /registration/requests': () => {
+        invited = true
+        return request(5, me, p(2, 'Dev'))
+      },
+    })
+    const user = userEvent.setup()
+    renderAt('/my-team', PLAYER)
+    const dev = await screen.findByRole('option', { name: /Dev Tester/ })
+    expect(dev).toHaveTextContent('has a pending request')
+    expect(screen.queryByRole('option', { name: /Jay/ })).not.toBeInTheDocument()
+    await user.selectOptions(screen.getByLabelText('Partner'), dev)
+    await user.type(screen.getByLabelText('Team name'), 'Net Ninjas')
+    await user.click(screen.getByRole('button', { name: 'Send invitation' }))
+    expect(await screen.findByText(/Waiting for/)).toBeInTheDocument()
+    expect(sent('POST', '/registration/requests')[0].body).toEqual({ to_player_id: 2, team_name: 'Net Ninjas' })
+  })
+
+  it('shows invitation errors, accepts one and then shows the team', async () => {
+    let accepted = false
+    mockApi({
+      'GET /player/me': () =>
         accepted
-          ? status({ player: players[1], team: { id: 9, name: 'Net Ninjas', number: null, group: null, center: 'North', status: 'active', lunch_start: null, players: [{ id: 1, name: 'Aarav Tester' }, { id: 2, name: 'Dev Tester' }] } })
-          : status({ player: players[1], incoming: [request(5, players[0], players[1]), request(6, players[2], players[1])] }),
+          ? page({ team: teamPage({ players: [{ id: 1, name: 'Aarav Tester' }, { id: 2, name: 'Dev Tester' }] }) })
+          : page({ incoming: [request(5, p(2, 'Dev'), me), request(6, p(3, 'Jay'), me)] }),
       'POST /registration/requests/6/decline': fail(409, 'This request was already cancelled'),
       'POST /registration/requests/5/accept': () => {
         accepted = true
         return {}
       },
+      'POST /registration/requests': fail(409, 'That team name is taken'),
+      'GET /registration/players': [p(2, 'Dev')],
     })
     const user = userEvent.setup()
-    renderAt('/join?center=North&me=2')
+    renderAt('/my-team', PLAYER)
     const declines = await screen.findAllByRole('button', { name: 'Decline' })
     await user.click(declines[1])
     expect(await screen.findByRole('alert')).toHaveTextContent('already cancelled')
     await user.click(screen.getAllByRole('button', { name: 'Accept' })[0])
-    expect(await screen.findByRole('status')).toHaveTextContent('Team Net Ninjas is ready')
-    expect(await screen.findByRole('heading', { name: 'Your team: Net Ninjas' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Team login' })).toHaveAttribute('href', '/login')
-    expect(sent('POST', '/registration/requests/5/accept')[0].body).toEqual({ player_id: 2 })
+    expect(await screen.findByRole('status')).toHaveTextContent('Welcome to Net Ninjas!')
+    expect(await screen.findByText('Aarav Tester & Dev Tester')).toBeInTheDocument()
   })
 
-  it('lets the sender cancel and shows waitlisted teams', async () => {
+  it('shows refused invitations and lets the sender cancel', async () => {
     let cancelled = false
     mockApi({
-      ...common,
-      'GET /registration/players/1': () => (cancelled ? status() : status({ outgoing: request(5, players[0], players[1]) })),
+      'GET /player/me': () => (cancelled ? page() : page({ outgoing: request(5, me, p(2, 'Dev')) })),
       'POST /registration/requests/5/cancel': () => {
         cancelled = true
         return {}
       },
-      'GET /registration/players/3': status({ player: players[2], team: { id: 4, name: 'Smashers', number: null, group: null, center: 'North', status: 'waitlist', lunch_start: null, players: [] } }),
+      'GET /registration/players': [p(2, 'Dev')],
+      'POST /registration/requests': fail(409, 'That team name is taken'),
     })
     const user = userEvent.setup()
-    renderAt('/join?center=North&me=1')
-    await user.click(await screen.findByRole('button', { name: 'Cancel request' }))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Send request' })).toBeInTheDocument())
-    renderAt('/join?center=North&me=3')
-    expect(await screen.findByText(/on the waitlist/)).toBeInTheDocument()
+    renderAt('/my-team', PLAYER)
+    await user.click(await screen.findByRole('button', { name: 'Cancel invitation' }))
+    await user.selectOptions(await screen.findByLabelText('Partner'), await screen.findByRole('option', { name: /Dev/ }))
+    await user.type(screen.getByLabelText('Team name'), 'Taken')
+    await user.click(screen.getByRole('button', { name: 'Send invitation' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('That team name is taken')
   })
 
-  it('says when registration is closed or no players are loaded', async () => {
-    mockApi({ ...common, 'GET /registration/status': { open: false, team_cap: 42, teams: 0 }, 'GET /registration/centers': [] })
-    renderAt('/join')
-    expect(await screen.findByText(/registration is closed/)).toBeInTheDocument()
-    expect(await screen.findByText(/have not been loaded yet/)).toBeInTheDocument()
+  it('needs a login, a password of their own, and handles an expired login', async () => {
+    mockApi({ 'GET /player/me': fail(401, 'Your login has expired'), 'POST /auth/logout': null })
+    renderAt('/my-team')
+    expect(await screen.findByRole('heading', { name: 'Player login' })).toBeInTheDocument()
+    renderAt('/my-team', { ...PLAYER, mustChange: true })
+    expect((await screen.findAllByRole('heading', { name: 'Choose your own password' })).length).toBeGreaterThan(0)
+  })
+
+  it('offers a fresh login when the session is gone', async () => {
+    mockApi({ 'GET /player/me': fail(401, 'Your login has expired'), 'POST /auth/logout': null })
+    const user = userEvent.setup()
+    renderAt('/my-team', PLAYER)
+    await user.click(await screen.findByRole('button', { name: 'Log in again' }))
+    await waitFor(() => expect(localStorage.getItem('sampcup-auth')).toBeNull())
   })
 })

@@ -73,19 +73,21 @@ def test_rate_limits_use_the_visitor_address_cloudfront_reports(
     behind_cloudfront: TestClient,
 ) -> None:
     headers = {"x-origin-verify": "edge-secret", "x-forwarded-for": "6.6.6.6, 1.2.3.4, 130.176.0.1"}
-    body = {"team_name": "x", "password": "y"}
+    body = {"username": "x", "password": "y"}
     codes = [
-        behind_cloudfront.post("/api/auth/team-login", json=body, headers=headers).status_code
+        behind_cloudfront.post("/api/auth/player-login", json=body, headers=headers).status_code
         for _ in range(11)
     ]
     assert codes[-1] == 429
     other = {**headers, "x-forwarded-for": "5.6.7.8, 130.176.0.1"}
     assert (
-        behind_cloudfront.post("/api/auth/team-login", json=body, headers=other).status_code == 401
+        behind_cloudfront.post("/api/auth/player-login", json=body, headers=other).status_code
+        == 401
     )
     single = {**headers, "x-forwarded-for": "9.9.9.9"}
     assert (
-        behind_cloudfront.post("/api/auth/team-login", json=body, headers=single).status_code == 401
+        behind_cloudfront.post("/api/auth/player-login", json=body, headers=single).status_code
+        == 401
     )
 
 

@@ -36,7 +36,7 @@ export function mockApi(routes: Record<string, Handler>) {
 
 export const ADMIN: Auth = { token: 't-admin', kind: 'staff', name: 'Admin', role: 'admin', court: null }
 export const JUDGE: Auth = { token: 't-judge', kind: 'staff', name: 'Judge One', role: 'judge', court: 1 }
-export const TEAM: Auth = { token: 't-team', kind: 'team', name: 'Net Ninjas' }
+export const PLAYER: Auth = { token: 't-player', kind: 'player', name: 'Aarav' }
 
 export function renderAt(path: string, auth?: Auth) {
   if (auth) localStorage.setItem('sampcup-auth', JSON.stringify(auth))

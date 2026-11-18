@@ -9,7 +9,8 @@ import Display from './pages/Display'
 import Home from './pages/Home'
 import Join from './pages/Join'
 import Judge from './pages/Judge'
-import { ChangePassword, MyTeam, StaffLogin, TeamLogin } from './pages/Logins'
+import { ChangePassword, PlayerLogin, StaffLogin } from './pages/Logins'
+import PlayerHome from './pages/PlayerHome'
 import Schedule from './pages/Schedule'
 import Standings from './pages/Standings'
 import TeamPage from './pages/TeamPage'
@@ -25,8 +26,9 @@ export function AppRoutes() {
         <Route path="bracket" element={<Bracket />} />
         <Route path="teams/:number" element={<TeamPage />} />
         <Route path="join" element={<Join />} />
-        <Route path="login" element={<TeamLogin />} />
-        <Route path="my-team" element={<MyTeam />} />
+        <Route path="login" element={<PlayerLogin />} />
+        <Route path="my-team" element={<PlayerHome />} />
+        <Route path="account/password" element={<ChangePassword />} />
         <Route path="staff" element={<StaffLogin />} />
         <Route path="staff/password" element={<ChangePassword />} />
         <Route path="judge" element={<Judge />} />

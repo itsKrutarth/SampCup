@@ -25,7 +25,6 @@ export default function Teams() {
     const form = new FormData(event.currentTarget)
     const body = {
       name: form.get('name'),
-      password: form.get('password'),
       player_ids: [Number(form.get('player_a')), Number(form.get('player_b'))],
     }
     if (await run('/admin/teams', 'POST', body, () => `Team ${body.name} created`)) {
@@ -63,12 +62,6 @@ export default function Teams() {
                 <input type="checkbox" aria-label={`${t.name} checked in`} checked={Boolean(t.checked_in)} onChange={(e) => patch(t, { checked_in: e.target.checked }, `${t.name} ${e.target.checked ? 'checked in' : 'not checked in'}`)} />
               </td>
               <td>
-                <button type="button" className="link" onClick={() => {
-                  const password = window.prompt(`New password for ${t.name}`)
-                  if (password) void patch(t, { password }, `Password changed for ${t.name}`)
-                }}>
-                  Reset password
-                </button>
                 <button type="button" className="link danger" onClick={async () => {
                   if (window.confirm(`Delete team ${t.name}? Its players become free.`) && (await run(`/admin/teams/${t.id}`, 'DELETE', undefined, () => `${t.name} deleted`)) !== undefined) refresh()
                 }}>
@@ -84,7 +77,6 @@ export default function Teams() {
         <h2>Make a team</h2>
         <p className="hint">Admins can pair any two players who are not on a team.</p>
         <label>Team name<input name="name" required minLength={2} maxLength={40} /></label>
-        <label>Password<input name="password" required minLength={4} /></label>
         {(['player_a', 'player_b'] as const).map((field, i) => (
           <label key={field}>
             Player {i + 1}

@@ -8,36 +8,39 @@ from app.services.auth import create_staff, update_staff
 from app.services.errors import ServiceError
 from app.store import Store
 from tests.conftest import login
-from tests.factories import make_team
+from tests.factories import give_login, make_player, make_team, members, player_headers
 
 
-def team_login(client: TestClient, name: str, password: str = "pass"):
-    return client.post("/api/auth/team-login", json={"team_name": name, "password": password})
+def player_login(client: TestClient, username: str, password: str = "secret1"):
+    return client.post("/api/auth/player-login", json={"username": username, "password": password})
 
 
-def test_team_login_and_my_team_page(client: TestClient, store: Store) -> None:
+def test_player_login_me_and_logout(client: TestClient, store: Store) -> None:
     team = make_team(store, name="Net Ninjas")
-    response = team_login(client, "NET NINJAS")
+    player = members(store, team)[0]
+    username = give_login(store, player)
+    response = player_login(client, username.upper())
     assert response.status_code == 200
     headers = {"Authorization": f"Bearer {response.json()['token']}"}
     me = client.get("/api/auth/me", headers=headers).json()
-    assert me["kind"] == "team" and me["team"]["name"] == "Net Ninjas"
-    page = client.get("/api/team/me", headers=headers).json()
+    assert me["kind"] == "player" and me["player"]["team"]["name"] == "Net Ninjas"
+    page = client.get("/api/player/me", headers=headers).json()["team"]
     assert page["name"] == "Net Ninjas" and len(page["players"]) == 2 and page["matches"] == []
     assert client.post("/api/auth/logout", headers=headers).status_code == 204
     assert client.get("/api/auth/me", headers=headers).status_code == 401
-    assert team.id
 
 
-def test_wrong_team_password_unknown_team_and_withdrawn_team(
-    client: TestClient, store: Store
-) -> None:
-    make_team(store, name="Gone", status="withdrawn")
-    make_team(store, name="Here")
-    assert team_login(client, "Here", "nope").status_code == 401
-    assert team_login(client, "Nobody").status_code == 401
-    response = team_login(client, "Gone")
-    assert response.status_code == 401 and "withdrawn" in response.json()["detail"]
+def test_wrong_password_unknown_player_and_removed_player(client: TestClient, store: Store) -> None:
+    gone = make_player(store)
+    give_login(store, gone)
+    gone.active = False
+    store.save(gone)
+    here = make_player(store)
+    give_login(store, here)
+    assert player_login(client, here.username, "nope00").status_code == 401
+    assert player_login(client, "nobody").status_code == 401
+    assert player_login(client, gone.username).status_code == 401
+    assert client.get("/api/auth/me", headers={"Authorization": "Bearer junk"}).status_code == 401
 
 
 def test_staff_login_roles_and_guards(
@@ -46,10 +49,10 @@ def test_staff_login_roles_and_guards(
     assert client.get("/api/auth/me", headers=judge).json()["user"]["role"] == "judge"
     assert client.get("/api/admin/summary", headers=judge).status_code == 403
     assert client.get("/api/admin/summary", headers=admin).status_code == 200
-    assert client.get("/api/team/me", headers=admin).status_code == 403
-    team_token = team_login(client, make_team(store).name).json()["token"]
-    team_headers = {"Authorization": f"Bearer {team_token}"}
-    assert client.get("/api/judge/matches", headers=team_headers).status_code == 403
+    assert client.get("/api/player/me", headers=admin).status_code == 403
+    player_headers_ = player_headers(client, store, make_player(store))
+    assert client.get("/api/judge/matches", headers=player_headers_).status_code == 403
+    assert client.get("/api/auth/me", headers=player_headers_).json()["kind"] == "player"
     assert client.get("/api/judge/matches", headers={"Authorization": "Basic x"}).status_code == 401
     bad = client.post("/api/auth/staff-login", json={"username": "admin", "password": "wrong"})
     assert bad.status_code == 401
@@ -63,7 +66,7 @@ def test_expired_sessions_are_refused(client: TestClient, store: Store, admin: d
 
 
 def test_logins_are_rate_limited(client: TestClient) -> None:
-    codes = [team_login(client, "x").status_code for _ in range(11)]
+    codes = [player_login(client, "x").status_code for _ in range(11)]
     assert codes[:10] == [401] * 10 and codes[10] == 429
 
 
@@ -156,16 +159,6 @@ def test_admin_set_passwords_are_temporary(client: TestClient, store: Store, adm
     )
     assert reset.json()["must_change_password"] is True
     assert client.get("/api/auth/me", headers=judge).status_code == 401  # old login ended
-    team = make_team(store, name="Not Staff")
-    team_token = client.post(
-        "/api/auth/team-login", json={"team_name": team.name, "password": "pass"}
-    ).json()["token"]
-    refused = client.post(
-        change,
-        headers={"Authorization": f"Bearer {team_token}"},
-        json={"current_password": "pass", "new_password": "pass2"},
-    )
-    assert refused.status_code == 403
 
 
 def test_admins_rename_logins_and_names_stay_unique(

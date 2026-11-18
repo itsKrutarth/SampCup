@@ -5,54 +5,118 @@ from app.api import registration
 from app.models import PartnerRequest, Player, Team
 from app.services.tournament import get_tournament
 from app.store import Store
-from tests.factories import make_player, make_team
+from tests.factories import make_player, make_team, player_headers
 
 
-def ask(client: TestClient, a: int, b: int, name: str = "Smash Bros", password: str = "pass1"):
-    return client.post(
-        "/api/registration/requests",
-        json={"from_player_id": a, "to_player_id": b, "team_name": name, "password": password},
-    )
-
-
-def answer(client: TestClient, request_id: int, action: str, player_id: int):
-    return client.post(
-        f"/api/registration/requests/{request_id}/{action}", json={"player_id": player_id}
-    )
-
-
-def test_players_pick_a_partner_and_the_partner_accepts(client: TestClient, store: Store) -> None:
-    a, b, c = make_player(store), make_player(store), make_player(store)
-    make_player(store, center="South")
-    assert client.get("/api/registration/centers").json() == [
-        {"center": "North", "players": 3, "on_teams": 0},
-        {"center": "South", "players": 1, "on_teams": 0},
-    ]
-    sent = ask(client, a.id, b.id)
-    assert sent.status_code == 201 and sent.json()["to"]["id"] == b.id
-    third = ask(client, c.id, b.id, name="Other Team")  # b now has two offers
-    states = {
-        p["id"]: p["state"] for p in client.get("/api/registration/players?center=North").json()
+def claim(
+    client: TestClient, player: Player, username: str = "aarav_p", password: str = "secret1", **kw
+):
+    body = {
+        "first_name": player.first_name,
+        "last_name": player.last_name,
+        "center": player.center,
+        "username": username,
+        "password": password,
+        **kw,
     }
-    assert states == {a.id: "pending", b.id: "pending", c.id: "pending"}
-    status = client.get(f"/api/registration/players/{b.id}").json()
-    assert [r["team_name"] for r in status["incoming"]] == ["Smash Bros", "Other Team"]
+    return client.post("/api/players/claim", json=body)
 
-    team = answer(client, sent.json()["id"], "accept", b.id).json()
-    assert team["name"] == "Smash Bros" and team["status"] == "active"
-    assert {p["id"] for p in team["players"]} == {a.id, b.id}
-    assert store.get(PartnerRequest, third.json()["id"]).status == "cancelled"
-    status = client.get(f"/api/registration/players/{a.id}").json()
-    assert status["team"]["name"] == "Smash Bros" and status["outgoing"] is None
+
+def invite(client: TestClient, headers: dict, to: int, name: str = "Smash Bros"):
+    return client.post(
+        "/api/registration/requests", headers=headers, json={"to_player_id": to, "team_name": name}
+    )
+
+
+def answer(client: TestClient, headers: dict, request_id: int, action: str):
+    return client.post(f"/api/registration/requests/{request_id}/{action}", headers=headers)
+
+
+def test_players_claim_their_account_once(client: TestClient, store: Store) -> None:
+    a = make_player(store, first="Aarav")
+    make_player(store, center="South")
+    assert client.get("/api/registration/centers").json() == ["North", "South"]
+    body = {
+        "first_name": f"  {a.first_name.upper()} ",
+        "last_name": "tester",
+        "center": "North",
+        "username": "Aarav_P",
+        "password": "secret1",
+    }
+    made = client.post("/api/players/claim", json=body)
+    assert made.status_code == 201 and made.json()["player"]["first_name"] == a.first_name
+    headers = {"Authorization": f"Bearer {made.json()['token']}"}
+    me = client.get("/api/player/me", headers=headers).json()
+    assert me["team"] is None and me["incoming"] == [] and me["outgoing"] is None
+    assert client.get("/api/auth/me", headers=headers).json()["player"]["username"] == "aarav_p"
+    again = claim(client, a, username="someone")
+    assert again.status_code == 409 and "already has an account" in again.json()["detail"]
     login = client.post(
-        "/api/auth/team-login", json={"team_name": "smash  bros", "password": "pass1"}
+        "/api/auth/player-login", json={"username": "AARAV_P", "password": "secret1"}
     )
     assert login.status_code == 200
-    assert client.get("/api/registration/status").json() == {
-        "open": True,
-        "team_cap": 42,
-        "teams": 1,
+    wrong = client.post(
+        "/api/auth/player-login", json={"username": "aarav_p", "password": "nope00"}
+    )
+    assert wrong.status_code == 401
+
+
+def test_claim_rules(client: TestClient, store: Store) -> None:
+    a, b = make_player(store), make_player(store)
+    twin_a = make_player(store, first="Twin")
+    store.save(
+        Player(
+            id=store.next_id(Player),
+            mis_id="X1",
+            first_name=twin_a.first_name,
+            last_name="Tester",
+            center="North",
+        )
+    )
+    assert claim(client, a, username="taken").status_code == 201
+    cases = [
+        (claim(client, b, username="taken"), 409, "taken"),
+        (claim(client, b, username="no"), 400, "3-30"),
+        (claim(client, b, password="short"), 400, "6-72"),
+        (claim(client, b, first_name="Nobody"), 404, "couldn't find"),
+        (claim(client, b, center="South"), 404, "couldn't find"),
+        (claim(client, twin_a, username="twin"), 409, "More than one"),
+    ]
+    for response, code, text in cases:
+        assert response.status_code == code and text in response.json()["detail"], response.text
+
+
+def test_claims_are_rate_limited(
+    client: TestClient, store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(registration, "REGISTRATION_PER_IP", (3, 600))
+    a = make_player(store)
+    codes = [claim(client, a, first_name="Wrong").status_code for _ in range(4)]
+    assert codes == [404, 404, 404, 429]
+
+
+def test_invite_then_partner_claims_and_accepts(client: TestClient, store: Store) -> None:
+    a, b, c = make_player(store), make_player(store), make_player(store)
+    me = player_headers(client, store, a)
+    names = {
+        p["id"]: p["state"] for p in client.get("/api/registration/players", headers=me).json()
     }
+    assert names == {b.id: "free", c.id: "free"}
+    sent = invite(client, me, b.id)
+    assert sent.status_code == 201 and sent.json()["to"]["id"] == b.id
+    third = invite(client, player_headers(client, store, c), b.id, name="Other Team")
+    assert client.get("/api/player/me", headers=me).json()["outgoing"]["team_name"] == "Smash Bros"
+    made = claim(client, b, username="partner")  # the partner signs up after being invited
+    partner = {"Authorization": f"Bearer {made.json()['token']}"}
+    waiting = client.get("/api/player/me", headers=partner).json()
+    assert [r["team_name"] for r in waiting["incoming"]] == ["Smash Bros", "Other Team"]
+    team = answer(client, partner, sent.json()["id"], "accept").json()
+    assert team["name"] == "Smash Bros" and {p["id"] for p in team["players"]} == {a.id, b.id}
+    assert store.get(PartnerRequest, third.json()["id"]).status == "cancelled"
+    page = client.get("/api/player/me", headers=me).json()["team"]
+    assert page["name"] == "Smash Bros" and len(page["players"]) == 2
+    public = client.get("/api/public/teams").json()
+    assert public[0]["players"][0]["name"] in (a.full_name, b.full_name)
 
 
 def test_request_rules(client: TestClient, store: Store) -> None:
@@ -60,76 +124,120 @@ def test_request_rules(client: TestClient, store: Store) -> None:
     south = make_player(store, center="South")
     taken = make_team(store, name="Taken Name")
     teamed = next(p for p in store.all(Player) if p.team_id == taken.id)
+    me = player_headers(client, store, a)
     checks = [
-        (ask(client, a.id, a.id), 400, "someone else"),
-        (ask(client, a.id, south.id), 400, "from your center"),
-        (ask(client, a.id, teamed.id), 409, "already on a team"),
-        (ask(client, a.id, 99999), 404, "Player not found"),
-        (ask(client, a.id, b.id, name="x"), 400, "2-40 characters"),
-        (ask(client, a.id, b.id, password="abc"), 400, "4-72 characters"),
-        (ask(client, a.id, b.id, name="taken  name"), 409, "taken"),
+        (invite(client, me, a.id), 400, "someone else"),
+        (invite(client, me, south.id), 400, "from your center"),
+        (invite(client, me, teamed.id), 409, "already on a team"),
+        (invite(client, me, 99999), 404, "Player not found"),
+        (invite(client, me, b.id, name="x"), 400, "2-40 characters"),
+        (invite(client, me, b.id, name="taken  name"), 409, "taken"),
     ]
     for response, code, text in checks:
         assert response.status_code == code and text in response.json()["detail"], response.text
-    assert ask(client, a.id, b.id, name="Fresh").status_code == 201
-    response = ask(client, a.id, c.id, name="Second")
-    assert response.status_code == 409 and "already have a request" in response.json()["detail"]
-    response = ask(client, c.id, d.id, name="FRESH")
-    assert response.status_code == 409 and "waiting on another request" in response.json()["detail"]
+    assert invite(client, me, b.id, name="Fresh").status_code == 201
+    second = invite(client, me, c.id, name="Second")
+    assert second.status_code == 409 and "already have a request" in second.json()["detail"]
+    clash = invite(client, player_headers(client, store, c), d.id, name="FRESH")
+    assert clash.status_code == 409 and "waiting on another request" in clash.json()["detail"]
 
 
 def test_answers_must_come_from_the_right_player(client: TestClient, store: Store) -> None:
     a, b = make_player(store), make_player(store)
-    request_id = ask(client, a.id, b.id).json()["id"]
-    assert answer(client, request_id, "accept", a.id).status_code == 400
-    assert answer(client, request_id, "cancel", b.id).status_code == 400
-    assert answer(client, 9999, "accept", b.id).status_code == 404
-    assert answer(client, request_id, "decline", b.id).json()["status"] == "declined"
-    response = answer(client, request_id, "accept", b.id)
-    assert response.status_code == 409 and "already declined" in response.json()["detail"]
-    request_id = ask(client, a.id, b.id).json()["id"]
-    assert answer(client, request_id, "cancel", a.id).json()["status"] == "cancelled"
+    sender, partner = player_headers(client, store, a), player_headers(client, store, b)
+    request_id = invite(client, sender, b.id).json()["id"]
+    assert answer(client, sender, request_id, "accept").status_code == 400
+    assert answer(client, partner, request_id, "cancel").status_code == 400
+    assert answer(client, partner, 9999, "accept").status_code == 404
+    assert answer(client, partner, request_id, "decline").json()["status"] == "declined"
+    again = answer(client, partner, request_id, "accept")
+    assert again.status_code == 409 and "already declined" in again.json()["detail"]
+    request_id = invite(client, sender, b.id).json()["id"]
+    assert answer(client, sender, request_id, "cancel").json()["status"] == "cancelled"
 
 
-def test_accepting_after_one_player_joined_another_team_fails(
+def test_accepting_after_joining_another_team_fails(client: TestClient, store: Store) -> None:
+    a, b = make_player(store), make_player(store)
+    request_id = invite(client, player_headers(client, store, a), b.id).json()["id"]
+    partner = player_headers(client, store, b)
+    team = make_team(store)
+    a.team_id = team.id
+    store.save(a)
+    assert answer(client, partner, request_id, "accept").status_code == 409
+
+
+def test_teams_past_the_cap_wait_and_closed_registration_refuses(
     client: TestClient, store: Store
 ) -> None:
-    a, b, c = make_player(store), make_player(store), make_player(store)
-    first = ask(client, a.id, b.id).json()["id"]
-    team = make_team(store)
-    for player in (a, c):
-        player.team_id = team.id
-        store.save(player)
-    assert answer(client, first, "accept", b.id).status_code == 409
-
-
-def test_teams_past_the_cap_go_on_the_waitlist(client: TestClient, store: Store) -> None:
     tournament = get_tournament(store)
     tournament.team_cap = 1
     store.save(tournament)
     make_team(store)
-    a, b = make_player(store), make_player(store)
-    request_id = ask(client, a.id, b.id).json()["id"]
-    assert answer(client, request_id, "accept", b.id).json()["status"] == "waitlist"
-
-
-def test_closed_registration_refuses_new_requests_and_accepts(
-    client: TestClient, store: Store
-) -> None:
     a, b, c, d = (make_player(store) for _ in range(4))
-    request_id = ask(client, a.id, b.id).json()["id"]
-    tournament = get_tournament(store)
+    request_id = invite(client, player_headers(client, store, a), b.id).json()["id"]
+    assert (
+        answer(client, player_headers(client, store, b), request_id, "accept").json()["status"]
+        == "waitlist"
+    )
+    pending = invite(client, player_headers(client, store, c), d.id, name="Late").json()["id"]
     tournament.registration_open = False
     store.save(tournament)
-    assert ask(client, c.id, d.id, name="Late").status_code == 409
-    assert answer(client, request_id, "accept", b.id).status_code == 409
-    assert store.all(Team) == []
+    assert invite(client, player_headers(client, store, c), a.id, name="Later").status_code == 409
+    assert answer(client, player_headers(client, store, d), pending, "accept").status_code == 409
+    assert client.get("/api/registration/status").json() == {"open": False, "team_cap": 1}
+    assert len(store.all(Team)) == 2
 
 
-def test_request_spam_is_rate_limited(
-    client: TestClient, store: Store, monkeypatch: pytest.MonkeyPatch
+def test_player_pages_need_a_player_login(client: TestClient, store: Store, admin: dict) -> None:
+    assert client.get("/api/registration/players").status_code == 401
+    assert client.get("/api/player/me", headers=admin).status_code == 403
+
+
+def test_admin_sets_and_releases_player_logins(
+    client: TestClient, store: Store, admin: dict
 ) -> None:
-    monkeypatch.setattr(registration, "REGISTRATION_PER_IP", (30, 600))
-    a = make_player(store)
-    codes = {ask(client, a.id, a.id).status_code for _ in range(31)}
-    assert codes == {400, 429}
+    twin = make_player(store, first="Twin")
+    url = f"/api/admin/players/{twin.id}/login"
+    missing = client.put(url, headers=admin, json={"password": "temp123"})
+    assert missing.status_code == 400 and "username" in missing.json()["detail"]
+    no_password = client.put(url, headers=admin, json={"username": "twin1"})
+    assert no_password.status_code == 400 and "temporary password" in no_password.json()["detail"]
+    made = client.put(url, headers=admin, json={"username": "Twin1", "password": "temp123"}).json()
+    assert made["username"] == "twin1" and made["must_change_password"] is True
+    login = client.post(
+        "/api/auth/player-login", json={"username": "twin1", "password": "temp123"}
+    ).json()
+    headers = {"Authorization": f"Bearer {login['token']}"}
+    blocked = client.get("/api/player/me", headers=headers)
+    assert blocked.status_code == 403 and "own password" in blocked.json()["detail"]
+    change = "/api/auth/change-password"
+    wrong = client.post(
+        change, headers=headers, json={"current_password": "x", "new_password": "mine123"}
+    )
+    assert wrong.status_code == 400
+    same = client.post(
+        change, headers=headers, json={"current_password": "temp123", "new_password": "temp123"}
+    )
+    assert same.status_code == 400
+    done = client.post(
+        change, headers=headers, json={"current_password": "temp123", "new_password": "mine123"}
+    )
+    assert done.json()["player"]["must_change_password"] is False
+    assert client.get("/api/player/me", headers=headers).status_code == 200
+    other = make_player(store)
+    client.put(
+        f"/api/admin/players/{other.id}/login",
+        headers=admin,
+        json={"username": "other", "password": "temp123"},
+    )
+    clash = client.put(url, headers=admin, json={"username": "other"})
+    assert clash.status_code == 409
+    renamed = client.put(url, headers=admin, json={"username": "twin-new"}).json()
+    assert renamed["username"] == "twin-new"
+    released = client.delete(url, headers=admin).json()
+    assert released["username"] is None
+    assert client.get("/api/player/me", headers=headers).status_code == 401  # logged out
+    assert client.delete(url, headers=admin).json()["username"] is None  # already free
+    assert client.put("/api/admin/players/9999/login", headers=admin, json={}).status_code == 404
+    reclaim = claim(client, twin, username="twin-again")
+    assert reclaim.status_code == 201

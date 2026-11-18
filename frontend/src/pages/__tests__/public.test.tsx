@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
 import { groups, match, overview, team, teamPage } from '../../test/data'
-import { ADMIN, fail, JUDGE, mockApi, renderAt, TEAM } from '../../test/utils'
+import { ADMIN, fail, JUDGE, mockApi, PLAYER, renderAt } from '../../test/utils'
 
 describe('home page', () => {
   it('invites players to join while registration is open', async () => {
@@ -28,7 +28,7 @@ describe('home page', () => {
     expect(screen.getByRole('img', { name: /BAPS Swaminarayan Sanstha/ })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Courts' })).not.toBeInTheDocument()
     expect(screen.getByRole('timer', { name: 'Countdown to the first serve' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Join with your partner' })).toHaveAttribute('href', '/join')
+    expect(screen.getByRole('link', { name: 'Create your account' })).toHaveAttribute('href', '/join')
   })
 
   it('shows live games, what is next, banners and the champion', async () => {
@@ -87,7 +87,7 @@ describe('home page', () => {
 describe('navigation', () => {
   it.each([
     [undefined, 'Join', '/join'],
-    [TEAM, 'My team', '/my-team'],
+    [PLAYER, 'My team', '/my-team'],
     [JUDGE, 'Judge', '/judge'],
     [ADMIN, 'Admin', '/admin'],
   ])('links to the right account page', async (auth, label, href) => {

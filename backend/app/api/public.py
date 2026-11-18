@@ -100,11 +100,15 @@ def bracket(store: Db) -> dict[str, Any]:
 
 @router.get("/teams")
 def teams(store: Db) -> list[dict[str, Any]]:
+    look = Lookup(store)
     rows = sorted(
-        (t for t in store.all(Team) if t.status == "active"),
+        (t for t in look.teams.values() if t.status == "active"),
         key=lambda t: (t.team_number is None, t.team_number or 0, t.name),
     )
-    return [{**(team_brief(t) or {}), "center": t.center} for t in rows]
+    return [
+        {**(team_brief(t) or {}), "center": t.center, "players": look.team(t)["players"]}
+        for t in rows
+    ]
 
 
 def team_page(store: Store, team: Team) -> dict[str, Any]:
@@ -118,6 +122,7 @@ def team_page(store: Store, team: Team) -> dict[str, Any]:
     upcoming = next((m for m in matches if m.status in ("scheduled", "in_progress")), None)
     return {
         **(team_brief(team) or {}),
+        "players": look.team(team)["players"],
         "center": team.center,
         "status": team.status,
         "lunch_start": team.lunch_start.isoformat() if team.lunch_start else None,

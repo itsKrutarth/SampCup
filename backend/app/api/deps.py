@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import Depends, Header, HTTPException, Request, status
 
 from app.core.config import get_settings
-from app.models import Session, StaffUser, Team
+from app.models import Player, Session, StaffUser
 from app.services.auth import session_for
 from app.store import Store, get_store
 
@@ -69,13 +69,15 @@ def current_admin(user: Annotated[StaffUser, Depends(current_staff)]) -> StaffUs
     return user
 
 
-def current_team(store: Db, session: SessionDep) -> Team:
-    team = store.get(Team, session.team_id) if session.team_id else None
-    if team is None or team.status == "withdrawn":
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Teams only")
-    return team
+def current_player(store: Db, session: SessionDep) -> Player:
+    player = store.get(Player, session.player_id) if session.player_id else None
+    if player is None or not player.active:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Players only")
+    if player.must_change_password:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Choose your own password first")
+    return player
 
 
 Staff = Annotated[StaffUser, Depends(current_staff)]
 Admin = Annotated[StaffUser, Depends(current_admin)]
-TeamDep = Annotated[Team, Depends(current_team)]
+PlayerDep = Annotated[Player, Depends(current_player)]

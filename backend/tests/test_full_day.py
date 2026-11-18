@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from app.models import Match, Team
 from app.services.scoring import refresh_bracket
 from app.store import Store
-from tests.factories import find, seeded
+from tests.factories import find, members, player_headers, seeded
 
 
 def play(
@@ -148,11 +148,11 @@ def test_public_and_team_pages(client: TestClient, store: Store) -> None:
     assert {m["court"] for m in court_9} == {9}
     mine = client.get("/api/public/schedule?team=1").json()
     assert len(mine) == len(page["matches"])
-    login = client.post(
-        "/api/auth/team-login", json={"team_name": page["name"], "password": "demo"}
+    team = next(t for t in store.all(Team) if t.team_number == 1)
+    me = client.get(
+        "/api/player/me", headers=player_headers(client, store, members(store, team)[0])
     ).json()
-    me = client.get("/api/team/me", headers={"Authorization": f"Bearer {login['token']}"}).json()
-    assert me["number"] == 1 and len(me["players"]) == 2
+    assert me["team"]["number"] == 1 and len(me["team"]["players"]) == 2
 
 
 def test_announcement_banner(client: TestClient, admin: dict) -> None:

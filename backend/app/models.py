@@ -44,6 +44,10 @@ class Player(Record):
     tshirt_size: str = ""
     active: bool = True
     team_id: int | None = None
+    # The player's own login, set when they claim their account (or by an admin).
+    username: str | None = None
+    password_hash: str | None = None
+    must_change_password: bool = False
 
     @property
     def full_name(self) -> str:
@@ -56,8 +60,8 @@ class Team(Record):
     id: int
     name: str
     name_key: str
-    password_hash: str
     center: str
+    password_hash: str = ""  # unused: players log in with their own accounts
     status: str = "active"
     checked_in: bool = False
     team_number: int | None = None
@@ -76,7 +80,7 @@ class PartnerRequest(Record):
     to_player_id: int
     team_name: str
     name_key: str
-    password_hash: str
+    password_hash: str = ""  # unused: players log in with their own accounts
     status: str = "pending"
     created_at: dt.datetime = dataclasses.field(default_factory=utcnow)
     resolved_at: dt.datetime | None = None
@@ -104,6 +108,7 @@ class Session(Record):
     id: str
     staff_id: int | None = None
     team_id: int | None = None
+    player_id: int | None = None
     expires_at: dt.datetime
     ttl: int
 

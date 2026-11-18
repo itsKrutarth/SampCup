@@ -45,7 +45,7 @@ function Footer() {
         <NavLink to="/schedule">Order of play</NavLink>
         <NavLink to="/standings">Group standings</NavLink>
         <NavLink to="/bracket">Knockout bracket</NavLink>
-        <NavLink to="/login">Team area</NavLink>
+        <NavLink to="/login">Player login</NavLink>
         <NavLink to="/staff">Staff area</NavLink>
       </nav>
       <BapsArt />
@@ -57,7 +57,7 @@ function Footer() {
 export default function Layout() {
   const { auth } = useAuth()
   const account =
-    auth?.kind === 'team'
+    auth?.kind === 'player'
       ? { to: '/my-team', label: 'My team', Icon: UserRound }
       : auth?.kind === 'staff'
         ? auth.role === 'admin'

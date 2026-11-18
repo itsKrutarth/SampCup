@@ -1,53 +1,57 @@
-"""Players form their own teams: pick yourself, pick a partner, the partner accepts."""
+"""Players claim their account, then pair up: invite a partner, the partner accepts."""
 
-from collections import defaultdict
 from typing import Any
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
-from app.api.deps import REGISTRATION_PER_IP, Db, limit
+from app.api.deps import REGISTRATION_PER_IP, Db, PlayerDep, limit
 from app.api.serializers import Lookup
 from app.models import PartnerRequest, Player
-from app.services import teams
+from app.services import accounts, auth, teams
 from app.services.tournament import get_tournament
 
-router = APIRouter(prefix="/registration", tags=["registration"])
+router = APIRouter(tags=["registration"])
 
 
-class NewRequest(BaseModel):
-    from_player_id: int
-    to_player_id: int
-    team_name: str = Field(max_length=60)
+class Claim(BaseModel):
+    first_name: str = Field(max_length=80)
+    last_name: str = Field(max_length=80)
+    center: str = Field(max_length=80)
+    username: str = Field(max_length=40)
     password: str = Field(max_length=72)
 
 
-class Answer(BaseModel):
-    player_id: int
+class NewRequest(BaseModel):
+    to_player_id: int
+    team_name: str = Field(max_length=60)
 
 
-@router.get("/status")
+@router.get("/registration/status")
 def status(store: Db) -> dict[str, Any]:
     tournament = get_tournament(store)
-    return {
-        "open": tournament.registration_open,
-        "team_cap": tournament.team_cap,
-        "teams": teams.active_team_count(store),
-    }
+    return {"open": tournament.registration_open, "team_cap": tournament.team_cap}
 
 
-@router.get("/centers")
-def centers(store: Db) -> list[dict[str, Any]]:
-    counts: dict[str, list[int]] = defaultdict(lambda: [0, 0])
-    for player in store.all(Player):
-        if player.active:
-            counts[player.center][0] += 1
-            counts[player.center][1] += player.team_id is not None
-    return [{"center": c, "players": n, "on_teams": t} for c, (n, t) in sorted(counts.items())]
+@router.get("/registration/centers")
+def centers(store: Db) -> list[str]:
+    """Center names only, for the account form (no player names in public)."""
+    return sorted({p.center for p in store.all(Player) if p.active})
 
 
-@router.get("/players")
-def players(store: Db, center: str) -> list[dict[str, Any]]:
+@router.post("/players/claim", status_code=201)
+def claim(body: Claim, store: Db, request: Request) -> dict[str, Any]:
+    limit(store, request, "claim", REGISTRATION_PER_IP)
+    player = accounts.claim_account(
+        store, body.first_name, body.last_name, body.center, body.username, body.password
+    )
+    token = auth.new_session(store, player_id=player.id)
+    return {"token": token, "kind": "player", "player": Lookup(store).player(player)}
+
+
+@router.get("/registration/players")
+def players(me: PlayerDep, store: Db) -> list[dict[str, Any]]:
+    """Players at my own center, for picking a partner."""
     look = Lookup(store)
     pending = {
         pid
@@ -56,7 +60,7 @@ def players(store: Db, center: str) -> list[dict[str, Any]]:
         for pid in (r.from_player_id, r.to_player_id)
     }
     rows = sorted(
-        (p for p in look.players.values() if p.active and p.center == center),
+        (p for p in look.players.values() if p.active and p.center == me.center and p.id != me.id),
         key=lambda p: (p.first_name, p.last_name),
     )
     out = []
@@ -67,40 +71,24 @@ def players(store: Db, center: str) -> list[dict[str, Any]]:
     return out
 
 
-@router.get("/players/{player_id}")
-def player_status(player_id: int, store: Db) -> dict[str, Any]:
-    player = teams.get_player(store, player_id)
-    look = Lookup(store)
-    incoming, outgoing = teams.pending_requests(store, player)
-    team = look.team_of(player.team_id)
-    return {
-        "player": look.player(player),
-        "team": look.team(team) if team else None,
-        "incoming": [look.request(r) for r in incoming],
-        "outgoing": look.request(outgoing) if outgoing else None,
-    }
-
-
-@router.post("/requests", status_code=201)
-def create_request(body: NewRequest, store: Db, request: Request) -> dict[str, Any]:
+@router.post("/registration/requests", status_code=201)
+def create_request(body: NewRequest, me: PlayerDep, store: Db, request: Request) -> dict[str, Any]:
     limit(store, request, "register", REGISTRATION_PER_IP)
-    created = teams.request_partner(
-        store, body.from_player_id, body.to_player_id, body.team_name, body.password
-    )
+    created = teams.request_partner(store, me.id, body.to_player_id, body.team_name)
     return Lookup(store).request(created)
 
 
-@router.post("/requests/{request_id}/accept")
-def accept(request_id: int, body: Answer, store: Db) -> dict[str, Any]:
-    team = teams.accept_request(store, request_id, body.player_id)
+@router.post("/registration/requests/{request_id}/accept")
+def accept(request_id: int, me: PlayerDep, store: Db) -> dict[str, Any]:
+    team = teams.accept_request(store, request_id, me.id)
     return Lookup(store).team(team)
 
 
-@router.post("/requests/{request_id}/decline")
-def decline(request_id: int, body: Answer, store: Db) -> dict[str, Any]:
-    return Lookup(store).request(teams.decline_request(store, request_id, body.player_id))
+@router.post("/registration/requests/{request_id}/decline")
+def decline(request_id: int, me: PlayerDep, store: Db) -> dict[str, Any]:
+    return Lookup(store).request(teams.decline_request(store, request_id, me.id))
 
 
-@router.post("/requests/{request_id}/cancel")
-def cancel(request_id: int, body: Answer, store: Db) -> dict[str, Any]:
-    return Lookup(store).request(teams.cancel_request(store, request_id, body.player_id))
+@router.post("/registration/requests/{request_id}/cancel")
+def cancel(request_id: int, me: PlayerDep, store: Db) -> dict[str, Any]:
+    return Lookup(store).request(teams.cancel_request(store, request_id, me.id))

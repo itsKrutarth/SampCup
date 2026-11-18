@@ -62,10 +62,10 @@ describe('choosing your own password', () => {
     expect((await screen.findAllByRole('heading', { name: 'Choose your own password' })).length).toBeGreaterThan(0)
   })
 
-  it('needs a staff login first', async () => {
+  it('needs a login first', async () => {
     mockApi({})
     renderAt('/staff/password')
-    expect(await screen.findByRole('heading', { name: 'Staff login' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Player login' })).toBeInTheDocument()
   })
 })
 
@@ -95,8 +95,8 @@ describe('home page states', () => {
     renderAt('/')
     expect(await screen.findByText('Date to be announced')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Directions' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Join with your partner' })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Team login' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Create your account' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: 'Log in' }).length).toBeGreaterThan(0)
   })
 
   it('shows unknown knockout opponents and empty standings', async () => {

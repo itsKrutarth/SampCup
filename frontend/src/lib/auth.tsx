@@ -5,7 +5,7 @@ import { load, save } from './storage'
 
 export type Auth = {
   token: string
-  kind: 'team' | 'staff'
+  kind: 'player' | 'staff'
   name: string
   role?: 'admin' | 'judge'
   court?: number | null

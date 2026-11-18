@@ -44,7 +44,6 @@ def row(mis_id: object, first: str, last: str = "Tester", center: str = "North")
 
 
 _counter = iter(range(1, 100_000))
-_hash = hash_password("pass")
 
 
 def make_player(store: Store, first: str = "Player", center: str = "North", **kw: Any) -> Player:
@@ -73,7 +72,6 @@ def make_team(
         id=store.next_id(Team),
         name=name,
         name_key=name_key(name),
-        password_hash=_hash,
         center=center,
         status=status,
         checked_in=checked_in,
@@ -83,6 +81,27 @@ def make_team(
     for _ in range(2):
         make_player(store, center=center, team_id=team.id)
     return team
+
+
+def give_login(store: Store, player: Player, password: str = "secret1") -> str:
+    """An account the player chose themselves (not a temporary one)."""
+    from app.services.accounts import LOGIN
+
+    player.username = f"user{player.id}"
+    player.password_hash = hash_password(password)
+    store.transact(
+        [store.tx_put(player), store.tx_lock(LOGIN, player.username, f"player:{player.id}")]
+    )
+    return player.username
+
+
+def player_headers(client: Any, store: Store, player: Player) -> dict[str, str]:
+    username = player.username or give_login(store, player)
+    response = client.post(
+        "/api/auth/player-login", json={"username": username, "password": "secret1"}
+    )
+    assert response.status_code == 200, response.text
+    return {"Authorization": f"Bearer {response.json()['token']}"}
 
 
 def members(store: Store, team: Team) -> list[Player]:

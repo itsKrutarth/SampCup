@@ -2,59 +2,71 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
-import { teamPage } from '../../test/data'
-import { fail, mockApi, renderAt, TEAM } from '../../test/utils'
+import { fail, mockApi, renderAt } from '../../test/utils'
 
-describe('team login', () => {
-  it('logs in and shows the team page, then logs out', async () => {
+const me = { player: { id: 1, first_name: 'Aarav', last_name: 'Tester', center: 'North', zone: 'Z' }, team: null, incoming: [], outgoing: null }
+
+describe('player login', () => {
+  it('logs in, shows the player page, then logs out', async () => {
     const { sent } = mockApi({
-      'POST /auth/team-login': { token: 't-team', kind: 'team', team: { name: 'Net Ninjas' } },
-      'GET /team/me': teamPage({ players: [{ id: 1, name: 'Aarav Tester' }, { id: 2, name: 'Dev Tester' }] }),
+      'POST /auth/player-login': { token: 't-player', kind: 'player', player: { first_name: 'Aarav', must_change_password: false } },
+      'GET /player/me': me,
+      'GET /registration/players': [],
       'POST /auth/logout': null,
     })
     const user = userEvent.setup()
     renderAt('/login')
-    await user.type(screen.getByLabelText('Team name'), 'Net Ninjas')
-    await user.type(screen.getByLabelText('Password'), 'pass1')
+    await user.type(screen.getByLabelText('Username'), 'aarav_t')
+    await user.type(screen.getByLabelText('Password'), 'secret1')
     await user.click(screen.getByRole('button', { name: 'Log in' }))
-    expect(await screen.findByText('Aarav Tester & Dev Tester')).toBeInTheDocument()
-    expect(sent('GET', '/team/me')[0].headers).toEqual({ Authorization: 'Bearer t-team' })
+    expect(await screen.findByRole('heading', { name: 'Pick your partner' })).toBeInTheDocument()
+    expect(sent('GET', '/player/me')[0].headers).toEqual({ Authorization: 'Bearer t-player' })
     await user.click(screen.getByRole('button', { name: 'Log out' }))
-    expect(await screen.findByRole('heading', { name: 'Team login' })).toBeInTheDocument()
-    expect(sent('POST', '/auth/logout')).toHaveLength(1)
+    expect(await screen.findByRole('heading', { name: 'Player login' })).toBeInTheDocument()
     expect(localStorage.getItem('sampcup-auth')).toBeNull()
   })
 
-  it('shows a wrong password', async () => {
-    mockApi({ 'POST /auth/team-login': fail(401, 'Team name or password is wrong') })
+  it('sends a player with a temporary password to choose their own', async () => {
+    const { sent } = mockApi({
+      'POST /auth/player-login': { token: 't-player', kind: 'player', player: { first_name: 'Aarav', must_change_password: true } },
+      'POST /auth/change-password': { player: { first_name: 'Aarav', must_change_password: false } },
+      'GET /player/me': me,
+      'GET /registration/players': [],
+    })
     const user = userEvent.setup()
     renderAt('/login')
-    await user.type(screen.getByLabelText('Team name'), 'x')
+    await user.type(screen.getByLabelText('Username'), 'aarav_t')
+    await user.type(screen.getByLabelText('Password'), 'temp123')
+    await user.click(screen.getByRole('button', { name: 'Log in' }))
+    expect(await screen.findByText('At least 6 characters.')).toBeInTheDocument()
+    await user.type(screen.getByLabelText('Password or PIN you were given'), 'temp123')
+    await user.type(screen.getByLabelText('New password or PIN'), 'mine123')
+    await user.type(screen.getByLabelText('New password again'), 'mine123')
+    await user.click(screen.getByRole('button', { name: 'Save and continue' }))
+    expect(await screen.findByRole('heading', { name: 'Pick your partner' })).toBeInTheDocument()
+    expect(sent('POST', '/auth/change-password')).toHaveLength(1)
+    await waitFor(() => expect(JSON.parse(localStorage.getItem('sampcup-auth')!).mustChange).toBe(false))
+  })
+
+  it('shows a wrong password', async () => {
+    mockApi({ 'POST /auth/player-login': fail(401, 'Username or password is wrong') })
+    const user = userEvent.setup()
+    renderAt('/login')
+    await user.type(screen.getByLabelText('Username'), 'x')
     await user.type(screen.getByLabelText('Password'), 'y')
     await user.click(screen.getByRole('button', { name: 'Log in' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('wrong')
-  })
-
-  it('sends logged-out visitors to the login and handles expired logins', async () => {
-    mockApi({ 'GET /team/me': fail(401, 'Your login has expired'), 'POST /auth/logout': null })
-    renderAt('/my-team')
-    expect(await screen.findByRole('heading', { name: 'Team login' })).toBeInTheDocument()
-    const user = userEvent.setup()
-    renderAt('/my-team', TEAM)
-    await user.click(await screen.findByRole('button', { name: 'Log in again' }))
-    await waitFor(() => expect(localStorage.getItem('sampcup-auth')).toBeNull())
   })
 })
 
 describe('staff login', () => {
   it.each([
-    ['admin', { display_name: 'Admin', role: 'admin', court: null }, 'Admin'],
-    ['judge1', { display_name: 'Judge One', role: 'judge', court: 2 }, 'Court 2'],
+    ['admin', { username: 'admin', display_name: 'Admin', role: 'admin', court: null, must_change_password: false }, /Admin/],
+    ['judge1', { username: 'judge1', display_name: 'Judge One', role: 'judge', court: 2, must_change_password: false }, /Court 2/],
   ])('sends %s to the right screen', async (username, user, heading) => {
     mockApi({
       'POST /auth/staff-login': { token: 'tok', kind: 'staff', user },
       'GET /admin/summary': fail(500, 'later'),
-      'GET /judge/matches': { court: 2, current: null, matches: [] },
       'GET /judge/matches?court=2': { court: 2, current: null, matches: [] },
     })
     const u = userEvent.setup()

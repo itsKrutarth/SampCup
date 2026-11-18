@@ -15,7 +15,6 @@ import secrets
 from datetime import date
 
 from app.core.config import get_settings
-from app.core.security import hash_password
 from app.models import Player, StaffUser, Team
 from app.services import schedule
 from app.services.auth import USERNAME, create_staff
@@ -51,7 +50,6 @@ def seed_demo(store: Store, n_teams: int = 40, event_date: date | None = None) -
     if store.exists(Player):
         raise SystemExit("The table already has players; seed-demo only runs on an empty one")
     rng = random.Random(2026)  # noqa: S311 - demo data
-    password = hash_password("demo")
     team_id = store.next_id(Team, n_teams)
     player_id = store.next_id(Player, n_teams * 2)
     teams, players, locks = [], [], []
@@ -61,7 +59,6 @@ def seed_demo(store: Store, n_teams: int = 40, event_date: date | None = None) -
             id=team_id + t,
             name=f"Demo Team {t + 1}",
             name_key=f"demo team {t + 1}",
-            password_hash=password,
             center=center,
             checked_in=True,
         )

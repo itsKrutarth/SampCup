@@ -25,6 +25,14 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
     removed from public pages (admins still see them).
   - Venue, address, age group, ribbon text and contacts are settings in Admin -> Overview,
     stored in DynamoDB (contacts with phone numbers stay out of the public repo).
+- **Player accounts (owner, 2026-11-18, replaces team logins):** a registered player creates
+  their account once with first name + last name (any case) + center, then a username and
+  password. Logged-in players invite a partner from their center; the partner sees the
+  invitation when they log in and accepts or declines. Everyone logs in at `/login` with their
+  own account; team passwords are gone. Player names are visible only to logged-in players of
+  the same center until teams form; formed teams and members are public. Admins set or reset a
+  player's login (temporary password, must change) and can release a wrongly claimed account.
+  Same-name players at one center need the admin to set their logins.
 - **Judges:** court-1..court-9; PINs in `~/dev/sampcup-judge-pins.txt` (owner's Mac only).
 - **Waiting on the owner:** approve the production deploy (a permission check stopped me
   deploying without an explicit go-ahead), and the logo file (transparent PNG or SVG).
@@ -92,9 +100,9 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
 - **Team range 32-42 (2026-11-17):** 32 and 33 passed the rule checker and 200 simulated
   tournaments each. 43+ is impossible with 8 games each before Sabha.
 - **Registration (owner):** admins upload the BAPS registration export (.xlsx/.csv, one row per
-  player, matched by MISID). Players pick center, self, a same-center partner, team name and
-  password; the partner accepts; then only admins can change it. No identity check (owner's
-  call). Cap 42 active teams, then a waitlist. Public pages stay open; teams log in.
+  player, matched by MISID). Players claim their account (name + center, once), then invite a
+  same-center partner who accepts; then only admins can change the team. MISID is not used
+  for sign-up (players never see it). Cap 42 active teams, then a waitlist.
 - **Announcements:** in-app banner only (the export has no email or phone).
 - **Auth:** sessions stored in DynamoDB with TTL (random bearer token, SHA-256 stored), scrypt
   password hashes.

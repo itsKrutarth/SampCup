@@ -6,7 +6,7 @@ from app.services.errors import ServiceError
 from app.services.teams import admin_update_team
 from app.services.tournament import get_tournament
 from app.store import Store
-from tests.factories import make_player, make_team
+from tests.factories import make_player, make_team, player_headers
 
 
 def test_admin_creates_edits_and_deletes_teams(
@@ -16,7 +16,7 @@ def test_admin_creates_edits_and_deletes_teams(
     created = client.post(
         "/api/admin/teams",
         headers=admin,
-        json={"name": "Dinkers", "password": "pass", "player_ids": [a.id, b.id]},
+        json={"name": "Dinkers", "player_ids": [a.id, b.id]},
     )
     assert created.status_code == 201
     team = created.json()
@@ -29,16 +29,11 @@ def test_admin_creates_edits_and_deletes_teams(
             "name": "Dinkers United",
             "checked_in": True,
             "player_ids": [a.id, c.id],
-            "password": "newpass",
         },
     ).json()
     assert patched["name"] == "Dinkers United" and patched["checked_in"] is True
     assert {p["id"] for p in patched["players"]} == {a.id, c.id}
     assert store.get(Player, b.id).team_id is None
-    login = client.post(
-        "/api/auth/team-login", json={"team_name": "dinkers united", "password": "newpass"}
-    )
-    assert login.status_code == 200
     renamed = client.patch(
         f"/api/admin/teams/{team['id']}", headers=admin, json={"name": "DINKERS UNITED"}
     )
@@ -52,7 +47,7 @@ def test_admin_creates_edits_and_deletes_teams(
 def test_team_rules(client: TestClient, store: Store, admin: dict) -> None:
     existing = make_team(store, name="First")
     a, b = make_player(store), make_player(store)
-    body = {"name": "Second", "password": "pass", "player_ids": [a.id, a.id]}
+    body = {"name": "Second", "player_ids": [a.id, a.id]}
     assert client.post("/api/admin/teams", headers=admin, json=body).status_code == 400
     body["player_ids"] = [a.id, next(p.id for p in store.all(Player) if p.team_id == existing.id)]
     response = client.post("/api/admin/teams", headers=admin, json=body)
@@ -82,7 +77,7 @@ def test_team_cap_waitlist_and_status_changes(
     waiting = client.post(
         "/api/admin/teams",
         headers=admin,
-        json={"name": "Late", "password": "pass", "player_ids": [a.id, b.id]},
+        json={"name": "Late", "player_ids": [a.id, b.id]},
     ).json()
     assert waiting["status"] == "waitlist"
     full = client.patch(
@@ -113,12 +108,8 @@ def test_admin_sees_and_cancels_pending_requests(
     a, b = make_player(store), make_player(store)
     client.post(
         "/api/registration/requests",
-        json={
-            "from_player_id": a.id,
-            "to_player_id": b.id,
-            "team_name": "Pending",
-            "password": "pass",
-        },
+        headers=player_headers(client, store, a),
+        json={"to_player_id": b.id, "team_name": "Pending"},
     )
     pending = client.get("/api/admin/requests", headers=admin).json()
     assert [r["team_name"] for r in pending] == ["Pending"]

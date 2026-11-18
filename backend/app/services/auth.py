@@ -8,9 +8,8 @@ from app.core.security import (
     token_digest,
     verify_password,
 )
-from app.models import Session, StaffUser, Team
+from app.models import Session, StaffUser
 from app.services.errors import Conflict, NotFound, ServiceError
-from app.services.teams import name_key
 from app.store import ConflictError, Store
 
 USERNAME = "USERNAME"  # lock kind: usernames are unique
@@ -20,7 +19,7 @@ class LoginFailed(ServiceError):
     status_code = 401
 
 
-def _new_session(store: Store, **owner: int) -> str:
+def new_session(store: Store, **owner: int) -> str:
     token = new_token()
     expires = datetime.now(UTC) + timedelta(hours=get_settings().session_hours)
     store.save(
@@ -29,23 +28,13 @@ def _new_session(store: Store, **owner: int) -> str:
     return token
 
 
-def team_login(store: Store, team_name: str, password: str) -> tuple[str, Team]:
-    key = name_key(team_name)
-    team = next((t for t in store.all(Team) if t.name_key == key), None)
-    if not verify_password(password, team.password_hash if team else DUMMY_HASH) or not team:
-        raise LoginFailed("Team name or password is wrong")
-    if team.status == "withdrawn":
-        raise LoginFailed("This team has withdrawn. Ask an admin.")
-    return _new_session(store, team_id=team.id), team
-
-
 def staff_login(store: Store, username: str, password: str) -> tuple[str, StaffUser]:
     wanted = username.strip().lower()
     user = next((u for u in store.all(StaffUser) if u.username == wanted), None)
     ok = verify_password(password, user.password_hash if user else DUMMY_HASH)
     if not ok or user is None or not user.active:
         raise LoginFailed("Username or password is wrong")
-    return _new_session(store, staff_id=user.id), user
+    return new_session(store, staff_id=user.id), user
 
 
 def session_for(store: Store, token: str) -> Session | None:
@@ -61,9 +50,19 @@ def logout(store: Store, token: str) -> None:
         store.delete(session)
 
 
-def end_sessions(store: Store, *, team_id: int | None = None, staff_id: int | None = None) -> None:
+def end_sessions(
+    store: Store,
+    *,
+    team_id: int | None = None,
+    staff_id: int | None = None,
+    player_id: int | None = None,
+) -> None:
     for session in store.all(Session):
-        if (team_id and session.team_id == team_id) or (staff_id and session.staff_id == staff_id):
+        if (
+            (team_id and session.team_id == team_id)
+            or (staff_id and session.staff_id == staff_id)
+            or (player_id and session.player_id == player_id)
+        ):
             store.delete(session)
 
 

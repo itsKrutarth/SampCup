@@ -92,13 +92,22 @@ def multipart(filename: str, content: bytes) -> tuple[bytes, str]:
     return body, f"multipart/form-data; boundary={boundary}"
 
 
-def form_team(base: str, index: int, me: dict, partner: dict) -> dict:
+def claim(base: str, player: dict, index: int) -> Api:
+    """Create the player's own account (name + center), like a real player would."""
     api = Api(base)
-    _, request = api.call("POST", "/registration/requests", {
-        "from_player_id": me["id"], "to_player_id": partner["id"],
-        "team_name": f"Dummy Team {index:02d}", "password": f"dummy-{index:02d}"})
-    _, team = api.call("POST", f"/registration/requests/{request['id']}/accept",
-                       {"player_id": partner["id"]})
+    _, made = api.call("POST", "/players/claim", {
+        "first_name": player["first_name"], "last_name": "Player", "center": player["center"],
+        "username": f"dummy{index:03d}", "password": "dummy-pass"})
+    api.token = made["token"]
+    return api
+
+
+def form_team(base: str, index: int, me: dict, partner: dict) -> dict:
+    mine = claim(base, me, 2 * index - 1)
+    _, request = mine.call("POST", "/registration/requests", {
+        "to_player_id": partner["id"], "team_name": f"Dummy Team {index:02d}"})
+    theirs = claim(base, partner, 2 * index)
+    _, team = theirs.call("POST", f"/registration/requests/{request['id']}/accept")
     return team
 
 
@@ -181,25 +190,16 @@ def main() -> None:
     _, report = admin.call("POST", "/admin/players/import", raw=body, content_type=content_type)
     check(report["added"] == n_pairs * 2, f"imported {report['added']} dummy players")
 
-    print("2. Players form teams (in parallel)")
+    print("2. Players create accounts and form teams (in parallel)")
     public = Api(base)
-    _, centers = public.call("GET", "/registration/centers")
-    check(len(centers) == 4, "4 dummy centers listed")
-    players = []
-    for center in CENTERS:
-        _, rows = public.call("GET", f"/registration/players?center={urllib.request.quote(center)}")
-        players += rows
+    centers = public.call("GET", "/registration/centers")[1]
+    check(len(centers) == 4, "4 dummy centers listed (names only)")
+    _, players = admin.call("GET", "/admin/players")
     by_name = {p["first_name"]: p for p in players}
     pairs = [(by_name[f"Dummy{2 * i + 1:03d}"], by_name[f"Dummy{2 * i + 2:03d}"]) for i in range(n_pairs)]
-    a, b = pairs[0]
-    cross = public.call("POST", "/registration/requests", {"from_player_id": a["id"],
-                        "to_player_id": pairs[1][1]["id"], "team_name": "Wrong Center", "password": "pass"},
-                        ok=(400,))
-    check("center" in cross[1]["detail"], "a partner from another center is refused")
-    _, first = public.call("POST", "/registration/requests", {"from_player_id": a["id"],
-                           "to_player_id": b["id"], "team_name": "Declined Pair", "password": "pass"})
-    public.call("POST", f"/registration/requests/{first['id']}/decline", {"player_id": b["id"]})
-    check(True, "a partner declined a request")
+    wrong = public.call("POST", "/players/claim", {"first_name": "Nobody", "last_name": "Player",
+                        "center": centers[0], "username": "nobody", "password": "dummy-pass"}, ok=(404,))
+    check(wrong[0] == 404, "an unregistered name cannot create an account")
     with ThreadPoolExecutor(8) as pool:
         teams = list(pool.map(lambda job: form_team(base, *job),
                               [(i + 1, me, partner) for i, (me, partner) in enumerate(pairs[:args.teams])]))
@@ -207,15 +207,14 @@ def main() -> None:
     me, partner = pairs[-1]
     late = form_team(base, args.teams + 1, me, partner)
     check(late["status"] == "waitlist", "the team past the cap is on the waitlist")
-    dup = public.call("POST", "/registration/requests", {"from_player_id": me["id"],
-                      "to_player_id": partner["id"], "team_name": "Dummy Team 01", "password": "pass"},
-                      ok=(409,))
-    check(dup[0] == 409, "a taken team name or teamed player is refused")
-    team_api = Api(base)
-    _, tl = team_api.call("POST", "/auth/team-login", {"team_name": "dummy team 07", "password": "dummy-07"})
-    team_api.token = tl["token"]
-    _, mine = team_api.call("GET", "/team/me")
-    check(len(mine["players"]) == 2, "a team logs in and sees its own page")
+    again = public.call("POST", "/players/claim", {"first_name": me["first_name"], "last_name": "Player",
+                        "center": me["center"], "username": "thief", "password": "dummy-pass"}, ok=(409,))
+    check(again[0] == 409, "an account can only be claimed once")
+    player = Api(base)
+    _, login = player.call("POST", "/auth/player-login", {"username": "dummy013", "password": "dummy-pass"})
+    player.token = login["token"]
+    _, mine = player.call("GET", "/player/me")
+    check(len(mine["team"]["players"]) == 2, "a player logs in and sees their team")
 
     print("3. Check-in, draw, schedule")
     _, all_teams = admin.call("GET", "/admin/teams")

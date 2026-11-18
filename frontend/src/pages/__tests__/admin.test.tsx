@@ -10,8 +10,9 @@ const summary = (t = {}) => ({
   players: 80, players_on_teams: 70, teams: { active: 35, waitlist: 1, withdrawn: 0 }, checked_in: 30, pending_requests: 2,
   tshirts: { Large: 40, Medium: 40 },
 })
-const player = (id: number, first: string, team: { id: number; name: string } | null = null, active = true) => ({
+const player = (id: number, first: string, team: { id: number; name: string } | null = null, active = true, username: string | null = null) => ({
   id, mis_id: String(1000 + id), first_name: first, last_name: 'Tester', center: 'North', zone: 'Z', tshirt_size: 'L', active, team,
+  username, must_change_password: false,
 })
 const teamRow = { id: 7, name: 'Net Ninjas', number: null, group: null, center: 'North', status: 'active', lunch_start: null, checked_in: false, players: [{ id: 1, name: 'Aarav Tester' }] }
 
@@ -88,6 +89,37 @@ describe('players tab', () => {
     expect(sent('POST', '/admin/players/import')[0].body).toBeInstanceOf(FormData)
   })
 
+  it('sets, resets and releases player logins', async () => {
+    const { sent } = mockApi({
+      'GET /admin/players': [player(1, 'Aarav', null, true, 'aarav_t'), player(2, 'Twin')],
+      'PUT /admin/players/2/login': { ...player(2, 'Twin'), username: 'twin1', must_change_password: true },
+      'PUT /admin/players/1/login': fail(409, 'That username is taken'),
+      'DELETE /admin/players/1/login': player(1, 'Aarav'),
+    })
+    const user = userEvent.setup()
+    renderAt('/admin/players', ADMIN)
+    expect(await screen.findByText('aarav_t')).toBeInTheDocument()
+    expect(screen.getByText('No account')).toBeInTheDocument()
+    await user.click(screen.getAllByRole('button', { name: 'Set login' })[1])
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await user.click(screen.getAllByRole('button', { name: 'Set login' })[1])
+    const form = screen.getByRole('form', { name: 'Login for Twin Tester' })
+    await user.type(within(form).getByLabelText('Username'), 'twin1')
+    await user.type(within(form).getByLabelText('Temporary password'), 'temp123')
+    await user.click(within(form).getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText('Login saved. The password is temporary.')).toBeInTheDocument()
+    expect(sent('PUT', '/admin/players/2/login')[0].body).toEqual({ username: 'twin1', password: 'temp123' })
+    await user.click(screen.getAllByRole('button', { name: 'Set login' })[0])
+    await user.click(within(screen.getByRole('form', { name: 'Login for Aarav Tester' })).getByRole('button', { name: 'Save' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('taken')
+    expect(sent('PUT', '/admin/players/1/login')[0].body).toEqual({ username: 'aarav_t', password: null })
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
+    await user.click(screen.getByRole('button', { name: 'Release' }))
+    await user.click(screen.getByRole('button', { name: 'Release' }))
+    expect(await screen.findByText('Account released')).toBeInTheDocument()
+  })
+
   it('shows a refused file', async () => {
     mockApi({ 'GET /admin/players': [], 'POST /admin/players/import': fail(400, 'Missing columns: mis_id') })
     const user = userEvent.setup()
@@ -101,7 +133,7 @@ describe('players tab', () => {
 })
 
 describe('teams tab', () => {
-  it('checks in, changes status, resets passwords, deletes and creates teams', async () => {
+  it('checks in, changes status, deletes and creates teams', async () => {
     const { sent } = mockApi({
       'GET /admin/teams': [teamRow],
       'GET /admin/players': [player(3, 'Jay'), player(4, 'Om'), player(1, 'Aarav', { id: 7, name: 'Net Ninjas' })],
@@ -117,23 +149,18 @@ describe('teams tab', () => {
     expect(await screen.findByText('Net Ninjas checked in')).toBeInTheDocument()
     await user.selectOptions(screen.getByLabelText('Status of Net Ninjas'), 'withdrawn')
     expect(await screen.findByText('Net Ninjas is now withdrawn')).toBeInTheDocument()
-    vi.spyOn(window, 'prompt').mockReturnValueOnce('newpass').mockReturnValueOnce(null)
-    await user.click(screen.getByRole('button', { name: 'Reset password' }))
-    expect(await screen.findByText('Password changed for Net Ninjas')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Reset password' }))
     vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
     await user.click(screen.getByRole('button', { name: 'Delete' }))
     await user.click(screen.getByRole('button', { name: 'Delete' }))
     expect(await screen.findByText('Net Ninjas deleted')).toBeInTheDocument()
-    expect(sent('PATCH', '/admin/teams/7').map((c) => c.body)).toEqual([{ checked_in: true }, { status: 'withdrawn' }, { password: 'newpass' }])
+    expect(sent('PATCH', '/admin/teams/7').map((c) => c.body)).toEqual([{ checked_in: true }, { status: 'withdrawn' }])
     expect(screen.queryByRole('option', { name: /Aarav/ })).not.toBeInTheDocument()
     await user.type(screen.getByLabelText('Team name'), 'New Pair')
-    await user.type(screen.getByLabelText('Password'), 'pass')
     await user.selectOptions(screen.getByLabelText('Player 1'), '3')
     await user.selectOptions(screen.getByLabelText('Player 2'), '4')
     await user.click(screen.getByRole('button', { name: 'Create team' }))
     expect(await screen.findByText('Team New Pair created')).toBeInTheDocument()
-    expect(sent('POST', '/admin/teams')[0].body).toEqual({ name: 'New Pair', password: 'pass', player_ids: [3, 4] })
+    expect(sent('POST', '/admin/teams')[0].body).toEqual({ name: 'New Pair', player_ids: [3, 4] })
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(await screen.findByText('Request cancelled')).toBeInTheDocument()
   })

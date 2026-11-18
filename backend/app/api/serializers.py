@@ -42,6 +42,8 @@ def player_out(player: Player, admin: bool = False, team: Team | None = None) ->
             "tshirt_size": player.tshirt_size,
             "active": player.active,
             "team": team_brief(team),
+            "username": player.username,
+            "must_change_password": player.must_change_password,
         }
     return out
 

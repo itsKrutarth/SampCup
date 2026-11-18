@@ -139,13 +139,13 @@ export default function Home() {
           {data.phase === 'registration' && tournament.registration_open && (
             <Link className="button" to="/join">
               <UserPlus size={18} />
-              Join with your partner
+              Create your account
             </Link>
           )}
           {data.phase === 'registration' ? (
             <Link className="button secondary" to="/login">
               <LogIn size={18} />
-              Team login
+              Log in
             </Link>
           ) : (
             <Link className="button" to="/schedule">
@@ -159,7 +159,7 @@ export default function Home() {
           </Link>
         </div>
         {data.phase === 'registration' && (
-          <p className="tagline">Registered on the MySatsang app? Pair up with your partner here.</p>
+          <p className="tagline">Registered on the MySatsang app? Create your account, then invite your partner.</p>
         )}
       </section>
 

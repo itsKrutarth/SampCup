@@ -1,14 +1,10 @@
-import { KeyRound, LogIn, LogOut, ShieldCheck } from 'lucide-react'
+import { KeyRound, LogIn, ShieldCheck } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router'
 
 import Logo from '../components/Logo'
-import Status from '../components/Status'
 import { api, ApiError } from '../lib/api'
 import { useAuth, type Auth } from '../lib/auth'
-import { useApi } from '../lib/live'
-import type { TeamPage } from '../lib/types'
-import { TeamDetails } from './TeamPage'
 
 type StaffUser = { username: string; display_name: string; role: 'admin' | 'judge'; court: number | null; must_change_password: boolean }
 
@@ -49,23 +45,26 @@ function staffAuth(token: string, user: StaffUser): Auth {
   }
 }
 
-export function TeamLogin() {
+type PlayerUser = { first_name: string; must_change_password: boolean }
+
+export function PlayerLogin() {
   const { signIn } = useAuth()
   const navigate = useNavigate()
   const { error, onSubmit } = useSubmit(async (form) => {
-    const result = await api<{ token: string; team: { name: string } }>('/auth/team-login', {
+    const result = await api<{ token: string; player: PlayerUser }>('/auth/player-login', {
       method: 'POST',
-      body: { team_name: form.get('team_name'), password: form.get('password') },
+      body: { username: form.get('username'), password: form.get('password') },
     })
-    signIn({ token: result.token, kind: 'team', name: result.team.name })
-    navigate('/my-team')
+    const { player } = result
+    signIn({ token: result.token, kind: 'player', name: player.first_name, mustChange: player.must_change_password })
+    navigate(player.must_change_password ? '/account/password' : '/my-team')
   })
   return (
-    <AuthCard title="Team login" subtitle="Use your team name and the password your team chose.">
+    <AuthCard title="Player login" subtitle="Log in with the username and password you created.">
       <form onSubmit={onSubmit} className="stack">
         <label>
-          Team name
-          <input name="team_name" required autoComplete="username" />
+          Username
+          <input name="username" required autoComplete="username" autoCapitalize="none" />
         </label>
         <label>
           Password
@@ -120,16 +119,21 @@ export function ChangePassword() {
   const navigate = useNavigate()
   const { error, onSubmit } = useSubmit(async (form) => {
     if (form.get('new_password') !== form.get('confirm')) throw new ApiError(400, 'The two new passwords do not match')
-    const result = await api<{ user: StaffUser }>('/auth/change-password', {
+    const result = await api<{ user?: StaffUser; player?: PlayerUser }>('/auth/change-password', {
       method: 'POST',
       token: auth?.token,
       body: { current_password: form.get('current_password'), new_password: form.get('new_password') },
     })
-    signIn(staffAuth(auth!.token, result.user))
-    navigate(result.user.role === 'admin' ? '/admin' : '/judge')
+    if (result.user) {
+      signIn(staffAuth(auth!.token, result.user))
+      navigate(result.user.role === 'admin' ? '/admin' : '/judge')
+    } else {
+      signIn({ ...auth!, mustChange: false })
+      navigate('/my-team')
+    }
   })
-  if (auth?.kind !== 'staff') return <Navigate to="/staff" replace />
-  const minimum = auth.role === 'admin' ? 8 : 4
+  if (!auth) return <Navigate to="/login" replace />
+  const minimum = auth.kind === 'player' ? 6 : auth.role === 'admin' ? 8 : 4
   return (
     <AuthCard title="Choose your own password" subtitle={`Hi ${auth.name}. Replace the one an admin gave you.`}>
       <form onSubmit={onSubmit} className="stack">
@@ -153,31 +157,5 @@ export function ChangePassword() {
         </button>
       </form>
     </AuthCard>
-  )
-}
-
-export function MyTeam() {
-  const { auth, signOut } = useAuth()
-  const token = auth?.kind === 'team' ? auth.token : null
-  const { data, loading, error } = useApi<TeamPage>(token ? '/team/me' : null, token)
-  if (!token) return <Navigate to="/login" replace />
-  if (error?.status === 401 || error?.status === 403) {
-    return (
-      <>
-        <p role="alert" className="error">Your login has expired.</p>
-        <button type="button" onClick={signOut}>
-          Log in again
-        </button>
-      </>
-    )
-  }
-  return (
-    <>
-      {data ? <TeamDetails team={data} /> : <Status loading={loading} error={error} />}
-      <button type="button" className="secondary" onClick={signOut}>
-        <LogOut size={18} />
-        Log out
-      </button>
-    </>
   )
 }
