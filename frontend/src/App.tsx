@@ -1,5 +1,6 @@
 import { BrowserRouter, Route, Routes } from 'react-router'
 
+import Intro from './components/Intro'
 import Layout from './components/Layout'
 import { AuthProvider } from './lib/auth'
 import Admin from './pages/admin/Admin'
@@ -39,6 +40,7 @@ export function AppRoutes() {
 export default function App() {
   return (
     <AuthProvider>
+      <Intro />
       <BrowserRouter>
         <AppRoutes />
       </BrowserRouter>

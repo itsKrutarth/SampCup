@@ -2005,3 +2005,275 @@ button.big {
     border-top: 1px solid var(--line);
   }
 }
+
+/* ------------------------------------------------------------------ intro
+   2.4 s: drop (0-18%), squash (18-22%), one bounce (22-44%), strike (44-48%),
+   ball flies at the viewer and fills the screen (48-80%), dissolve (80-100%). */
+
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow: hidden;
+  cursor: pointer;
+  background:
+    radial-gradient(60% 45% at 50% 85%, rgb(75 156 255 / 18%), transparent 70%),
+    radial-gradient(80% 60% at 50% 100%, rgb(216 40 60 / 22%), transparent 70%),
+    var(--navy-950);
+  animation: intro-out 2.4s linear forwards;
+}
+
+@keyframes intro-out {
+  0%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+/* the camera: locked, then a push toward the ball */
+.intro-scene {
+  position: absolute;
+  inset: 0;
+  animation: intro-camera 2.4s forwards;
+}
+
+@keyframes intro-camera {
+  0%,
+  46% {
+    transform: scale(1);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6);
+  }
+  80%,
+  100% {
+    transform: scale(1.25) translateY(4%);
+  }
+}
+
+.intro-stage {
+  position: absolute;
+  left: 50%;
+  bottom: 22vh;
+  width: 0;
+  height: 0;
+}
+
+.intro-paddle {
+  position: absolute;
+  left: -70px;
+  top: -90px;
+  transform-origin: 70px 90px;
+  filter: drop-shadow(0 16px 20px rgb(0 0 0 / 45%));
+  animation: intro-paddle 2.4s forwards;
+}
+
+@keyframes intro-paddle {
+  0%,
+  17% {
+    transform: perspective(500px) rotateX(70deg);
+  }
+  20% {
+    transform: perspective(500px) translateY(6px) rotateX(72deg);
+  }
+  25%,
+  40% {
+    transform: perspective(500px) rotateX(70deg);
+    animation-timing-function: cubic-bezier(0.2, 0, 0.4, 1);
+  }
+  43% {
+    transform: perspective(500px) translateY(14px) rotateX(76deg);
+    animation-timing-function: cubic-bezier(0.1, 0.9, 0.2, 1);
+  }
+  48% {
+    transform: perspective(500px) translateY(-34px) rotateX(-8deg) scale(1.06);
+  }
+  58% {
+    transform: perspective(500px) translateY(-10px) rotateX(10deg);
+    opacity: 1;
+  }
+  72%,
+  100% {
+    transform: perspective(500px) translateY(90px) rotateX(30deg);
+    opacity: 0;
+  }
+}
+
+.intro-ball-path {
+  position: absolute;
+  left: -36px;
+  top: -72px;
+  width: 72px;
+  height: 72px;
+  animation: intro-path 2.4s forwards;
+}
+
+@keyframes intro-path {
+  0% {
+    transform: translateY(-75vh);
+    animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+  }
+  18% {
+    transform: translateY(0);
+  }
+  22% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0, 0.55, 0.45, 1);
+  }
+  33% {
+    transform: translateY(-24vh);
+    animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+  }
+  44% {
+    transform: translateY(-4vh);
+  }
+  47% {
+    transform: translateY(-9vh) scale(1.15);
+    animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.4);
+  }
+  80%,
+  100% {
+    transform: translateY(-50vh) scale(42);
+  }
+}
+
+.intro-ball {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fbe08a, #e8b22e 45%, #b9850f 100%);
+  box-shadow: inset -6px -8px 0 rgb(0 0 0 / 12%);
+  animation: intro-squash 2.4s forwards;
+}
+
+/* squash on landing, stretch on the hit */
+@keyframes intro-squash {
+  0%,
+  16% {
+    transform: scale(0.94, 1.08);
+  }
+  18% {
+    transform: translateY(6px) scale(1.22, 0.76);
+  }
+  22% {
+    transform: scale(0.92, 1.1);
+  }
+  27%,
+  44% {
+    transform: scale(1);
+  }
+  46% {
+    transform: scale(1.2, 0.82);
+  }
+  50% {
+    transform: scale(0.9, 1.12);
+  }
+  56%,
+  100% {
+    transform: scale(1);
+  }
+}
+
+.intro-holes {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 30%, #0a1733 0 6%, transparent 7%),
+    radial-gradient(circle at 64% 26%, #0a1733 0 6%, transparent 7%),
+    radial-gradient(circle at 76% 58%, #0a1733 0 6%, transparent 7%),
+    radial-gradient(circle at 46% 54%, #0a1733 0 6%, transparent 7%),
+    radial-gradient(circle at 24% 66%, #0a1733 0 6%, transparent 7%),
+    radial-gradient(circle at 56% 82%, #0a1733 0 6%, transparent 7%);
+  opacity: 0.8;
+  animation: intro-holes 2.4s forwards;
+}
+
+/* the holes fade as the ball fills the frame, so the screen goes cleanly gold */
+@keyframes intro-holes {
+  0%,
+  55% {
+    opacity: 0.8;
+  }
+  72%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.intro-flash {
+  position: absolute;
+  left: -60px;
+  top: -110px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 4px solid rgb(244 234 210 / 90%);
+  opacity: 0;
+  animation: intro-flash 2.4s forwards;
+}
+
+@keyframes intro-flash {
+  0%,
+  45% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  47% {
+    opacity: 1;
+    transform: scale(0.6);
+  }
+  58%,
+  100% {
+    opacity: 0;
+    transform: scale(1.8);
+  }
+}
+
+/* a short motion trail behind the struck ball */
+.intro-trail {
+  position: absolute;
+  left: -36px;
+  top: -72px;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(251 224 138 / 70%), rgb(232 178 46 / 25%) 55%, transparent 72%);
+  opacity: 0;
+}
+
+.intro-trail-1 {
+  animation: intro-trail 2.4s forwards;
+  animation-delay: 0.05s;
+}
+
+.intro-trail-2 {
+  animation: intro-trail 2.4s forwards;
+  animation-delay: 0.1s;
+}
+
+@keyframes intro-trail {
+  0%,
+  45% {
+    opacity: 0;
+    transform: translateY(-4vh);
+  }
+  48% {
+    opacity: 0.9;
+    transform: translateY(-9vh) scale(1.1);
+  }
+  58%,
+  100% {
+    opacity: 0;
+    transform: translateY(-22vh) scale(2.4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro {
+    display: none;
+  }
+}
