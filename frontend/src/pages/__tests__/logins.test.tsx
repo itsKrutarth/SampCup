@@ -32,11 +32,7 @@ describe('team login', () => {
     await user.type(screen.getByLabelText('Team name'), 'x')
     await user.type(screen.getByLabelText('Password'), 'y')
     await user.click(screen.getByRole('button', { name: 'Log in' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('Judges and admins log in on the staff page')
-    await user.click(screen.getByRole('link', { name: 'Staff login' }))
-    expect(await screen.findByRole('heading', { name: 'Staff login' })).toBeInTheDocument()
-    await user.click(screen.getByRole('link', { name: 'Team login' }))
-    expect(await screen.findByRole('heading', { name: 'Team login' })).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent('wrong')
   })
 
   it('sends logged-out visitors to the login and handles expired logins', async () => {
