@@ -34,31 +34,6 @@ export function mockApi(routes: Record<string, Handler>) {
   return { calls, fetchMock, sent: (method: string, path: string) => calls.filter((c) => c.method === method && c.path === path) }
 }
 
-export class FakeEventSource {
-  static instances: FakeEventSource[] = []
-  listeners = new Map<string, Set<() => void>>()
-  closed = false
-  url: string
-
-  constructor(url: string) {
-    this.url = url
-    FakeEventSource.instances.push(this)
-  }
-
-  addEventListener(type: string, listener: () => void) {
-    if (!this.listeners.has(type)) this.listeners.set(type, new Set())
-    this.listeners.get(type)!.add(listener)
-  }
-
-  close() {
-    this.closed = true
-  }
-
-  emit(type: string) {
-    this.listeners.get(type)?.forEach((listener) => listener())
-  }
-}
-
 export const ADMIN: Auth = { token: 't-admin', kind: 'staff', name: 'Admin', role: 'admin', court: null }
 export const JUDGE: Auth = { token: 't-judge', kind: 'staff', name: 'Judge One', role: 'judge', court: 1 }
 export const TEAM: Auth = { token: 't-team', kind: 'team', name: 'Net Ninjas' }

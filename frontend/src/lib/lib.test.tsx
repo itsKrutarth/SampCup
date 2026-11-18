@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { fail, FakeEventSource, mockApi } from '../test/utils'
+import { fail, mockApi } from '../test/utils'
 import { api, ApiError, download } from './api'
 import { clock, dateLong, time, venueTimeToIso } from './format'
 import { useApi, useLiveUpdates } from './live'
@@ -88,20 +88,16 @@ describe('format', () => {
 })
 
 describe('live data', () => {
-  it('loads, reloads, and refetches when the server says something changed', async () => {
+  it('loads, reloads, and polls while the page is visible', async () => {
     let n = 0
     mockApi({ 'GET /count': () => ({ n: ++n }) })
-    const { result, unmount } = renderHook(() => useApi<{ n: number }>('/count'))
+    const { result, unmount } = renderHook(() => useApi<{ n: number }>('/count', null, 30))
     expect(result.current.loading).toBe(true)
-    await waitFor(() => expect(result.current.data).toEqual({ n: 1 }))
+    await waitFor(() => expect(result.current.data?.n).toBeGreaterThanOrEqual(1))
+    const seen = result.current.data!.n
     act(() => result.current.reload())
-    await waitFor(() => expect(result.current.data).toEqual({ n: 2 }))
-    const source = FakeEventSource.instances[0]
-    expect(source.url).toBe('/api/public/stream')
-    act(() => source.emit('update'))
-    await waitFor(() => expect(result.current.data).toEqual({ n: 3 }), { timeout: 2500 })
+    await waitFor(() => expect(result.current.data!.n).toBeGreaterThan(seen))
     unmount()
-    expect(source.closed).toBe(true)
   })
 
   it('keeps the error and skips null paths', async () => {
@@ -112,21 +108,23 @@ describe('live data', () => {
     expect(skipped.result.current.loading).toBe(false)
   })
 
-  it('throttles bursts of updates and works without EventSource', async () => {
+  it('pauses while hidden and refreshes on return or reconnect', async () => {
     const onChange = vi.fn()
-    const { unmount } = renderHook(() => useLiveUpdates(onChange, 20))
-    const source = FakeEventSource.instances[0]
+    let state: DocumentVisibilityState = 'hidden'
+    vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => state)
+    const { unmount } = renderHook(() => useLiveUpdates(onChange, 10))
+    await new Promise((r) => setTimeout(r, 40))
+    expect(onChange).not.toHaveBeenCalled()
+    state = 'visible'
     act(() => {
-      source.emit('update')
-      source.emit('update')
-      source.emit('hello')
+      document.dispatchEvent(new Event('visibilitychange'))
+      window.dispatchEvent(new Event('online'))
     })
-    await waitFor(() => expect(onChange).toHaveBeenCalledTimes(1))
-    act(() => source.emit('update'))
-    unmount() // pending timer is cancelled
-    vi.stubGlobal('EventSource', undefined)
-    const other = renderHook(() => useLiveUpdates(onChange, 20))
-    other.unmount()
-    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange).toHaveBeenCalledTimes(2)
+    await waitFor(() => expect(onChange.mock.calls.length).toBeGreaterThan(2))
+    unmount()
+    const calls = onChange.mock.calls.length
+    await new Promise((r) => setTimeout(r, 40))
+    expect(onChange).toHaveBeenCalledTimes(calls)
   })
 })
