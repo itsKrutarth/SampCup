@@ -6,7 +6,7 @@ import { match } from '../../test/data'
 import { ADMIN, fail, JUDGE, mockApi, renderAt } from '../../test/utils'
 
 const summary = (t = {}) => ({
-  tournament: { name: 'SAMP Cup 2026', event_date: '2026-12-12', registration_open: true, team_cap: 42, draw_seed: null, schedule_locked: false, schedule_exists: false, ...t },
+  tournament: { name: 'SAMP Cup 2026', subtitle: 'Yuvak Mandal Pickleball Tournament', venue_name: 'Rt. 12 Pickle', venue_address: '184 W. Boylston St', age_group: '22-35', contacts: '', event_date: '2026-12-12', registration_open: true, team_cap: 42, draw_seed: null, schedule_locked: false, schedule_exists: false, ...t },
   players: 80, players_on_teams: 70, teams: { active: 35, waitlist: 1, withdrawn: 0 }, checked_in: 30, pending_requests: 2,
   tshirts: { Large: 40, Medium: 40 },
 })
@@ -39,10 +39,21 @@ describe('overview tab', () => {
     expect(screen.getByText('Large: 40 · Medium: 40')).toBeInTheDocument()
     await user.clear(screen.getByLabelText('Event date'))
     await user.type(screen.getByLabelText('Event date'), '2026-12-13')
+    await user.type(screen.getByLabelText('Contacts on the home page'), 'Organizer (555) 010-0100')
     await user.click(screen.getByLabelText('Players can form teams'))
     await user.click(screen.getByRole('button', { name: 'Save settings' }))
     expect(await screen.findByText('Settings saved')).toBeInTheDocument()
-    expect(sent('PATCH', '/admin/tournament')[0].body).toEqual({ name: 'SAMP Cup 2026', registration_open: false, team_cap: 42, event_date: '2026-12-13' })
+    expect(sent('PATCH', '/admin/tournament')[0].body).toEqual({
+      name: 'SAMP Cup 2026',
+      subtitle: 'Yuvak Mandal Pickleball Tournament',
+      venue_name: 'Rt. 12 Pickle',
+      venue_address: '184 W. Boylston St',
+      age_group: '22-35',
+      contacts: 'Organizer (555) 010-0100',
+      registration_open: false,
+      team_cap: 42,
+      event_date: '2026-12-13',
+    })
     await user.click(screen.getByRole('button', { name: 'Download results (CSV)' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('export failed')
   })

@@ -88,10 +88,13 @@ describe('home page states', () => {
 
   it('works before the date is set and when registration is closed', async () => {
     mockApi({
-      'GET /public/overview': overview({ tournament: { ...overview().tournament, event_date: null, registration_open: false } }),
+      'GET /public/overview': overview({
+        tournament: { ...overview().tournament, event_date: null, registration_open: false, venue_name: '', age_group: '' },
+      }),
     })
     renderAt('/')
     expect(await screen.findByText('Date to be announced')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Directions' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Join with your partner' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Team login' })).toBeInTheDocument()
   })

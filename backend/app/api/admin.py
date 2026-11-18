@@ -21,6 +21,11 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 class TournamentPatch(BaseModel):
     name: str | None = Field(default=None, min_length=2, max_length=100)
+    subtitle: str | None = Field(default=None, max_length=80)
+    venue_name: str | None = Field(default=None, max_length=80)
+    venue_address: str | None = Field(default=None, max_length=160)
+    age_group: str | None = Field(default=None, max_length=20)
+    contacts: str | None = Field(default=None, max_length=500)
     event_date: date | None = None
     registration_open: bool | None = None
     team_cap: int | None = Field(default=None, ge=32, le=42)
@@ -112,6 +117,11 @@ def summary(_: Admin, store: Db) -> dict[str, Any]:
     return {
         "tournament": {
             "name": tournament.name,
+            "subtitle": tournament.subtitle,
+            "venue_name": tournament.venue_name,
+            "venue_address": tournament.venue_address,
+            "age_group": tournament.age_group,
+            "contacts": tournament.contacts,
             "event_date": tournament.event_date.isoformat() if tournament.event_date else None,
             "timezone": tournament.timezone,
             "registration_open": tournament.registration_open,

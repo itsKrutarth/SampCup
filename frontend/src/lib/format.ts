@@ -27,6 +27,21 @@ export function dateLong(isoDate: string | null | undefined): string {
   })
 }
 
+function utcDate(isoDate: string): Date {
+  const [y, m, d] = isoDate.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d))
+}
+
+/** "2026-12-06" -> "December 6" */
+export function monthDay(isoDate: string): string {
+  return utcDate(isoDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })
+}
+
+/** "2026-12-06" -> "Sunday" */
+export function weekday(isoDate: string): string {
+  return utcDate(isoDate).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' })
+}
+
 function offsetMinutes(utcMs: number, timeZone: string): number {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone,

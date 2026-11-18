@@ -9,6 +9,11 @@ import { Message, useAction } from './common'
 export type Summary = {
   tournament: {
     name: string
+    subtitle: string
+    venue_name: string
+    venue_address: string
+    age_group: string
+    contacts: string
     event_date: string | null
     registration_open: boolean
     team_cap: number
@@ -46,6 +51,11 @@ export default function Overview() {
     const form = new FormData(event.currentTarget)
     const body: Record<string, unknown> = {
       name: form.get('name'),
+      subtitle: form.get('subtitle'),
+      venue_name: form.get('venue_name'),
+      venue_address: form.get('venue_address'),
+      age_group: form.get('age_group'),
+      contacts: form.get('contacts'),
       registration_open: form.get('registration_open') === 'on',
       team_cap: Number(form.get('team_cap')),
     }
@@ -74,6 +84,26 @@ export default function Overview() {
         <label>
           Tournament name
           <input name="name" defaultValue={t.name} required minLength={2} />
+        </label>
+        <label>
+          Subtitle (red ribbon)
+          <input name="subtitle" defaultValue={t.subtitle} maxLength={80} />
+        </label>
+        <label>
+          Venue
+          <input name="venue_name" defaultValue={t.venue_name} maxLength={80} />
+        </label>
+        <label>
+          Venue address
+          <input name="venue_address" defaultValue={t.venue_address} maxLength={160} />
+        </label>
+        <label>
+          Age group
+          <input name="age_group" defaultValue={t.age_group} maxLength={20} />
+        </label>
+        <label>
+          Contacts on the home page
+          <textarea name="contacts" defaultValue={t.contacts} maxLength={500} rows={3} placeholder="Name (phone)" />
         </label>
         <label>
           Event date

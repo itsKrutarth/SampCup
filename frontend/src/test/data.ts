@@ -33,6 +33,11 @@ export function overview(overrides: Partial<Overview> = {}): Overview {
   return {
     tournament: {
       name: 'SAMP Cup 2026',
+      subtitle: 'Yuvak Mandal',
+      venue_name: 'Rt. 12 Pickle',
+      venue_address: '184 W. Boylston St, West Boylston, MA 01583',
+      age_group: '22-35',
+      contacts: '',
       event_date: '2026-12-12',
       timezone: 'America/New_York',
       registration_open: true,

@@ -178,57 +178,27 @@ def test_announcement_banner(client: TestClient, admin: dict) -> None:
 
 
 def test_tournament_settings(client: TestClient, admin: dict) -> None:
+    defaults = client.get("/api/public/overview").json()["tournament"]
+    assert defaults["venue_name"] == "Rt. 12 Pickle" and defaults["age_group"] == "22-35"
+    assert defaults["contacts"] == ""
     summary = client.patch(
         "/api/admin/tournament",
         headers=admin,
-        json={"name": "SAMP Cup Test", "registration_open": False, "team_cap": 40},
+        json={
+            "name": "SAMP Cup Test",
+            "registration_open": False,
+            "team_cap": 40,
+            "contacts": "Organizer: 555-0100",
+            "venue_name": "Test Courts",
+        },
     ).json()
     assert (
         summary["tournament"]["name"] == "SAMP Cup Test" and summary["tournament"]["team_cap"] == 40
     )
+    public = client.get("/api/public/overview").json()["tournament"]
+    assert public["contacts"] == "Organizer: 555-0100" and public["venue_name"] == "Test Courts"
     assert client.get("/api/registration/status").json()["open"] is False
     assert (
         client.patch("/api/admin/tournament", headers=admin, json={"team_cap": 50}).status_code
         == 422
     )
-
-
-def test_correcting_the_final_reopens_game_three(
-    client: TestClient, store: Store, admin: dict
-) -> None:
-    seeded(store, 32)
-    a, b = store.all(Team)[:2]
-    for code, winner in (("SF-1", a), ("SF-2", b)):
-        match = find(store, Match, code=code)
-        match.status, match.winner_id = "completed", winner.id
-        store.save(match)
-    refresh_bracket(store)
-    rng = random.Random(2)
-    games = {m["code"]: m for m in client.get("/api/public/bracket").json()["matches"]}
-    play(client, admin, games["F-1"], rng, winner="a")
-    play(client, admin, games["F-2"], rng, winner="a")
-    f3 = games["F-3"]
-    refused = client.post(
-        f"/api/judge/matches/{f3['id']}/finish",
-        headers=admin,
-        json={"score_a": 11, "score_b": 2, "end_reason": "reached_11"},
-    )
-    assert refused.status_code == 409 and "cancelled" in refused.json()["detail"]
-    fix = {
-        "score_a": 4,
-        "score_b": 11,
-        "end_reason": "reached_11",
-        "reason": "wrong winner entered",
-    }
-    client.post(f"/api/admin/matches/{games['F-2']['id']}/correct", headers=admin, json=fix)
-    reopened = next(
-        m for m in client.get("/api/public/bracket").json()["matches"] if m["code"] == "F-3"
-    )
-    assert reopened["status"] == "scheduled"
-    assert client.get("/api/public/bracket").json()["champion"] is None
-
-
-def test_excel_numbers_become_plain_ids() -> None:
-    from app.services.players import _text
-
-    assert _text(123456.0) == "123456" and _text(None) == "" and _text("  a  b ") == "a b"

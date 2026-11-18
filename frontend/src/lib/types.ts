@@ -30,6 +30,11 @@ export type Announcement = { id: number; title: string; body: string; active: bo
 export type Overview = {
   tournament: {
     name: string
+    subtitle: string
+    venue_name: string
+    venue_address: string
+    age_group: string
+    contacts: string
     event_date: string | null
     timezone: string
     registration_open: boolean

@@ -43,6 +43,11 @@ def overview(store: Db) -> dict[str, Any]:
     return {
         "tournament": {
             "name": tournament.name,
+            "subtitle": tournament.subtitle,
+            "venue_name": tournament.venue_name,
+            "venue_address": tournament.venue_address,
+            "age_group": tournament.age_group,
+            "contacts": tournament.contacts,
             "event_date": tournament.event_date.isoformat() if tournament.event_date else None,
             "timezone": tournament.timezone,
             "registration_open": tournament.registration_open,

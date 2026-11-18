@@ -10,7 +10,17 @@ describe('home page', () => {
     mockApi({ 'GET /public/overview': overview({ waitlist: 2 }) })
     renderAt('/')
     expect(await screen.findByRole('heading', { name: 'SAMP Cup 2026' })).toBeInTheDocument()
-    expect(screen.getByText('Saturday, December 12, 2026')).toBeInTheDocument()
+    expect(screen.getByText('December 12')).toBeInTheDocument()
+    expect(screen.getByText('Saturday · Age 22-35')).toBeInTheDocument()
+    expect(screen.getByText('Yuvak Mandal')).toBeInTheDocument()
+    expect(screen.getByText('Pickleball Tournament')).toBeInTheDocument()
+    expect(screen.getByText('Rt. 12 Pickle')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Directions' })).toHaveAttribute(
+      'href',
+      expect.stringContaining('184%20W.%20Boylston%20St'),
+    )
+    expect(screen.getByText(/Registered on the MySatsang app/)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Questions')).not.toBeInTheDocument()
     const numbers = screen.getByRole('list', { name: 'Tournament numbers' })
     expect(within(numbers).getByText('12/42')).toBeInTheDocument()
     expect(within(numbers).getByText('on the waitlist')).toBeInTheDocument()
@@ -22,6 +32,7 @@ describe('home page', () => {
     mockApi({
       'GET /public/overview': overview({
         phase: 'finished',
+        tournament: { ...overview().tournament, contacts: 'Organizer (555) 010-0100' },
         announcements: [{ id: 1, title: 'Awards at 6:45', body: 'Main hall', active: true, created_at: '' }],
         live: [match({ id: 5, status: 'in_progress', score_a: 4, score_b: 2 })],
         upcoming: [match({ id: 6, code: 'R16-1', phase: 'knockout', round: 'Round of 16', team_a: null, source_a: 'Group A 1st' })],
@@ -34,6 +45,7 @@ describe('home page', () => {
     expect(within(banner).getByText('Awards at 6:45')).toBeInTheDocument()
     expect(screen.getByText('Champions')).toBeInTheDocument()
     expect(screen.queryByRole('timer')).not.toBeInTheDocument()
+    expect(screen.getByText('Organizer (555) 010-0100')).toBeInTheDocument()
     const live = screen.getByRole('region', { name: 'Playing now' })
     expect(within(live).getByText('Live')).toBeInTheDocument()
     expect(within(live).getByText('4')).toBeInTheDocument()

@@ -11,11 +11,19 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   - Staff usernames are the display name, unique, renamable by admins, and the login.
   - A password or PIN set by an admin is temporary: the user must choose their own at the
     next login (`must_change_password`; judge/admin APIs refuse until changed).
-  - Full visual redesign: SAMP Cup crest and "Unity in every rally", Outfit font bundled,
-    saffron/magenta brand with group colors (A coral, B blue, C green, D gold), phone tab
-    bar, scoreboard judge screen with ring timer, home with countdown, format and day plan,
-    standings with medals, team pages, projector screen, installable on phones (manifest).
+  - Full visual redesign in the style of the official flyer (owner shared it 2026-11-18):
+    navy theme, ribbon red, cream, gold; Anton wordmark, Bebas Neue headings, Outfit body
+    (all bundled, no outside requests); crest with crossed paddles, gold ball, navy shield
+    and red ribbon (the real logo file will replace it when the owner sends it). Hero shows
+    "SAMP CUP 2026 / YUVAK MANDAL / PICKLEBALL TOURNAMENT", date, age 22-35, Rt. 12 Pickle
+    with address and directions, countdown, MySatsang note, contacts. Phone tab bar,
+    scoreboard judge screen with ring timer, standings with medals, projector screen,
+    installable on phones (manifest).
+  - Venue, address, age group, ribbon text and contacts are settings in Admin -> Overview,
+    stored in DynamoDB (contacts with phone numbers stay out of the public repo).
 - **Judges:** court-1..court-9; PINs in `~/dev/sampcup-judge-pins.txt` (owner's Mac only).
+- **Waiting on the owner:** approve the production deploy (a permission check stopped me
+  deploying without an explicit go-ahead), and the logo file (transparent PNG or SVG).
 - **Next:** M10 runbook and paper fallback; failure drill on AWS; QR poster.
 - **Event date:** Sunday, December 6, 2026. 9 judges (one per court); the owner is the admin.
 

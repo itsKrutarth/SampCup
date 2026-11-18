@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { fail, mockApi } from '../test/utils'
 import { api, ApiError, download } from './api'
-import { clock, dateLong, time, venueTimeToIso } from './format'
+import { clock, dateLong, monthDay, time, venueTimeToIso, weekday } from './format'
 import { useApi, useLiveUpdates } from './live'
 import { load, save } from './storage'
 
@@ -79,6 +79,8 @@ describe('format', () => {
     expect(clock(-3)).toBe('0:00')
     expect(dateLong('2026-12-12')).toBe('Saturday, December 12, 2026')
     expect(dateLong(null)).toBe('Date to be announced')
+    expect(monthDay('2026-12-06')).toBe('December 6')
+    expect(weekday('2026-12-06')).toBe('Sunday')
   })
 
   it('converts venue time to UTC in winter and summer', () => {

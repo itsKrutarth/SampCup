@@ -16,6 +16,12 @@ class Tournament(Record):
     KIND = "TOURNAMENT"
     id: int = 1
     name: str = "SAMP Cup 2026"
+    subtitle: str = "Yuvak Mandal"
+    venue_name: str = "Rt. 12 Pickle"
+    venue_address: str = "184 W. Boylston St, West Boylston, MA 01583"
+    age_group: str = "22-35"
+    # Who to ask, as the admin types it (kept in the database, not in the public repo).
+    contacts: str = ""
     event_date: dt.date | None = None
     timezone: str = "America/New_York"
     registration_open: bool = True
