@@ -1,13 +1,12 @@
+# Local development image (production runs on AWS Lambda; see infra/).
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /srv/api
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt requirements-dev.txt ./
+RUN pip install --no-cache-dir -r requirements-dev.txt
 
-COPY alembic.ini .
-COPY migrations migrations
 COPY app app
 
 RUN useradd --system --no-create-home sampcup

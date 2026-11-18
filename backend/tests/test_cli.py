@@ -77,3 +77,9 @@ def test_create_table_is_only_for_dynamodb_local(
     finally:
         get_settings.cache_clear()
     assert "Created table local-copy" in capsys.readouterr().out
+    get_settings.cache_clear()
+    try:
+        cli.main(["create-table"])
+    finally:
+        get_settings.cache_clear()
+    assert "already exists" in capsys.readouterr().out

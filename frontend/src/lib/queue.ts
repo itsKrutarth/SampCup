@@ -7,6 +7,8 @@ export type Queued = { matchId: number; action: Action; body?: Record<string, un
 type State = { pending: number; error: string | null; offline: boolean }
 
 const KEY = 'sampcup-judge-queue'
+// Not the server's answer to the action itself: network down, timed out or too busy.
+const RETRY = new Set([0, 408, 429])
 
 /**
  * Judge actions wait here until the server confirms them, so a score tapped with no
@@ -62,8 +64,13 @@ export class ActionQueue {
           this.onSent?.(match)
         } catch (e) {
           const error = e as ApiError
-          if (error.status === 0 || error.status === 401) {
-            this.update({ offline: true, error: error.status === 0 ? 'No connection. Scores are saved and will send automatically.' : 'Log in again to send saved scores.' })
+          if (error.status === 401) {
+            this.update({ offline: true, error: 'Log in again to send saved scores.' })
+            return
+          }
+          if (RETRY.has(error.status) || error.status >= 500) {
+            // no signal, or the server is busy: keep the action and try again shortly
+            this.update({ offline: true, error: 'No connection. Scores are saved and will send automatically.' })
             return
           }
           this.items.shift() // the server refused it; keeping it would block the queue

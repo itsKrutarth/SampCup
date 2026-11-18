@@ -1,46 +1,61 @@
-# Deploying SampCup
+# Deploying SampCup (AWS, serverless, Terraform)
 
-One small AWS Lightsail server runs everything with Docker Compose: Caddy (HTTPS),
-the app (API plus website) and Postgres, with a database dump every 6 hours.
+Everything in AWS is created, changed and deleted by Terraform in `infra/`. Nothing is
+clicked together in the console.
 
-## One-time setup (owner)
-1. **AWS account:** create it, turn on MFA for the root user, then create an IAM user
-   for daily use. Set a billing alarm (for example $25/month).
-2. **Lightsail instance:** region `us-east-1`, Ubuntu 24.04 LTS, 2 GB plan (check the current
-   price on the Lightsail pricing page). Name it `sampcup`.
-3. **Static IP:** create one in Lightsail and attach it to the instance.
-4. **Firewall (Lightsail Networking tab):** allow 22 (SSH), 80 (HTTP) and 443 (HTTPS).
-5. **DNS at Namecheap** (Domain List → sampcup.com → Advanced DNS):
-   - Remove the URL Redirect record.
-   - Add an `A` record, host `@`, value = the static IP.
-   - Add an `A` record, host `www`, value = the static IP.
+## What runs
+| Piece | AWS service | Cost at our size |
+|---|---|---|
+| Website files | S3 (private bucket) | cents |
+| HTTPS, caching, one address for site and API | CloudFront | free tier (1 TB, 10M requests a month) |
+| API | Lambda (Python 3.12, arm64) behind a function URL | free tier (1M requests a month) |
+| Database | DynamoDB on-demand, point-in-time recovery | free tier for storage; cents for requests |
+| Logs | CloudWatch Logs, 30-day retention | free tier (5 GB) |
+| Alarms and dashboard | CloudWatch alarms (4), dashboard (1), SNS | free tier |
+| Certificate | ACM | free |
+| Terraform state | S3 bucket `sampcup-tfstate-<account>` (from `infra/bootstrap`) | ~$0 |
 
-## Install on the server
+There is no API Gateway, VPC, NAT gateway or server, which are the usual hidden costs.
+DNS stays at Namecheap (free) instead of Route 53 ($0.50 a month).
+
+## Commands (from the repo root, with AWS CLI credentials)
 ```sh
-ssh ubuntu@<static-ip>
-curl -fsSL https://get.docker.com | sudo sh
-sudo usermod -aG docker ubuntu && exit   # log in again so the group applies
-git clone https://github.com/itsKrutarth/SampCup.git && cd SampCup/deploy
-cp .env.example .env && nano .env        # set POSTGRES_PASSWORD (openssl rand -hex 24)
-docker compose up -d --build
-docker compose exec app python -m app.cli create-admin <your-username>
+infra/deploy.sh plan        # build, then show what would change
+infra/deploy.sh apply       # build and deploy (asks before changing anything)
+infra/destroy.sh            # take everything down (the state bucket stays)
+infra/ops.sh status         # alarms and last hour's traffic
+infra/ops.sh logs           # follow the API log live
+infra/ops.sh errors         # API errors from the last 24 hours
+infra/ops.sh cost           # this month's AWS cost so far
 ```
-Caddy fetches the HTTPS certificate on the first visit to https://sampcup.com once DNS
-points at the server.
+First time in a new AWS account: `cd infra/bootstrap && terraform init && terraform apply`
+(creates the state bucket), then `infra/deploy.sh apply`.
 
-## Updating
+## After a fresh deploy
 ```sh
-cd ~/SampCup && git pull && cd deploy && docker compose up -d --build
+cd backend
+export TABLE_NAME=sampcup-prod AWS_REGION=us-east-1
+.venv/bin/python -m app.cli create-admin <your-username>    # asks for your password
+.venv/bin/python -m app.cli create-judges                   # court-1..court-9, prints PINs once
 ```
-Migrations run automatically when the app starts.
+Then set the event date and registration in Admin → Overview.
 
-## Backups and restore
-- Dumps land in `deploy/backups/` every 6 hours; 14 days are kept. Also turn on automatic
-  Lightsail snapshots for the instance.
-- Restore into an empty database:
-  `gunzip -c backups/<file>.sql.gz | docker compose exec -T db psql -U sampcup sampcup`
+## Connecting sampcup.com
+1. `terraform -chdir=infra/terraform output namecheap_records` lists the records.
+2. At Namecheap (Domain List → sampcup.com → Advanced DNS): delete the URL Redirect record,
+   then add the two certificate-validation CNAME records.
+3. When `terraform output certificate_status` says `ISSUED` (minutes to an hour):
+   `infra/deploy.sh apply -var enable_custom_domain=true`
+4. Add the site records: `ALIAS @` and `CNAME www`, both pointing to the CloudFront domain.
 
-## Event week
-- Move to the 4 GB plan a few days before: snapshot the instance, launch a 4 GB instance
-  from the snapshot, move the static IP to it. Move back afterwards.
-- Take a manual snapshot the night before and right after the event.
+The certificate is re-created on every fresh deploy, so step 2 repeats after a teardown
+(the record names change).
+
+## Alerts by email
+`infra/deploy.sh apply -var alert_email=<address>`, then click the confirmation link AWS
+emails. Alarms: API server errors, Lambda errors, Lambda throttles, CloudFront 5xx rate.
+
+## Known limit
+New AWS accounts may run only 10 Lambda functions at once. CloudFront caching and the
+judge app's retries make that enough for the event; to raise it, open a Service Quotas
+support case for "Lambda concurrent executions".

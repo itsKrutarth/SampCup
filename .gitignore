@@ -47,3 +47,7 @@ coverage/
 
 # Production backups on the server
 deploy/backups/
+
+# Build output for the Lambda package and site upload
+infra/build/
+.terraform.lock.hcl.bak

@@ -17,3 +17,4 @@ Backend (from `backend/`): `.venv/bin/ruff check .`, `.venv/bin/pytest`
 Frontend (from `frontend/`): `npm run lint`, `npm run typecheck`, `npm run test:coverage`, `npm run build`
 Everything: `docker compose up --build`
 - Schedules: `~/dev/.sampcup-tools/bin/python tools/export_schedules.py` (needs OR-Tools; rerun only if the rules change).
+- AWS: everything through Terraform in `infra/` (deploy.sh, destroy.sh, ops.sh); never create resources by hand. Keep costs near zero (serverless, free tier).

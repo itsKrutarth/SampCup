@@ -199,11 +199,16 @@ def reset_match(
 
 def _bracket_changes(store: Store) -> tuple[list[Match], list[str]]:
     matches = store.all(Match)
+    group_games = [m for m in matches if m.phase == "group"]
+    complete = {m.group for m in group_games} - {
+        m.group for m in group_games if m.status != "completed"
+    }
     places = {}
-    for group, table in group_standings(store, matches=matches).items():
-        if table["complete"]:
-            for row in table["rows"][:4]:
-                places[f"{group}{row['rank']}"] = row["team_id"]
+    if complete:  # standings matter here only once a whole group has finished
+        for group, table in group_standings(store, matches=matches).items():
+            if group in complete:
+                for row in table["rows"][:4]:
+                    places[f"{group}{row['rank']}"] = row["team_id"]
     knockout = [m for m in matches if m.phase == "knockout"]
     by_code = {m.code: m for m in knockout}
 

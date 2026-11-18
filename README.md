@@ -8,9 +8,10 @@ standings, the knockout bracket, judging and announcements.
   `00_README_START_HERE.md`. `02_TOURNAMENT_RULES.md` is the source of truth.
 
 ## Stack
-- Backend: Python 3.12, FastAPI, SQLAlchemy, Alembic, PostgreSQL
-- Frontend: React, Vite, TypeScript
-- Local dev: Docker Compose
+- Backend: Python 3.12, FastAPI on AWS Lambda (Mangum), DynamoDB
+- Frontend: React, Vite, TypeScript, served from S3 through CloudFront
+- Infrastructure: Terraform (`infra/`), see `docs/DEPLOY.md`
+- Local dev: Docker Compose with DynamoDB Local
 - CI: GitHub Actions
 
 ## Run it locally
@@ -19,18 +20,19 @@ standings, the knockout bracket, judging and announcements.
 3. Create an admin and, if you like, 40 made-up demo teams:
    ```sh
    docker compose exec api python -m app.cli create-admin <username>
+   docker compose exec api python -m app.cli create-judges
    docker compose exec api python -m app.cli seed-demo     # demo team password: demo
    ```
 4. Open <http://localhost:5173>. Staff log in at `/staff`, players join at `/join`,
    the projector screen is `/display`. The API is at <http://localhost:8000/api/docs>.
 
 ## Deploy
-See `docs/DEPLOY.md` (one AWS Lightsail server, HTTPS by Caddy, nightly backups).
+See `docs/DEPLOY.md`: serverless AWS (CloudFront, S3, Lambda, DynamoDB), all by Terraform.
 
 ## Run the checks
 ```sh
 cd backend && python3.12 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/ruff check . && .venv/bin/ruff format --check . && .venv/bin/pytest
+.venv/bin/ruff check . && .venv/bin/ruff format --check . && .venv/bin/pytest   # fake AWS (moto)
 
 cd frontend && npm ci
 npm run lint && npm run typecheck && npm run test:coverage && npm run build

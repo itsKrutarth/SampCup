@@ -40,6 +40,23 @@ describe('judge action queue', () => {
     expect(listener).toHaveBeenCalled()
   })
 
+  it('keeps actions when the server is busy or failing, and sends them later', async () => {
+    mockApi({
+      'POST /judge/matches/3/start': fail(429, 'Rate Exceeded'),
+      'POST /judge/matches/4/start': fail(503, 'Service Unavailable'),
+    })
+    const queue = new ActionQueue()
+    queue.token = 'tok'
+    await queue.push({ matchId: 3, action: 'start' })
+    expect(queue.getState()).toMatchObject({ pending: 1, offline: true })
+    queue.clear()
+    await queue.push({ matchId: 4, action: 'start' })
+    expect(queue.getState()).toMatchObject({ pending: 1, offline: true })
+    mockApi({ 'POST /judge/matches/4/start': match() })
+    await queue.flush()
+    expect(queue.getState()).toMatchObject({ pending: 0, offline: false })
+  })
+
   it('drops an action the server refuses, and waits on an expired login', async () => {
     mockApi({
       'POST /judge/matches/1/finish': fail(409, 'This game is already final'),

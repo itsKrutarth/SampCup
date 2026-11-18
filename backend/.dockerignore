@@ -1,6 +1,5 @@
 *
 !app
-!migrations
-!alembic.ini
 !requirements.txt
+!requirements-dev.txt
 **/__pycache__

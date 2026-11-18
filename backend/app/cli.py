@@ -135,8 +135,12 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "create-table":
         if not settings.dynamodb_endpoint:
             raise SystemExit("create-table is for DynamoDB Local; AWS tables come from Terraform")
-        create_table(dynamodb_resource(), settings.table_name)
-        print(f"Created table {settings.table_name}")
+        resource = dynamodb_resource()
+        if settings.table_name in [t.name for t in resource.tables.all()]:
+            print(f"Table {settings.table_name} already exists")
+        else:
+            create_table(resource, settings.table_name)
+            print(f"Created table {settings.table_name}")
         return
     store = Store(get_table())
     if args.command == "create-admin":
