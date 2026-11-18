@@ -9,6 +9,8 @@ export type Auth = {
   name: string
   role?: 'admin' | 'judge'
   court?: number | null
+  /** An admin set this password: the user must choose their own before anything else. */
+  mustChange?: boolean
 }
 
 type AuthState = {

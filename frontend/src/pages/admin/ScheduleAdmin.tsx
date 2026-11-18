@@ -69,6 +69,7 @@ export default function ScheduleAdmin() {
       </form>
       <h2>Games</h2>
       <Status loading={matches.loading} error={matches.error} />
+      <div className="table-wrap">
       <table>
         <thead>
           <tr><th>Time</th><th>Game</th><th>Teams</th><th>Court</th></tr>
@@ -91,6 +92,7 @@ export default function ScheduleAdmin() {
           ))}
         </tbody>
       </table>
+      </div>
     </>
   )
 }

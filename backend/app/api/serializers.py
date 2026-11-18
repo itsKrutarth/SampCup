@@ -54,6 +54,7 @@ def staff_out(user: StaffUser) -> dict[str, Any]:
         "role": user.role,
         "court": user.court,
         "active": user.active,
+        "must_change_password": user.must_change_password,
     }
 
 

@@ -1,3 +1,4 @@
+import { ArrowLeft, Building2, Check, Handshake, PartyPopper, Send, UserRound, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router'
 
@@ -20,12 +21,17 @@ function Centers({ onPick }: { onPick: (center: string) => void }) {
   return (
     <>
       <h2>1. Your center</h2>
+      <p className="hint">Pick the center you registered with.</p>
       <Status loading={loading} error={error} />
       {data?.length === 0 && <p>Registrations have not been loaded yet. Check back soon.</p>}
       <div className="choices">
         {data?.map((c) => (
           <button key={c.center} type="button" onClick={() => onPick(c.center)}>
-            {c.center}
+            <Building2 size={22} />
+            <span>
+              {c.center}
+              <small>{c.players} players</small>
+            </span>
           </button>
         ))}
       </div>
@@ -38,12 +44,20 @@ function WhoAreYou({ center, onPick }: { center: string; onPick: (id: number) =>
   return (
     <>
       <h2>2. Who are you?</h2>
+      <p className="hint">Tap your name.</p>
       <Status loading={loading} error={error} />
       <div className="choices">
         {data?.map((p) => (
           <button key={p.id} type="button" onClick={() => onPick(p.id)}>
-            {fullName(p)} <small>{p.zone}</small>
-            {p.state === 'teamed' && <small> · {p.team_name}</small>}
+            <UserRound size={22} />
+            <span>
+              {fullName(p)}
+              <small>
+                {p.zone}
+                {p.state === 'teamed' && ` · ${p.team_name}`}
+              </small>
+            </span>
+            <span className={`state ${p.state}`}>{p.state === 'teamed' ? 'On a team' : p.state === 'pending' ? 'Pending' : 'Free'}</span>
           </button>
         ))}
       </div>
@@ -78,7 +92,7 @@ function PartnerForm({ me, onSent }: { me: PlayerLite; onSent: () => void }) {
     }
   }
   return (
-    <form onSubmit={submit} className="stack">
+    <form onSubmit={submit} className="stack card">
       <h2>3. Pick your partner</h2>
       <p className="hint">Your partner must be from {me.center}. Once they accept, only an admin can change the team.</p>
       <label>
@@ -108,7 +122,10 @@ function PartnerForm({ me, onSent }: { me: PlayerLite; onSent: () => void }) {
       </label>
       <p className="hint">You and your partner log in with the team name and this password. Share it with your partner.</p>
       {error && <p role="alert" className="error">{error}</p>}
-      <button type="submit">Send request</button>
+      <button type="submit">
+        <Send size={18} />
+        Send request
+      </button>
     </form>
   )
 }
@@ -138,11 +155,18 @@ function MyStatus({ playerId }: { playerId: number }) {
       <p>
         Hi <strong>{player.first_name}</strong>.
       </p>
-      {message && <p role="status" className="success">{message}</p>}
+      {message && (
+        <p role="status" className="success">
+          <PartyPopper size={20} />
+          {message}
+        </p>
+      )}
       {actionError && <p role="alert" className="error">{actionError}</p>}
       {team ? (
-        <section>
-          <h2>Your team: {team.name}</h2>
+        <section className="card">
+          <h2>
+            <Handshake size={22} /> Your team: {team.name}
+          </h2>
           <p>{team.players.map((p) => p.name).join(' & ')}</p>
           {team.status === 'waitlist' && <p>The tournament is full, so your team is on the waitlist. An admin will let you know.</p>}
           <Link className="button" to="/login">
@@ -156,12 +180,16 @@ function MyStatus({ playerId }: { playerId: number }) {
               <p>
                 <strong>{fullName(r.from)}</strong> wants to team up as <strong>{r.team_name}</strong>.
               </p>
-              <button type="button" onClick={() => respond(r, 'accept')}>
-                Accept
-              </button>{' '}
-              <button type="button" className="secondary" onClick={() => respond(r, 'decline')}>
-                Decline
-              </button>
+              <div className="toolbar">
+                <button type="button" onClick={() => respond(r, 'accept')}>
+                  <Check size={18} />
+                  Accept
+                </button>
+                <button type="button" className="secondary" onClick={() => respond(r, 'decline')}>
+                  <X size={18} />
+                  Decline
+                </button>
+              </div>
             </section>
           ))}
           {outgoing ? (
@@ -188,15 +216,23 @@ export default function Join() {
   const center = params.get('center')
   const me = Number(params.get('me')) || null
   const go = (next: Record<string, string>) => setParams(next)
+  const step = me ? 3 : center ? 2 : 1
   return (
     <>
-      <h1>Join the tournament</h1>
+      <h1>Join SAMP Cup</h1>
+      <ol className="stepper" aria-label="Steps">
+        {['Center', 'You', 'Partner'].map((label, i) => (
+          <li key={label} className={i + 1 < step ? 'done' : i + 1 === step ? 'current' : ''}>
+            {i + 1}. {label}
+          </li>
+        ))}
+      </ol>
       {status.data && !status.data.open && (
         <p role="alert" className="error">Team registration is closed. Ask an admin if you need a change.</p>
       )}
       {(center || me) && (
-        <button type="button" className="link" onClick={() => go(me && center ? { center } : {})}>
-          ← Back
+        <button type="button" className="link" aria-label="← Back" onClick={() => go(me && center ? { center } : {})}>
+          <ArrowLeft size={16} /> Back
         </button>
       )}
       {!center && <Centers onPick={(c) => go({ center: c })} />}

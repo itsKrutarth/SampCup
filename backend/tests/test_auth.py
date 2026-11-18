@@ -116,6 +116,70 @@ def test_staff_rules(store: Store, kwargs: dict, message: str) -> None:
 
 def test_staff_password_change(store: Store) -> None:
     user = create_staff(store, "judge9", "1234", "judge")
-    with pytest.raises(ServiceError, match="too short"):
+    with pytest.raises(ServiceError, match="at least 4"):
         update_staff(store, user.id, password="1")
-    assert update_staff(store, user.id, password="5678").password_hash != ""
+    changed = update_staff(store, user.id, password="5678")
+    assert changed.must_change_password is True
+
+
+def test_admin_set_passwords_are_temporary(client: TestClient, store: Store, admin: dict) -> None:
+    created = client.post(
+        "/api/admin/staff",
+        headers=admin,
+        json={"username": "court-4", "password": "1111", "role": "judge", "court": 4},
+    ).json()
+    assert created["must_change_password"] is True
+    judge = login(client, "court-4", "1111")
+    blocked = client.get("/api/judge/matches", headers=judge)
+    assert blocked.status_code == 403 and "own password" in blocked.json()["detail"]
+    assert client.get("/api/auth/me", headers=judge).json()["user"]["must_change_password"]
+    change = "/api/auth/change-password"
+    wrong = client.post(
+        change, headers=judge, json={"current_password": "x", "new_password": "2222"}
+    )
+    assert wrong.status_code == 400 and "current" in wrong.json()["detail"]
+    same = client.post(
+        change, headers=judge, json={"current_password": "1111", "new_password": "1111"}
+    )
+    assert same.status_code == 400 and "different" in same.json()["detail"]
+    short = client.post(
+        change, headers=judge, json={"current_password": "1111", "new_password": "22"}
+    )
+    assert short.status_code == 400
+    done = client.post(
+        change, headers=judge, json={"current_password": "1111", "new_password": "2468"}
+    )
+    assert done.json()["user"]["must_change_password"] is False
+    assert client.get("/api/judge/matches", headers=judge).status_code == 200
+    reset = client.patch(
+        f"/api/admin/staff/{created['id']}", headers=admin, json={"password": "9999"}
+    )
+    assert reset.json()["must_change_password"] is True
+    assert client.get("/api/auth/me", headers=judge).status_code == 401  # old login ended
+    team = make_team(store, name="Not Staff")
+    team_token = client.post(
+        "/api/auth/team-login", json={"team_name": team.name, "password": "pass"}
+    ).json()["token"]
+    refused = client.post(
+        change,
+        headers={"Authorization": f"Bearer {team_token}"},
+        json={"current_password": "pass", "new_password": "pass2"},
+    )
+    assert refused.status_code == 403
+
+
+def test_admins_rename_logins_and_names_stay_unique(
+    client: TestClient, store: Store, admin: dict
+) -> None:
+    first = create_staff(store, "court-1", "1234", "judge", court=1)
+    create_staff(store, "court-2", "1234", "judge", court=2)
+    url = f"/api/admin/staff/{first.id}"
+    renamed = client.patch(url, headers=admin, json={"username": "Ravi_Patel"}).json()
+    assert renamed["username"] == "ravi_patel"
+    assert login(client, "ravi_patel", "1234")
+    taken = client.patch(url, headers=admin, json={"username": "court-2"})
+    assert taken.status_code == 409 and "taken" in taken.json()["detail"]
+    bad = client.patch(url, headers=admin, json={"username": "no spaces"})
+    assert bad.status_code == 400
+    # the old name is free again
+    assert create_staff(store, "court-1", "1234", "judge").username == "court-1"

@@ -82,6 +82,13 @@ def _check_staff(username: str, role: str, court: int | None) -> str:
     return username
 
 
+def _check_password(role: str, password: str) -> None:
+    if len(password) < 8 and role == "admin":
+        raise ServiceError("Admin passwords need at least 8 characters")
+    if len(password) < 4:
+        raise ServiceError("Password must be at least 4 characters")
+
+
 def create_staff(
     store: Store,
     username: str,
@@ -89,12 +96,10 @@ def create_staff(
     role: str,
     display_name: str = "",
     court: int | None = None,
+    must_change: bool = False,
 ) -> StaffUser:
     username = _check_staff(username, role, court)
-    if len(password) < 8 and role == "admin":
-        raise ServiceError("Admin passwords need at least 8 characters")
-    if len(password) < 4:
-        raise ServiceError("Password must be at least 4 characters")
+    _check_password(role, password)
     user = StaffUser(
         id=store.next_id(StaffUser),
         username=username,
@@ -102,6 +107,7 @@ def create_staff(
         role=role,
         password_hash=hash_password(password),
         court=court,
+        must_change_password=must_change,
     )
     try:
         store.transact(
@@ -116,15 +122,20 @@ def update_staff(
     store: Store,
     user_id: int,
     *,
+    username: str | None = None,
     court: int | None = None,
     clear_court: bool = False,
     active: bool | None = None,
     password: str | None = None,
     display_name: str | None = None,
 ) -> StaffUser:
+    """Admin changes. A password set here is temporary: the user picks their own next login."""
     user = store.get(StaffUser, user_id)
     if user is None:
         raise NotFound("Staff user not found")
+    old_username = user.username
+    if username is not None:
+        user.username = _check_staff(username, user.role, None)
     if court is not None:
         _check_staff(user.username, user.role, court)
         user.court = court
@@ -133,12 +144,35 @@ def update_staff(
     if display_name is not None:
         user.display_name = display_name.strip() or user.username
     if password is not None:
-        if len(password) < (8 if user.role == "admin" else 4):
-            raise ServiceError("Password is too short")
+        _check_password(user.role, password)
         user.password_hash = hash_password(password)
+        user.must_change_password = True
     if active is not None:
         user.active = active
-    store.save(user)
+    owner = f"staff:{user.id}"
+    writes = [store.tx_put(user)]
+    if user.username != old_username:
+        writes += [
+            store.tx_lock(USERNAME, user.username, owner),
+            store.tx_unlock(USERNAME, old_username, owner),
+        ]
+    try:
+        store.transact(writes)
+    except ConflictError as exc:
+        raise Conflict("That username is taken") from exc
     if password is not None or active is False:
         end_sessions(store, staff_id=user.id)
+    return user
+
+
+def change_own_password(store: Store, user: StaffUser, current: str, new: str) -> StaffUser:
+    """The user replaces a password (for example the temporary one an admin set)."""
+    if not verify_password(current, user.password_hash):
+        raise ServiceError("Your current password or PIN is wrong")
+    if new == current:
+        raise ServiceError("Choose a password or PIN different from the one you were given")
+    _check_password(user.role, new)
+    user.password_hash = hash_password(new)
+    user.must_change_password = False
+    store.save(user)
     return user

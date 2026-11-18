@@ -1,4 +1,5 @@
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { Flag, LogOut, Minus, Play, Plus, Timer as TimerIcon, Wifi, WifiOff } from 'lucide-react'
+import { useEffect, useState, useSyncExternalStore, type CSSProperties } from 'react'
 import { Navigate, useSearchParams } from 'react-router'
 
 import { teamLabel } from '../components/MatchCard'
@@ -25,8 +26,9 @@ type Send = (action: Action, body?: Record<string, unknown>) => void
 function Timer({ startedAt }: { startedAt: number }) {
   const now = useNow()
   const left = GAME_SECONDS - (now - startedAt) / 1000
+  const share = Math.max(0, left / GAME_SECONDS)
   return (
-    <p className={left <= 0 ? 'timer done' : 'timer'} aria-label="Time left">
+    <p className={left <= 0 ? 'timer done' : 'timer'} aria-label="Time left" style={{ '--left': share } as CSSProperties}>
       {left > 0 ? clock(left) : 'Time!'}
     </p>
   )
@@ -65,11 +67,13 @@ export function ScoreCard({ match, send }: { match: Match; send: Send }) {
         <button
           type="button"
           className="big"
+          style={{ width: '100%' }}
           onClick={() => {
             setStartedAt(Date.now())
             send('start')
           }}
         >
+          <Play size={26} />
           Start game
         </button>
         <ForfeitButtons names={names} send={send} onDone={() => setStep('sent')} />
@@ -88,10 +92,10 @@ export function ScoreCard({ match, send }: { match: Match; send: Send }) {
               {scores[side]}
             </p>
             <button type="button" className="big" aria-label={`Point to ${names[side]}`} onClick={() => change(side, 1)} disabled={scores[side] >= 11}>
-              +1
+              <Plus size={28} />1
             </button>
             <button type="button" className="secondary" aria-label={`Take a point from ${names[side]}`} onClick={() => change(side, -1)} disabled={scores[side] <= 0}>
-              −1
+              <Minus size={18} />1
             </button>
           </div>
         ))}
@@ -112,9 +116,11 @@ export function ScoreCard({ match, send }: { match: Match; send: Send }) {
       ) : (
         <div className="stack">
           <button type="button" disabled={Math.max(a, b) !== 11 || a === b} onClick={() => finish('reached_11')}>
+            <Flag size={18} />
             Final: reached 11
           </button>
           <button type="button" className="secondary" onClick={() => (a === b ? setStep('sudden') : finish('clock_lead'))}>
+            <TimerIcon size={18} />
             Clock ended
           </button>
           <ForfeitButtons names={names} send={send} onDone={() => setStep('sent')} />
@@ -177,13 +183,19 @@ export default function Judge() {
   }, [token, reload])
 
   if (!token) return <Navigate to="/staff" replace />
+  if (auth?.mustChange) return <Navigate to="/staff/password" replace />
   const upcoming = data?.matches.filter((m) => m.status === 'scheduled' && m.id !== data.current?.id) ?? []
   return (
     <>
       <header className="judge-head">
         <h1>{court ? `Court ${court}` : 'Judge'}</h1>
-        <span>{auth?.name}</span>
+        <span className="who">{auth?.name}</span>
+        <span className={queue.offline ? 'tag live' : 'tag final'}>
+          {queue.offline ? <WifiOff size={14} /> : <Wifi size={14} />}
+          {queue.offline ? 'Offline' : 'Online'}
+        </span>
         <button type="button" className="link" onClick={signOut}>
+          <LogOut size={16} />
           Log out
         </button>
       </header>
@@ -213,7 +225,7 @@ export default function Judge() {
         />
       )}
       {upcoming.length > 0 && (
-        <section aria-label="Later on this court">
+        <section aria-label="Later on this court" className="card">
           <h2>Later on this court</h2>
           <ul className="plain">
             {upcoming.slice(0, 6).map((m) => (

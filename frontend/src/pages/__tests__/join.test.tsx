@@ -33,7 +33,7 @@ describe('joining with a partner', () => {
     })
     const user = userEvent.setup()
     renderAt('/join')
-    await user.click(await screen.findByRole('button', { name: 'North' }))
+    await user.click(await screen.findByRole('button', { name: /North/ }))
     expect(await screen.findByText(/Smashers/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Aarav Tester/ }))
     expect(await screen.findByText(/^Hi/)).toBeInTheDocument()

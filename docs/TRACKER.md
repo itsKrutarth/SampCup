@@ -3,21 +3,20 @@
 The working record of the build. Read this first; update it after every chunk.
 Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_STAGES.md`.
 
-## Current position (2026-11-18)
-- **State:** live at **https://sampcup.com** (www redirects there; HTTPS certificate from ACM,
-  auto-renewing). Empty except the 9 judge accounts and the event date. Registration is open
-  but has no players until the real export is uploaded.
-- **Branch:** `main` (Route 53 work merged 2026-11-18; all six CI jobs green).
-- **Domain (owner, 2026-11-18): Route 53.** `infra/foundation` holds the hosted zone and the
-  certificate and is kept through teardowns, so Namecheap's nameservers are set once.
-  Namecheap nameservers point at Route 53 (owner, 2026-11-18); certificate ISSUED.
-- **Judges:** court-1..court-9 created; PINs are in `~/dev/sampcup-judge-pins.txt` on the
-  owner's Mac (outside the repo, owner-only file permissions). Never commit them.
-- **Next:**
-  1. Owner: create the admin account, give an alert email.
-  2. Owner uploads the real registration export (Admin → Players).
-  3. Share https://sampcup.com/join with players once the export is in.
-  4. M10: tournament-day runbook and paper fallback; failure drill on AWS.
+## Current position (2026-11-18, later)
+- **State:** live at **https://sampcup.com**. The owner (admin `imgp004`) imported the real
+  registration export. Alarm emails go to the owner (subscription confirmation pending).
+- **Branch:** `app/brand-and-staff` (brand redesign + staff accounts), then deploy and merge.
+- **This chunk (owner requests, 2026-11-18):**
+  - Staff usernames are the display name, unique, renamable by admins, and the login.
+  - A password or PIN set by an admin is temporary: the user must choose their own at the
+    next login (`must_change_password`; judge/admin APIs refuse until changed).
+  - Full visual redesign: SAMP Cup crest and "Unity in every rally", Outfit font bundled,
+    saffron/magenta brand with group colors (A coral, B blue, C green, D gold), phone tab
+    bar, scoreboard judge screen with ring timer, home with countdown, format and day plan,
+    standings with medals, team pages, projector screen, installable on phones (manifest).
+- **Judges:** court-1..court-9; PINs in `~/dev/sampcup-judge-pins.txt` (owner's Mac only).
+- **Next:** M10 runbook and paper fallback; failure drill on AWS; QR poster.
 - **Event date:** Sunday, December 6, 2026. 9 judges (one per court); the owner is the admin.
 
 ## Needs from the owner
@@ -30,10 +29,10 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
 | 5 | Judges | Judge accounts | Event week | Done: 9 judges, one per court |
 | 6 | Open `~/dev/SampCup` in VS Code from now on | Code stays out of OneDrive | Now | Waiting |
 | 7 | Awards | Not part of the app (owner's lead decides) | - | Closed |
-| 8 | Email address for alarm emails | Alerts on errors | Before the event | Waiting |
+| 8 | Email address for alarm emails | Alerts on errors | Before the event | Done (confirm the AWS email) |
 | 9 | Namecheap nameservers -> Route 53 | sampcup.com | Before registration opens | Done 2026-11-18 |
-| 11 | Create the admin account (`create-admin`, owner types the password) | Admin login | Now | Waiting |
-| 12 | Any email on @sampcup.com today (Namecheap forwarding)? | Must be re-created in Route 53 or it stops | Before the nameserver change | Waiting |
+| 11 | Create the admin account | Admin login | Now | Done: `imgp004` |
+| 12 | Email on @sampcup.com? | Route 53 records | - | None, closed |
 | 10 | Optional: Service Quotas case to raise Lambda concurrency above 10 | Headroom | Before the event | Optional |
 
 ## Live test on AWS (2026-11-17, `tools/dummy_run.py`, all dummy data, then wiped)
@@ -127,6 +126,9 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
 - 2026-11-02: M0 finished. Full stack verified in Docker, CI green.
 - 2026-11-17: Registration export received (kept out of git). Range extended to 32-42. App
   built (M1-M7) on Postgres, merged to `main`.
+- 2026-11-18: Owner created admin `imgp004`, imported the real export, gave the alert email.
+  Built staff renames, temporary passwords and the full brand redesign (checked with
+  screenshots at phone and desktop sizes on a local stack with demo data).
 - 2026-11-18: Owner back; chose Route 53. Added `infra/foundation` (zone + certificate),
   redeployed the app, set the event date, created the 9 judge accounts. Owner switched the
   nameservers; certificate issued; sampcup.com live. An apply cut off mid-run left a stale

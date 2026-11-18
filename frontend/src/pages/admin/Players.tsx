@@ -74,6 +74,7 @@ export default function Players() {
       <h2>Players ({data?.length ?? 0})</h2>
       <input placeholder="Search name, center or MISID" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Search players" />
       <Status loading={loading} error={error} />
+      <div className="table-wrap">
       <table>
         <thead>
           <tr><th>Name</th><th>Center</th><th>MISID</th><th>Shirt</th><th>Team</th></tr>
@@ -90,6 +91,7 @@ export default function Players() {
           ))}
         </tbody>
       </table>
+      </div>
     </>
   )
 }

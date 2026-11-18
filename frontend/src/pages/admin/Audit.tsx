@@ -22,6 +22,7 @@ export default function Audit() {
   return (
     <>
       <Status loading={loading} error={error} />
+      <div className="table-wrap">
       <table>
         <thead>
           <tr><th>When</th><th>Game</th><th>Change</th><th>By</th><th>Why</th></tr>
@@ -38,6 +39,7 @@ export default function Audit() {
           ))}
         </tbody>
       </table>
+      </div>
     </>
   )
 }

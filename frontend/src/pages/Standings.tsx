@@ -8,7 +8,10 @@ export default function Standings() {
   return (
     <>
       <h1>Standings</h1>
-      <p className="hint">Top 4 of each group go to the Round of 16.</p>
+      <p className="legend">
+        <span>Top 4 of each group go to the Round of 16</span>
+      </p>
+      <p className="hint">Ties: wins, then points scored, average game time, points allowed, head-to-head, draw.</p>
       <Status loading={loading} error={error} />
       {data && <StandingsTables groups={data.groups} />}
     </>

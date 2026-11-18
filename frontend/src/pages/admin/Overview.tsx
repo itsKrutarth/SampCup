@@ -1,4 +1,5 @@
-import type { FormEvent } from 'react'
+import { CalendarCheck, Download, ListChecks, Save, Shirt, UserCheck, Users, UsersRound } from 'lucide-react'
+import type { FormEvent, ReactNode } from 'react'
 
 import Status from '../../components/Status'
 import { download } from '../../lib/api'
@@ -23,6 +24,18 @@ export type Summary = {
   tshirts: Record<string, number>
 }
 
+function Stat({ icon, value, label }: { icon: ReactNode; value: ReactNode; label: string }) {
+  return (
+    <li className="stat">
+      <span className="stat-icon">{icon}</span>
+      <div>
+        <strong>{value}</strong>
+        <span>{label}</span>
+      </div>
+    </li>
+  )
+}
+
 export default function Overview() {
   const { token, run, message, setMessage } = useAction()
   const { data, loading, error, reload } = useApi<Summary>('/admin/summary', token)
@@ -42,14 +55,21 @@ export default function Overview() {
   return (
     <>
       <ul className="stats">
-        <li><strong>{data.players}</strong> players ({data.players_on_teams} on teams)</li>
-        <li><strong>{data.teams.active}</strong> active teams, {data.teams.waitlist} waitlist, {data.teams.withdrawn} withdrawn</li>
-        <li><strong>{data.checked_in}</strong> teams checked in</li>
-        <li><strong>{data.pending_requests}</strong> partner requests waiting</li>
-        <li>Schedule: {t.schedule_exists ? (t.schedule_locked ? 'locked' : 'generated, not locked') : 'not generated'}</li>
-        {t.draw_seed !== null && <li>Draw seed: {t.draw_seed}</li>}
+        <Stat icon={<Users size={20} />} value={data.players} label={`players (${data.players_on_teams} on teams)`} />
+        <Stat
+          icon={<UsersRound size={20} />}
+          value={data.teams.active}
+          label={`active teams, ${data.teams.waitlist} waitlist, ${data.teams.withdrawn} withdrawn`}
+        />
+        <Stat icon={<UserCheck size={20} />} value={data.checked_in} label="teams checked in" />
+        <Stat icon={<ListChecks size={20} />} value={data.pending_requests} label="partner requests waiting" />
       </ul>
-      <form onSubmit={save} className="stack" key={JSON.stringify(t)}>
+      <p className="info">
+        <CalendarCheck size={18} />
+        Schedule: {t.schedule_exists ? (t.schedule_locked ? 'locked' : 'generated, not locked') : 'not generated'}
+        {t.draw_seed !== null && ` · Draw seed: ${t.draw_seed}`}
+      </p>
+      <form onSubmit={save} className="stack card" key={JSON.stringify(t)}>
         <h2>Settings</h2>
         <label>
           Tournament name
@@ -66,10 +86,15 @@ export default function Overview() {
         <label className="inline">
           <input name="registration_open" type="checkbox" defaultChecked={t.registration_open} /> Players can form teams
         </label>
-        <button type="submit">Save settings</button>
+        <button type="submit">
+          <Save size={18} />
+          Save settings
+        </button>
       </form>
       <Message message={message} />
-      <h2>T-shirts</h2>
+      <h2>
+        <Shirt size={20} /> T-shirts
+      </h2>
       <p>{Object.entries(data.tshirts).map(([size, n]) => `${size}: ${n}`).join(' · ') || 'No players yet'}</p>
       <button
         type="button"
@@ -80,6 +105,7 @@ export default function Overview() {
           )
         }
       >
+        <Download size={18} />
         Download results (CSV)
       </button>
     </>

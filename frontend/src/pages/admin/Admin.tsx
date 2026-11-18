@@ -1,3 +1,4 @@
+import { CalendarClock, ClipboardList, Gauge, History, LogOut, Megaphone, ShieldCheck, Trophy, Users, UsersRound } from 'lucide-react'
 import { Navigate, NavLink, Route, Routes } from 'react-router'
 
 import { useAuth } from '../../lib/auth'
@@ -11,32 +12,37 @@ import Staff from './Staff'
 import Teams from './Teams'
 
 const TABS = [
-  ['', 'Overview'],
-  ['players', 'Players'],
-  ['teams', 'Teams'],
-  ['schedule', 'Draw & schedule'],
-  ['results', 'Results'],
-  ['announcements', 'Announcements'],
-  ['staff', 'Judges & admins'],
-  ['audit', 'Audit log'],
+  ['', 'Overview', Gauge],
+  ['players', 'Players', Users],
+  ['teams', 'Teams', UsersRound],
+  ['schedule', 'Draw & schedule', CalendarClock],
+  ['results', 'Results', Trophy],
+  ['announcements', 'Announcements', Megaphone],
+  ['staff', 'Judges & admins', ShieldCheck],
+  ['audit', 'Audit log', History],
 ] as const
 
 export default function Admin() {
   const { auth, signOut } = useAuth()
   if (auth?.kind !== 'staff') return <Navigate to="/staff" replace />
+  if (auth.mustChange) return <Navigate to="/staff/password" replace />
   if (auth.role !== 'admin') return <Navigate to="/judge" replace />
   return (
     <div className="admin">
       <header className="judge-head">
-        <h1>Admin</h1>
-        <span>{auth.name}</span>
+        <h1>
+          <ClipboardList size={26} /> Admin
+        </h1>
+        <span className="who">{auth.name}</span>
         <button type="button" className="link" onClick={signOut}>
+          <LogOut size={16} />
           Log out
         </button>
       </header>
-      <nav className="tabs" aria-label="Admin">
-        {TABS.map(([path, label]) => (
+      <nav className="admin-tabs" aria-label="Admin">
+        {TABS.map(([path, label, Icon]) => (
           <NavLink key={path} to={`/admin${path ? `/${path}` : ''}`} end>
+            <Icon size={16} />
             {label}
           </NavLink>
         ))}

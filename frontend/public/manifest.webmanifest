@@ -1,0 +1,10 @@
+{
+  "name": "SAMP Cup 2026",
+  "short_name": "SAMP Cup",
+  "description": "Live schedule, scores, standings and bracket for SAMP Cup",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1020",
+  "theme_color": "#e8336d",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

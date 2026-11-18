@@ -53,6 +53,8 @@ locals {
     json        = "application/json"
     txt         = "text/plain; charset=utf-8"
     webmanifest = "application/manifest+json"
+    woff2       = "font/woff2"
+    woff        = "font/woff"
   }
 }
 

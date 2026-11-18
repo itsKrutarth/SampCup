@@ -1,7 +1,11 @@
+import { CalendarDays, ChevronRight, Flame, GitBranch, LayoutGrid, ListOrdered, LogIn, Radio, Trophy, UserPlus, Users } from 'lucide-react'
 import { Link } from 'react-router'
 
+import Countdown from '../components/Countdown'
+import Logo from '../components/Logo'
 import MatchCard from '../components/MatchCard'
 import Status from '../components/Status'
+import { DAY_PLAN, TAGLINE } from '../lib/brand'
 import { dateLong } from '../lib/format'
 import { useApi } from '../lib/live'
 import type { Overview } from '../lib/types'
@@ -14,39 +18,134 @@ const PHASE = {
   finished: 'Tournament complete',
 }
 
+const FORMAT = [
+  [Users, 'Pair up', 'Two players from the same center form a doubles team.'],
+  [LayoutGrid, 'Group play', 'Four random groups. Every team plays at least 8 games, never more than 2 in a row.'],
+  [GitBranch, 'Knockout', 'The top 4 of each group make the Round of 16, then quarterfinals and semifinals.'],
+  [Trophy, 'The Final', 'Best of 3 on court 1. First to 11, no win-by-2, 12-minute clock.'],
+] as const
+
+export function ChampionCard({ name }: { name: string }) {
+  return (
+    <div className="champion-card" role="status">
+      <Trophy size={44} />
+      <div>
+        <p className="label">Champions</p>
+        <p className="name">{name}</p>
+      </div>
+    </div>
+  )
+}
+
 export default function Home() {
   const { data, loading, error } = useApi<Overview>('/public/overview')
   if (!data) return <Status loading={loading} error={error} />
   const { tournament } = data
+  const live = data.phase === 'group_play' || data.phase === 'knockout'
+  // "SAMP Cup 2026": the year gets the lime highlight
+  const [, name, year] = tournament.name.match(/^(.*?)(\d{4})?$/) ?? ['', tournament.name, '']
   return (
     <>
       <section className="hero">
-        <h1>{tournament.name}</h1>
-        <p>{dateLong(tournament.event_date)}</p>
-        <p className="badge">{PHASE[data.phase]}</p>
-        {data.champion && (
-          <p className="champion">
-            Champions: <strong>{data.champion.name}</strong>
-          </p>
-        )}
-      </section>
-      {data.phase === 'registration' && (
-        <section className="actions">
-          <p>
-            {data.teams} of {tournament.team_cap} teams formed
-            {data.waitlist ? `, ${data.waitlist} on the waitlist` : ''}.
-          </p>
-          {tournament.registration_open && (
+        <div className="hero-top">
+          <Logo size={72} />
+          <div>
+            <h1>
+              {name}
+              {year && <span className="year">{year}</span>}
+            </h1>
+            <p className="tagline">{TAGLINE}</p>
+          </div>
+        </div>
+        <div className="hero-meta">
+          <span className="glass">
+            <CalendarDays size={16} />
+            {dateLong(tournament.event_date)}
+          </span>
+          <span className={live ? 'glass live' : 'glass'}>
+            {live ? <Radio size={16} /> : <Flame size={16} />}
+            {PHASE[data.phase]}
+          </span>
+        </div>
+        {tournament.event_date && data.phase !== 'finished' && <Countdown eventDate={tournament.event_date} />}
+        <div className="cta-row">
+          {data.phase === 'registration' && tournament.registration_open && (
             <Link className="button" to="/join">
+              <UserPlus size={18} />
               Join with your partner
             </Link>
           )}
-          <Link to="/login">Team login</Link>
-        </section>
-      )}
+          {data.phase === 'registration' ? (
+            <Link className="button secondary" to="/login">
+              <LogIn size={18} />
+              Team login
+            </Link>
+          ) : (
+            <Link className="button" to="/schedule">
+              Full schedule
+              <ChevronRight size={18} />
+            </Link>
+          )}
+          <Link className="button secondary" to="/standings">
+            <ListOrdered size={18} />
+            Standings
+          </Link>
+        </div>
+      </section>
+
+      {data.champion && <ChampionCard name={data.champion.name} />}
+
+      <ul className="stats" aria-label="Tournament numbers">
+        <li className="stat">
+          <span className="stat-icon">
+            <Users size={20} />
+          </span>
+          <div>
+            <strong>
+              {data.teams}/{tournament.team_cap}
+            </strong>
+            <span>teams formed</span>
+          </div>
+        </li>
+        {data.waitlist > 0 && (
+          <li className="stat">
+            <span className="stat-icon">
+              <UserPlus size={20} />
+            </span>
+            <div>
+              <strong>{data.waitlist}</strong>
+              <span>on the waitlist</span>
+            </div>
+          </li>
+        )}
+        <li className="stat">
+          <span className="stat-icon">
+            <LayoutGrid size={20} />
+          </span>
+          <div>
+            <strong>9</strong>
+            <span>courts</span>
+          </div>
+        </li>
+        <li className="stat">
+          <span className="stat-icon">
+            <Trophy size={20} />
+          </span>
+          <div>
+            <strong>8+</strong>
+            <span>games per team</span>
+          </div>
+        </li>
+      </ul>
+
       {data.live.length > 0 && (
         <section aria-label="Playing now">
-          <h2>Playing now</h2>
+          <div className="section-head">
+            <h2>
+              <span className="live-dot" /> Playing now
+            </h2>
+            <Link to="/schedule">Schedule</Link>
+          </div>
           <div className="matches">
             {data.live.map((m) => (
               <MatchCard key={m.id} match={m} />
@@ -56,7 +155,10 @@ export default function Home() {
       )}
       {data.upcoming.length > 0 && (
         <section aria-label="Up next">
-          <h2>Up next</h2>
+          <div className="section-head">
+            <h2>Up next</h2>
+            <Link to="/schedule">All games</Link>
+          </div>
           <div className="matches">
             {data.upcoming.map((m) => (
               <MatchCard key={m.id} match={m} />
@@ -64,6 +166,32 @@ export default function Home() {
           </div>
         </section>
       )}
+
+      <div className="two-col">
+        <section aria-label="How it works">
+          <h2>How SAMP Cup works</h2>
+          <ol className="steps">
+            {FORMAT.map(([Icon, title, text]) => (
+              <li key={title}>
+                <Icon size={26} />
+                <h3>{title}</h3>
+                <p>{text}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+        <section aria-label="The day">
+          <h2>The day</h2>
+          <ol className="timeline">
+            {DAY_PLAN.map(([at, what]) => (
+              <li key={at}>
+                <time>{at}</time>
+                {what}
+              </li>
+            ))}
+          </ol>
+        </section>
+      </div>
     </>
   )
 }

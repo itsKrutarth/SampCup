@@ -58,6 +58,8 @@ def current_staff(store: Db, session: SessionDep) -> StaffUser:
     user = store.get(StaffUser, session.staff_id) if session.staff_id else None
     if user is None or not user.active:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Staff only")
+    if user.must_change_password:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Choose your own password first")
     return user
 
 

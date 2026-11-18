@@ -98,7 +98,15 @@ def create_judges(store: Store, courts: int = 9) -> list[tuple[str, str]]:
     for court in range(1, courts + 1):
         pin = f"{secrets.randbelow(10_000):04d}"
         try:
-            create_staff(store, f"court-{court}", pin, "judge", f"Court {court} judge", court)
+            create_staff(
+                store,
+                f"court-{court}",
+                pin,
+                "judge",
+                f"Court {court} judge",
+                court,
+                must_change=True,
+            )
         except Conflict:
             continue
         made.append((f"court-{court}", pin))

@@ -38,24 +38,28 @@ export default function Teams() {
       <Message message={message} />
       <Status loading={teams.loading} error={teams.error} />
       <h2>Teams ({teams.data?.length ?? 0})</h2>
-      <table>
+      <div className="table-wrap">
+      <table className="cards">
         <thead>
           <tr><th>#</th><th>Team</th><th>Players</th><th>Status</th><th>Here</th><th>Actions</th></tr>
         </thead>
         <tbody>
           {teams.data?.map((t) => (
             <tr key={t.id}>
-              <td>{t.number ?? ''}</td>
-              <td>{t.name}<br /><small>{t.center}</small></td>
-              <td>{t.players.map((p) => p.name).join(' & ')}</td>
-              <td>
+              <td className="hide-sm">{t.number ?? ''}</td>
+              <td className="user-cell primary">
+                <strong>{t.number ? `#${t.number} ` : ''}{t.name}</strong>
+                <small>{t.center}</small>
+              </td>
+              <td data-label="Players">{t.players.map((p) => p.name).join(' & ')}</td>
+              <td data-label="Status">
                 <select aria-label={`Status of ${t.name}`} value={t.status} onChange={(e) => patch(t, { status: e.target.value }, `${t.name} is now ${e.target.value}`)}>
                   <option value="active">active</option>
                   <option value="waitlist">waitlist</option>
                   <option value="withdrawn">withdrawn</option>
                 </select>
               </td>
-              <td>
+              <td data-label="Here">
                 <input type="checkbox" aria-label={`${t.name} checked in`} checked={Boolean(t.checked_in)} onChange={(e) => patch(t, { checked_in: e.target.checked }, `${t.name} ${e.target.checked ? 'checked in' : 'not checked in'}`)} />
               </td>
               <td>
@@ -75,6 +79,7 @@ export default function Teams() {
           ))}
         </tbody>
       </table>
+      </div>
       <form onSubmit={create} className="stack">
         <h2>Make a team</h2>
         <p className="hint">Admins can pair any two players who are not on a team.</p>

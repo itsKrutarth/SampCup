@@ -40,6 +40,7 @@ export default function Results() {
       <Message message={message} />
       <Status loading={loading} error={error} />
       {played.length === 0 && <p>No games played yet.</p>}
+      <div className="table-wrap">
       <table>
         <thead>
           <tr><th>Time</th><th>Game</th><th>Result</th><th /></tr>
@@ -78,6 +79,7 @@ export default function Results() {
           ))}
         </tbody>
       </table>
+      </div>
     </>
   )
 }

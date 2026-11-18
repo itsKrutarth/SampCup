@@ -86,6 +86,8 @@ class StaffUser(Record):
     password_hash: str
     court: int | None = None
     active: bool = True
+    # Set when an admin chooses the password: the user must pick their own at next login.
+    must_change_password: bool = False
 
 
 @dataclasses.dataclass(kw_only=True)

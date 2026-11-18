@@ -91,6 +91,7 @@ class StaffIn(BaseModel):
 
 
 class StaffPatch(BaseModel):
+    username: str | None = Field(default=None, max_length=40)
     court: int | None = None
     clear_court: bool = False
     active: bool | None = None
@@ -338,7 +339,8 @@ def list_staff(_: Admin, store: Db) -> list[dict[str, Any]]:
 
 @router.post("/staff", status_code=201)
 def add_staff(body: StaffIn, _: Admin, store: Db) -> dict[str, Any]:
-    return staff_out(auth.create_staff(store, **body.model_dump()))
+    # The admin chose this password, so it is temporary.
+    return staff_out(auth.create_staff(store, **body.model_dump(), must_change=True))
 
 
 @router.patch("/staff/{user_id}")

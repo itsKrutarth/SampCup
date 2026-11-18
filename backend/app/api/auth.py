@@ -1,6 +1,6 @@
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from app.api.deps import (
@@ -31,6 +31,11 @@ class StaffLogin(BaseModel):
     password: str = Field(max_length=72)
 
 
+class PasswordChange(BaseModel):
+    current_password: str = Field(max_length=72)
+    new_password: str = Field(max_length=72)
+
+
 @router.post("/auth/team-login")
 def team_login(body: TeamLogin, store: Db, request: Request) -> dict[str, Any]:
     limit(store, request, "login-ip", LOGIN_PER_IP)
@@ -45,6 +50,15 @@ def staff_login(body: StaffLogin, store: Db, request: Request) -> dict[str, Any]
     limit(store, request, "login", LOGIN_PER_ACCOUNT, body.username.strip().lower())
     token, user = auth.staff_login(store, body.username, body.password)
     return {"token": token, "kind": "staff", "user": staff_out(user)}
+
+
+@router.post("/auth/change-password")
+def change_password(body: PasswordChange, store: Db, session: SessionDep) -> dict[str, Any]:
+    user = store.get(StaffUser, session.staff_id) if session.staff_id else None
+    if user is None or not user.active:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Staff only")
+    user = auth.change_own_password(store, user, body.current_password, body.new_password)
+    return {"user": staff_out(user)}
 
 
 @router.post("/auth/logout", status_code=204)
