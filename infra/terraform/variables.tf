@@ -5,13 +5,13 @@ variable "environment" {
 }
 
 variable "domain_name" {
-  description = "The public site's domain (DNS stays at Namecheap)."
+  description = "The public site's domain (DNS in Route 53, see infra/foundation)."
   type        = string
   default     = "sampcup.com"
 }
 
 variable "enable_custom_domain" {
-  description = "Attach the domain to CloudFront. Turn on after the certificate's DNS records are in place."
+  description = "Serve the domain. infra/deploy.sh turns this on once the certificate is issued."
   type        = bool
   default     = false
 }

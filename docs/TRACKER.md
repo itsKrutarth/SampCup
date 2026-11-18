@@ -3,19 +3,21 @@
 The working record of the build. Read this first; update it after every chunk.
 Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_STAGES.md`.
 
-## Current position (2026-11-17, end of session)
-- **State:** the app is built, tested and was proven on real AWS with a full dummy-user
-  tournament. **The AWS stack is torn down** (owner's request while offline). Only the
-  Terraform state bucket `sampcup-tfstate-<account>` remains (a few KB, ~$0).
-- **Branch:** `main` (serverless version merged 2026-11-17; all six CI jobs green).
-- **To bring everything back:** `infra/deploy.sh apply` (about 5 minutes), then the
-  "After a fresh deploy" steps in `docs/DEPLOY.md` (create your admin, create the 9 judges).
+## Current position (2026-11-18)
+- **State:** live again at https://d289ph8jefh18c.cloudfront.net (redeployed 2026-11-18).
+  Empty except the 9 judge accounts and the event date. Registration is open but has no
+  players until the real export is uploaded.
+- **Branch:** `app/route53`, then merge to `main`.
+- **Domain (owner, 2026-11-18): Route 53.** `infra/foundation` holds the hosted zone and the
+  certificate and is kept through teardowns, so Namecheap's nameservers are set once.
+  Certificate: pending until Namecheap points at Route 53.
+- **Judges:** court-1..court-9 created; PINs are in `~/dev/sampcup-judge-pins.txt` on the
+  owner's Mac (outside the repo, owner-only file permissions). Never commit them.
 - **Next:**
-  1. Owner: say when to redeploy, and which email gets alarm emails.
-  2. Redeploy, create the real admin and judges, set registration open.
-  3. Connect sampcup.com (Namecheap records from `terraform output namecheap_records`).
-  4. Upload the real registration export (Admin → Players), never into git.
-  5. M10: tournament-day runbook and a paper fallback.
+  1. Owner: set Namecheap nameservers (below), create the admin account, give an alert email.
+  2. After the certificate is issued: `infra/deploy.sh apply` attaches sampcup.com.
+  3. Owner uploads the real registration export (Admin → Players).
+  4. M10: tournament-day runbook and paper fallback; failure drill on AWS.
 - **Event date:** Sunday, December 6, 2026. 9 judges (one per court); the owner is the admin.
 
 ## Needs from the owner
@@ -29,7 +31,9 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
 | 6 | Open `~/dev/SampCup` in VS Code from now on | Code stays out of OneDrive | Now | Waiting |
 | 7 | Awards | Not part of the app (owner's lead decides) | - | Closed |
 | 8 | Email address for alarm emails | Alerts on errors | Before the event | Waiting |
-| 9 | Add DNS records at Namecheap (values from Terraform) | sampcup.com | Before registration opens | Waiting |
+| 9 | Namecheap nameservers -> Route 53 (4 names from `infra/foundation.sh output name_servers`) | sampcup.com | Before registration opens | Waiting |
+| 11 | Create the admin account (`create-admin`, owner types the password) | Admin login | Now | Waiting |
+| 12 | Any email on @sampcup.com today (Namecheap forwarding)? | Must be re-created in Route 53 or it stops | Before the nameserver change | Waiting |
 | 10 | Optional: Service Quotas case to raise Lambda concurrency above 10 | Headroom | Before the event | Optional |
 
 ## Live test on AWS (2026-11-17, `tools/dummy_run.py`, all dummy data, then wiped)
@@ -51,6 +55,9 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
 - **Public repo:** secrets and real player data never enter git. Spreadsheets are git-ignored
   (also in the OneDrive copy's `.git/info/exclude`); CI runs a secret scan. The AWS account id
   is passed at `terraform init`, not committed.
+- **Route 53 for DNS (owner, 2026-11-18):** zone and certificate in `infra/foundation`
+  (long-lived, $0.50/month); the app stack adds the alias records. Registration stays at
+  Namecheap.
 - **Serverless AWS (owner, 2026-11-17):** CloudFront → S3 (site) and → Lambda function URL
   (API, Python 3.12 arm64, Mangum). DynamoDB on-demand with point-in-time recovery. No API
   Gateway, VPC, NAT or server. Everything by Terraform (`infra/`); state in S3 with native
@@ -120,6 +127,8 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
 - 2026-11-02: M0 finished. Full stack verified in Docker, CI green.
 - 2026-11-17: Registration export received (kept out of git). Range extended to 32-42. App
   built (M1-M7) on Postgres, merged to `main`.
+- 2026-11-18: Owner back; chose Route 53. Added `infra/foundation` (zone + certificate),
+  redeployed the app, set the event date, created the 9 judge accounts.
 - 2026-11-17: Owner chose serverless AWS with Terraform. Backend moved to DynamoDB + Lambda,
   frontend to polling, infrastructure written and deployed (28 resources), dummy tournament
   passed on AWS, two bugs fixed, then the stack was destroyed at the owner's request.

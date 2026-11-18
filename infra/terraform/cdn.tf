@@ -8,7 +8,8 @@ resource "aws_cloudfront_origin_access_control" "site" {
   signing_protocol                  = "sigv4"
 }
 
-# Single-page app: any path without a file extension gets index.html.
+# www.<domain> redirects to the bare domain; any path without a file extension gets
+# index.html (the app does its own routing).
 resource "aws_cloudfront_function" "spa" {
   name    = "${local.name}-spa"
   runtime = "cloudfront-js-2.0"
@@ -16,6 +17,14 @@ resource "aws_cloudfront_function" "spa" {
   code    = <<-JS
     function handler(event) {
       var request = event.request;
+      var host = request.headers.host ? request.headers.host.value : '';
+      if (host.indexOf('www.') === 0) {
+        return {
+          statusCode: 301,
+          statusDescription: 'Moved Permanently',
+          headers: { location: { value: 'https://' + host.substring(4) + request.uri } }
+        };
+      }
       if (request.uri.indexOf('.') === -1) {
         request.uri = '/index.html';
       }
@@ -84,19 +93,17 @@ resource "aws_cloudfront_response_headers_policy" "site" {
   }
 }
 
-resource "aws_acm_certificate" "site" {
-  domain_name               = var.domain_name
-  subject_alternative_names = ["www.${var.domain_name}"]
-  validation_method         = "DNS"
-  lifecycle {
-    create_before_destroy = true
-  }
+# The certificate and zone live in infra/foundation, so they survive a teardown.
+data "aws_acm_certificate" "site" {
+  count       = var.enable_custom_domain ? 1 : 0
+  domain      = var.domain_name
+  statuses    = ["ISSUED"]
+  most_recent = true
 }
 
-# Waits until the validation records exist at Namecheap; only used once the domain is on.
-resource "aws_acm_certificate_validation" "site" {
-  count           = var.enable_custom_domain ? 1 : 0
-  certificate_arn = aws_acm_certificate.site.arn
+data "aws_route53_zone" "main" {
+  count = var.enable_custom_domain ? 1 : 0
+  name  = var.domain_name
 }
 
 locals {
@@ -177,8 +184,26 @@ resource "aws_cloudfront_distribution" "main" {
 
   viewer_certificate {
     cloudfront_default_certificate = !var.enable_custom_domain
-    acm_certificate_arn            = var.enable_custom_domain ? aws_acm_certificate_validation.site[0].certificate_arn : null
+    acm_certificate_arn            = var.enable_custom_domain ? data.aws_acm_certificate.site[0].arn : null
     ssl_support_method             = var.enable_custom_domain ? "sni-only" : null
     minimum_protocol_version       = var.enable_custom_domain ? "TLSv1.2_2021" : "TLSv1"
+  }
+}
+
+# sampcup.com and www.sampcup.com -> CloudFront (IPv4 and IPv6). Alias records are free.
+resource "aws_route53_record" "site" {
+  for_each = var.enable_custom_domain ? {
+    "apex-a"    = { name = var.domain_name, type = "A" }
+    "apex-aaaa" = { name = var.domain_name, type = "AAAA" }
+    "www-a"     = { name = "www.${var.domain_name}", type = "A" }
+    "www-aaaa"  = { name = "www.${var.domain_name}", type = "AAAA" }
+  } : {}
+  zone_id = data.aws_route53_zone.main[0].zone_id
+  name    = each.value.name
+  type    = each.value.type
+  alias {
+    name                   = aws_cloudfront_distribution.main.domain_name
+    zone_id                = aws_cloudfront_distribution.main.hosted_zone_id
+    evaluate_target_health = false
   }
 }

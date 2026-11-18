@@ -13,4 +13,14 @@ shift || true
 ACCOUNT="$(aws sts get-caller-identity --query Account --output text)"
 cd "$HERE/terraform"
 terraform init -input=false -reconfigure -backend-config="bucket=sampcup-tfstate-${ACCOUNT}" >/dev/null
+# Serve sampcup.com as soon as the certificate (infra/foundation) is issued.
+if [ -z "${TF_VAR_enable_custom_domain:-}" ]; then
+  if aws acm list-certificates --certificate-statuses ISSUED \
+      --query "CertificateSummaryList[?DomainName=='sampcup.com'].CertificateArn" --output text | grep -q arn; then
+    export TF_VAR_enable_custom_domain=true
+  else
+    echo "Certificate not issued yet: deploying on the CloudFront address only."
+    export TF_VAR_enable_custom_domain=false
+  fi
+fi
 terraform "$ACTION" "$@"

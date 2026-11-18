@@ -65,7 +65,7 @@ jobs:
       - run: terraform fmt -check -recursive infra
       - name: Validate both Terraform configs
         run: |
-          for dir in infra/bootstrap infra/terraform; do
+          for dir in infra/bootstrap infra/foundation infra/terraform; do
             terraform -chdir="$dir" init -input=false -backend=false
             terraform -chdir="$dir" validate
           done
