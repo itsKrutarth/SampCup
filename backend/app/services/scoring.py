@@ -1,16 +1,25 @@
 """Judges' game actions, admin corrections, and moving winners through the bracket."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
-from app.models import Match, ScoreAudit, StaffUser
+from app.models import Match, ScoreAudit, StaffUser, Team
 from app.services.errors import Conflict, NotFound, ServiceError
 from app.services.schedule import save_match
 from app.services.standings import group_standings
+from app.services.tournament import get_tournament
 from app.store import ConflictError, Store
 from app.tournament.ranking import CLOCK_CAP, check_game, resolve_clock_end
 
 FIELDS = ("status", "score_a", "score_b", "end_reason", "seconds", "winner_id")
+# A game may start this much before its time, so a phone clock a little ahead is no problem.
+EARLY_GRACE = timedelta(minutes=1)
+
+
+def now() -> datetime:
+    """The server clock (tests move it to the tournament day)."""
+    return datetime.now(UTC)
 
 
 def get_match(store: Store, match_id: int) -> Match:
@@ -62,23 +71,46 @@ def _set_result(match: Match, score_a: int, score_b: int, end_reason: str, secon
     match.status = "completed"
 
 
-def start_match(store: Store, match_id: int, user: StaffUser) -> Match:
+def start_blocker(store: Store, match: Match, matches: list[Match] | None = None) -> str | None:
+    """Why this game cannot start yet, apart from its time; None when it can."""
+    if match.team_a_id is None or match.team_b_id is None:
+        return "The teams for this game are not known yet"
+    matches = store.all(Match) if matches is None else matches
+    by_code = {m.code: m for m in matches}
+    for code in match.prereqs:
+        before = by_code.get(code)
+        if before is not None and before.status not in ("completed", "cancelled"):
+            return f"Finish {code} first"
+    teams = {match.team_a_id, match.team_b_id}
+    for other in matches:
+        busy = teams & {other.team_a_id, other.team_b_id}
+        if other.id != match.id and other.status == "in_progress" and busy:
+            team = store.get(Team, busy.pop())
+            name = team.name if team else "A team"
+            return f"{name} is still playing on court {other.court}"
+    return None
+
+
+def venue_time(store: Store, when: datetime) -> str:
+    local = when.astimezone(ZoneInfo(get_tournament(store).timezone))
+    return f"{local.hour % 12 or 12}:{local.minute:02d} {'AM' if local.hour < 12 else 'PM'}"
+
+
+def start_match(store: Store, match_id: int, user: StaffUser, early: bool = False) -> Match:
+    """Start a game at its time, once both teams are free. Only an admin can start one early."""
     match = get_match(store, match_id)
     check_court(user, match)
     if match.status == "in_progress":
         return match
     if match.status != "scheduled":
         raise Conflict(f"This game is {match.status}")
-    if match.team_a_id is None or match.team_b_id is None:
-        raise Conflict("The teams for this game are not known yet")
-    if match.prereqs:
-        by_code = {m.code: m for m in store.all(Match)}
-        for code in match.prereqs:
-            before = by_code.get(code)
-            if before is not None and before.status not in ("completed", "cancelled"):
-                raise Conflict(f"Finish {code} first")
+    blocker = start_blocker(store, match)
+    if blocker:
+        raise Conflict(blocker)
+    if now() < match.scheduled_at - EARLY_GRACE and not (early and user.role == "admin"):
+        raise Conflict(f"This game starts at {venue_time(store, match.scheduled_at)}")
     old = _snapshot(match)
-    match.status, match.started_at = "in_progress", datetime.now(UTC)
+    match.status, match.started_at = "in_progress", now()
     match.score_a = match.score_b = 0
     save_match(store, match)
     _audit(store, match, "start", old, user.username)
@@ -127,9 +159,9 @@ def finish_match(
     elif match.status != "in_progress":
         raise Conflict(f"This game is {match.status}")
     old = _snapshot(match)
-    now = datetime.now(UTC)
-    elapsed = int((now - match.started_at).total_seconds()) if match.started_at else CLOCK_CAP
-    match.ended_at = now
+    ended = now()
+    elapsed = int((ended - match.started_at).total_seconds()) if match.started_at else CLOCK_CAP
+    match.ended_at = ended
     _set_result(match, score_a, score_b, end_reason, elapsed)
     save_match(store, match)
     _audit(store, match, "final", old, user.username)
@@ -148,7 +180,7 @@ def forfeit_match(
     if match.team_a_id is None or match.team_b_id is None:
         raise Conflict("The teams for this game are not known yet")
     old = _snapshot(match)
-    match.ended_at = datetime.now(UTC)
+    match.ended_at = now()
     _set_result(match, *((11, 0) if winner == "a" else (0, 11)), "forfeit", CLOCK_CAP)
     save_match(store, match)
     _audit(store, match, "forfeit", old, user.username)

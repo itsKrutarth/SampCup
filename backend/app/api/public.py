@@ -31,6 +31,15 @@ def phase(matches: list[Match], champion: int | None) -> str:
     return "group_play" if "group" in started else "scheduled"
 
 
+def court_games(matches: list[Match]) -> dict[int, Match]:
+    """Each court's game now, else its next one (`matches` in schedule order)."""
+    games = {m.court: m for m in matches if m.status == "in_progress"}
+    for m in matches:
+        if m.status == "scheduled":
+            games.setdefault(m.court, m)
+    return games
+
+
 @router.get("/overview")
 def overview(store: Db) -> dict[str, Any]:
     tournament = get_tournament(store)
@@ -63,6 +72,10 @@ def overview(store: Db) -> dict[str, Any]:
             if m.status == "in_progress"
         ],
         "upcoming": [look.match(m) for m in upcoming],
+        "courts": [
+            {"court": court, "match": look.match(m)}
+            for court, m in sorted(court_games(matches).items())
+        ],
         "champion": team_brief(look.team_of(champion)),
     }
 

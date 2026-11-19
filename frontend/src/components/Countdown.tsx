@@ -1,14 +1,9 @@
-import { useEffect, useState } from 'react'
-
+import { useNow } from '../lib/clock'
 import { venueTimeToIso } from '../lib/format'
 
 /** Days, hours, minutes and seconds to the first serve; nothing once it has started. */
 export default function Countdown({ eventDate }: { eventDate: string }) {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(id)
-  }, [])
+  const now = useNow()
   const left = Math.floor((Date.parse(venueTimeToIso(eventDate, '10:00')) - now) / 1000)
   if (left <= 0) return null
   const parts = [

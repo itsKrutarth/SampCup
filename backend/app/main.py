@@ -21,7 +21,9 @@ SECURITY_HEADERS = {
     "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
 }
 # Public pages are the same for everyone: CloudFront may serve them for 3 seconds.
-PUBLIC_CACHE = "public, max-age=0, s-maxage=3"
+# CloudFront keeps a page 3s; it may serve the last copy while it fetches a new one, or for a
+# minute if the server is failing, so a busy moment never blanks the public pages.
+PUBLIC_CACHE = "public, max-age=0, s-maxage=3, stale-while-revalidate=10, stale-if-error=60"
 
 logger = logging.getLogger("sampcup")
 

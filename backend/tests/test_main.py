@@ -14,7 +14,7 @@ from app.store import Store, get_store
 def test_headers_on_api_responses(client: TestClient) -> None:
     response = client.get("/api/public/teams")
     assert response.headers["x-frame-options"] == "DENY"
-    assert response.headers["cache-control"] == "public, max-age=0, s-maxage=3"
+    assert response.headers["cache-control"].startswith("public, max-age=0, s-maxage=3,")
     assert client.get("/api/health").headers["cache-control"] == "no-store"
     assert client.get("/api/public/teams/99").headers["cache-control"] == "no-store"
     assert "content-security-policy" not in client.get("/api/docs").headers

@@ -22,7 +22,7 @@ export function useLiveUpdates(onChange: () => void, everyMs = 4000): void {
   }, [onChange, everyMs])
 }
 
-type State<T> = { key?: string; data?: T; error?: ApiError }
+type State<T> = { key?: string; data?: T; at?: number; error?: ApiError }
 
 /** GET `path` (null = skip), refetched on live updates and on `reload()`. */
 export function useApi<T>(path: string | null, token?: string | null, everyMs = 4000) {
@@ -35,7 +35,7 @@ export function useApi<T>(path: string | null, token?: string | null, everyMs = 
     if (path === null) return
     let cancelled = false
     api<T>(path, { token }).then(
-      (data) => !cancelled && setState({ key, data }),
+      (data) => !cancelled && setState({ key, data, at: Date.now() }),
       (error: ApiError) => !cancelled && setState((s) => ({ ...s, key, error })),
     )
     return () => {
@@ -45,6 +45,8 @@ export function useApi<T>(path: string | null, token?: string | null, everyMs = 
   const current = state.key === key
   return {
     data: state.data,
+    /** When `data` arrived (ms), e.g. to line a countdown up with a server time in it. */
+    receivedAt: state.at,
     error: current ? state.error : undefined,
     loading: path !== null && !current,
     reload,

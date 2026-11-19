@@ -178,6 +178,35 @@ a {
   background: var(--gold);
 }
 
+.venue-clock {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--cream);
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.venue-clock svg {
+  color: var(--gold);
+}
+
+.venue-clock small {
+  font-family: var(--font-body);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
 .page {
   max-width: 72rem;
   margin: 0 auto;
@@ -197,6 +226,10 @@ a {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     background: var(--surface);
+  }
+
+  .venue-clock {
+    margin-left: auto; /* the nav is the bottom tab bar here */
   }
 
   .nav {

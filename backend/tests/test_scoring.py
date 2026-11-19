@@ -3,11 +3,11 @@ import datetime as dt
 import pytest
 from fastapi.testclient import TestClient
 
-from app.models import Match, ScoreAudit
+from app.models import Match, ScoreAudit, Team
 from app.services import scoring
 from app.services.auth import create_staff
 from app.store import ConflictError, Store
-from tests.conftest import login
+from tests.conftest import login, set_clock
 from tests.factories import find, seeded
 
 
@@ -100,6 +100,79 @@ def test_judges_stay_on_their_court(
     assert client.get("/api/judge/matches", headers=floater).json()["court"] is None
     missing = client.post("/api/judge/matches/99999/start", headers=floater)
     assert missing.status_code == 404
+
+
+def test_games_start_at_their_time_and_only_admins_start_early(
+    client: TestClient,
+    store: Store,
+    judge: dict,
+    admin: dict,
+    game: Match,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    set_clock(monkeypatch, game.scheduled_at - dt.timedelta(minutes=5))
+    board = client.get("/api/judge/matches", headers=judge).json()
+    assert board["current"]["id"] == game.id and board["waiting"] is None
+    assert dt.datetime.fromisoformat(board["now"]) < game.scheduled_at
+    response = act(client, judge, game, "start")
+    assert response.status_code == 409
+    assert response.json()["detail"] == "This game starts at 10:00 AM"
+    assert act(client, judge, game, "start", early=True).status_code == 409  # judges can't
+    late = act(client, judge, game, "finish", score_a=11, score_b=2, end_reason="reached_11")
+    assert late.status_code == 409  # finishing an unstarted game starts it, so also not yet
+    assert act(client, admin, game, "start", early=True).json()["status"] == "in_progress"
+
+    other = min((m for m in store.all(Match) if m.court == 2), key=lambda m: m.scheduled_at)
+    create_staff(store, "judge2", "1234", "judge", court=2)
+    set_clock(monkeypatch, other.scheduled_at - dt.timedelta(seconds=30))  # phone clock ahead
+    assert act(client, login(client, "judge2", "1234"), other, "start").status_code == 200
+
+
+def test_a_team_plays_one_game_at_a_time(
+    client: TestClient, store: Store, judge: dict, admin: dict, game: Match
+) -> None:
+    teams = {game.team_a_id, game.team_b_id}
+    other = next(
+        m
+        for m in scoring_order(store)
+        if m.court != game.court and teams & {m.team_a_id, m.team_b_id}
+    )
+    assert act(client, admin, other, "start").status_code == 200
+    busy = store.get(Team, (teams & {other.team_a_id, other.team_b_id}).pop())
+    message = f"{busy.name} is still playing on court {other.court}"
+    board = client.get("/api/judge/matches", headers=judge).json()
+    assert board["current"]["id"] == game.id and board["waiting"] == message
+    response = act(client, judge, game, "start")
+    assert response.status_code == 409 and response.json()["detail"] == message
+    act(client, admin, other, "finish", score_a=11, score_b=4, end_reason="reached_11")
+    assert client.get("/api/judge/matches", headers=judge).json()["waiting"] is None
+    assert act(client, judge, game, "start").status_code == 200
+
+
+def test_the_court_board_shows_each_courts_own_next_game(
+    client: TestClient, store: Store, judge: dict, game: Match
+) -> None:
+    courts = client.get("/api/public/overview").json()["courts"]
+    first = {
+        c: min((m for m in store.all(Match) if m.court == c), key=lambda m: m.scheduled_at)
+        for c in range(1, 10)
+    }
+    assert [(c["court"], c["match"]["id"]) for c in courts] == [(c, first[c].id) for c in first]
+    act(client, judge, game, "start")
+    act(client, judge, game, "finish", score_a=11, score_b=4, end_reason="reached_11")
+    courts = client.get("/api/public/overview").json()["courts"]
+    nxt = sorted(
+        (m for m in store.all(Match) if m.court == 1 and m.status == "scheduled"),
+        key=lambda m: m.scheduled_at,
+    )[0]
+    assert courts[0]["match"]["id"] == nxt.id and courts[0]["match"]["status"] == "scheduled"
+    act(client, judge, nxt, "start")
+    live = client.get("/api/public/overview").json()["courts"][0]["match"]
+    assert live["id"] == nxt.id and live["status"] == "in_progress"
+
+
+def scoring_order(store: Store) -> list[Match]:
+    return sorted(store.all(Match), key=lambda m: (m.scheduled_at, m.court))
 
 
 def test_knockout_games_wait_for_their_teams_and_earlier_rounds(

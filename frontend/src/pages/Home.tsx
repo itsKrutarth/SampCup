@@ -89,7 +89,8 @@ export function ChampionCard({ name }: { name: string }) {
 function AccountActions({ registrationOpen }: { registrationOpen: boolean }) {
   const { auth } = useAuth()
   const player = auth?.kind === 'player'
-  const me = useApi<{ team: unknown }>(player ? '/player/me' : null, auth?.token)
+  // only picks which buttons to show, so a slow refresh is plenty (and spares the server)
+  const me = useApi<{ team: unknown }>(player ? '/player/me' : null, auth?.token, 60_000)
   if (auth?.kind === 'staff') return null
   if (player) {
     if (!me.data) return null
@@ -206,7 +207,7 @@ export default function Home() {
             </h2>
             <Link to="/schedule">Order of play</Link>
           </div>
-          <CourtBoard live={data.live} upcoming={data.upcoming} />
+          <CourtBoard courts={data.courts} />
         </section>
       )}
       {data.upcoming.length > 0 && (

@@ -26,6 +26,10 @@ class Forfeit(BaseModel):
     winner: str
 
 
+class Start(BaseModel):
+    early: bool = False  # admins only: start before the game's time
+
+
 def _out(store: Db, match: Match, warnings: list[str] | None = None) -> dict[str, Any]:
     return {**Lookup(store).match(match), "warnings": warnings or []}
 
@@ -33,23 +37,32 @@ def _out(store: Db, match: Match, warnings: list[str] | None = None) -> dict[str
 @router.get("/matches")
 def matches(user: Staff, store: Db, court: int | None = None) -> dict[str, Any]:
     court = user.court if user.role == "judge" and user.court else court
-    rows = ordered(store.all(Match))
+    every = store.all(Match)
+    rows = ordered(every)
     if court:
         rows = [m for m in rows if m.court == court]
     current = next((m for m in rows if m.status == "in_progress"), None) or next(
         (m for m in rows if m.status == "scheduled" and m.team_a_id and m.team_b_id), None
     )
     look = Lookup(store)
+    waiting = (
+        scoring.start_blocker(store, current, every)
+        if current and current.status == "scheduled"
+        else None
+    )
     return {
         "court": court,
+        "now": scoring.now().isoformat(),  # so the judge's countdown follows the server clock
         "current": look.match(current) if current else None,
+        "waiting": waiting,
         "matches": [look.match(m) for m in rows],
     }
 
 
 @router.post("/matches/{match_id}/start")
-def start(match_id: int, user: Staff, store: Db) -> dict[str, Any]:
-    return _out(store, scoring.start_match(store, match_id, user))
+def start(match_id: int, user: Staff, store: Db, body: Start | None = None) -> dict[str, Any]:
+    early = body is not None and body.early
+    return _out(store, scoring.start_match(store, match_id, user, early=early))
 
 
 @router.post("/matches/{match_id}/score")

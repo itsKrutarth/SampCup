@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { groups, match, overview, team, teamPage } from '../../test/data'
 import { ADMIN, fail, JUDGE, mockApi, PLAYER, renderAt } from '../../test/utils'
@@ -57,9 +57,13 @@ describe('home page', () => {
       'GET /public/overview': overview({
         phase: 'group_play',
         live: [match({ id: 5, status: 'in_progress', score_a: 4, score_b: 2 })],
-        upcoming: [
-          match({ id: 6, court: 2 }),
-          match({ id: 7, code: 'R16-1', phase: 'knockout', group: null, round: 'Round of 16', court: 3, team_a: null, team_b: null, source_a: 'Group A 1st', source_b: 'Group B 4th' }),
+        upcoming: [match({ id: 6, court: 2 })],
+        courts: [
+          { court: 1, match: match({ id: 5, status: 'in_progress', score_a: 4, score_b: 2 }) },
+          { court: 2, match: match({ id: 6, court: 2 }) },
+          { court: 3, match: match({ id: 7, code: 'R16-1', phase: 'knockout', group: null, round: 'Round of 16', court: 3, team_a: null, team_b: null, source_a: 'Group A 1st', source_b: 'Group B 4th' }) },
+          // later than the next few games overall, but still this court's next game
+          { court: 4, match: match({ id: 8, court: 4, scheduled_at: '2026-12-12T20:00:00Z' }) },
         ],
       }),
       'GET /public/standings': { groups },
@@ -71,6 +75,7 @@ describe('home page', () => {
     expect(within(court1).getByText('4')).toBeInTheDocument()
     expect(within(screen.getByRole('article', { name: 'Court 2' })).getByText('Next')).toBeInTheDocument()
     expect(within(screen.getByRole('article', { name: 'Court 3' })).getByText('Group B 4th')).toBeInTheDocument()
+    expect(within(screen.getByRole('article', { name: 'Court 4' })).getByText('Next')).toBeInTheDocument()
     expect(within(screen.getByRole('article', { name: 'Court 9' })).getByText('Free')).toBeInTheDocument()
     const board = await screen.findByRole('region', { name: 'Leaderboard' })
     expect(within(board).getByText('2-0')).toBeInTheDocument()
@@ -95,6 +100,17 @@ describe('navigation', () => {
     renderAt('/nowhere', auth)
     expect(screen.getByText('Page not found.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: label })).toHaveAttribute('href', href)
+  })
+
+  it('shows the time at the venue in the header', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-12-06T19:05:00Z'))
+    mockApi({})
+    renderAt('/nowhere')
+    const clock = screen.getByTitle('Time at the venue')
+    expect(clock).toHaveTextContent('2:05PM')
+    expect(clock).toHaveAttribute('datetime', '2026-12-06T19:05:00.000Z')
+    vi.useRealTimers()
   })
 })
 

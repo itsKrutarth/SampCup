@@ -49,6 +49,7 @@ export function overview(overrides: Partial<Overview> = {}): Overview {
     announcements: [],
     live: [],
     upcoming: [],
+    courts: [],
     champion: null,
     ...overrides,
   }

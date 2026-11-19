@@ -1,15 +1,15 @@
-import type { Match } from '../lib/types'
+import type { CourtGame } from '../lib/types'
 import TeamAvatar from './TeamAvatar'
 
 const COURTS = Array.from({ length: 9 }, (_, i) => i + 1)
 
-/** One tile per court: the game on it now, else the next one, else free. */
-export default function CourtBoard({ live, upcoming }: { live: Match[]; upcoming: Match[] }) {
+/** One tile per court: the game on it now, else that court's next one, else free. */
+export default function CourtBoard({ courts }: { courts: CourtGame[] }) {
   return (
     <div className="court-board">
       {COURTS.map((court) => {
-        const now = live.find((m) => m.court === court)
-        const game = now ?? upcoming.find((m) => m.court === court)
+        const game = courts.find((c) => c.court === court)?.match
+        const now = game?.status === 'in_progress'
         return (
           <article key={court} className={now ? 'court-tile on' : 'court-tile'} aria-label={`Court ${court}`}>
             <header>

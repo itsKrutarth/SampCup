@@ -46,8 +46,12 @@ export type Overview = {
   announcements: Announcement[]
   live: Match[]
   upcoming: Match[]
+  /** Each court's game now, else its next one; courts with nothing left are missing. */
+  courts: CourtGame[]
   champion: TeamBrief | null
 }
+
+export type CourtGame = { court: number; match: Match }
 
 export type StandingRow = {
   rank: number

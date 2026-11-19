@@ -1,10 +1,11 @@
-import { Flag, LogOut, Minus, Play, Plus, Timer as TimerIcon, Wifi, WifiOff } from 'lucide-react'
+import { Clock3, Flag, Hourglass, LogOut, Minus, Play, Plus, Timer as TimerIcon, Wifi, WifiOff } from 'lucide-react'
 import { useEffect, useState, useSyncExternalStore, type CSSProperties } from 'react'
 import { Navigate, useSearchParams } from 'react-router'
 
 import { teamLabel } from '../components/MatchCard'
 import Status from '../components/Status'
 import { useAuth } from '../lib/auth'
+import { useNow } from '../lib/clock'
 import { clock, time } from '../lib/format'
 import { useApi } from '../lib/live'
 import { judgeQueue, type Action } from '../lib/queue'
@@ -12,13 +13,12 @@ import type { Match } from '../lib/types'
 
 const GAME_SECONDS = 12 * 60
 
-function useNow(): number {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(id)
-  }, [])
-  return now
+type Board = { court: number | null; now: string; current: Match | null; waiting: string | null; matches: Match[] }
+
+/** "4:05" under an hour, else "2h 15m". */
+export function untilStart(seconds: number): string {
+  if (seconds < 3600) return clock(seconds)
+  return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`
 }
 
 type Send = (action: Action, body?: Record<string, unknown>) => void
@@ -34,7 +34,19 @@ function Timer({ startedAt }: { startedAt: number }) {
   )
 }
 
-export function ScoreCard({ match, send }: { match: Match; send: Send }) {
+type CardProps = {
+  match: Match
+  send: Send
+  /** Why the game can't start yet, apart from its time (a team still on another court). */
+  waiting?: string | null
+  /** Server clock minus this phone's clock (ms), so the countdown matches the server. */
+  offset?: number
+  /** Admins may start a game before its time. */
+  canStartEarly?: boolean
+}
+
+export function ScoreCard({ match, send, waiting = null, offset = 0, canStartEarly = false }: CardProps) {
+  const now = useNow() + offset
   const [scores, setScores] = useState<[number, number]>([match.score_a ?? 0, match.score_b ?? 0])
   const [startedAt, setStartedAt] = useState<number | null>(
     match.started_at ? Date.parse(match.started_at) : null,
@@ -56,6 +68,13 @@ export function ScoreCard({ match, send }: { match: Match; send: Send }) {
 
   if (step === 'sent') return <p role="status" className="success">Result sent. The next game loads when it is confirmed.</p>
   if (startedAt === null) {
+    // games start at their time, never as soon as the court is free
+    const wait = Math.ceil((Date.parse(match.scheduled_at) - now) / 1000)
+    const early = wait > 0
+    const begin = (body?: Record<string, unknown>) => {
+      setStartedAt(Date.now())
+      send('start', body)
+    }
     return (
       <section className="scorecard" aria-label="Current game">
         <h2>
@@ -64,18 +83,32 @@ export function ScoreCard({ match, send }: { match: Match; send: Send }) {
         <p className="versus">
           {names[0]} <span>vs</span> {names[1]}
         </p>
+        {waiting ? (
+          <p role="status" className="warning">
+            <Hourglass size={18} /> {waiting}
+          </p>
+        ) : (
+          early && (
+            <p className="countdown-start" role="timer" aria-label="Time until this game starts">
+              <Clock3 size={18} /> Starts in <strong>{untilStart(wait)}</strong>
+            </p>
+          )
+        )}
         <button
           type="button"
           className="big"
           style={{ width: '100%' }}
-          onClick={() => {
-            setStartedAt(Date.now())
-            send('start')
-          }}
+          disabled={Boolean(waiting) || early}
+          onClick={() => begin()}
         >
           <Play size={26} />
-          Start game
+          {early ? `Start at ${time(match.scheduled_at)}` : 'Start game'}
         </button>
+        {canStartEarly && early && !waiting && (
+          <button type="button" className="secondary" onClick={() => begin({ early: true })}>
+            Start early (admin)
+          </button>
+        )}
         <ForfeitButtons names={names} send={send} onDone={() => setStep('sent')} />
       </section>
     )
@@ -160,16 +193,19 @@ export default function Judge() {
   const fixedCourt = auth?.role === 'judge' ? auth.court : null
   const court = fixedCourt ?? (Number(params.get('court')) || null)
   const path = court ? `/judge/matches?court=${court}` : '/judge/matches'
-  const { data, loading, error, reload } = useApi<{ court: number | null; current: Match | null; matches: Match[] }>(
-    token ? path : null,
-    token,
-  )
+  const { data, receivedAt, loading, error, reload } = useApi<Board>(token ? path : null, token)
   const queue = useSyncExternalStore(judgeQueue.subscribe, judgeQueue.getState)
+  // a refused start (say, a team still on another court) puts the Start button back
+  const [refusedStarts, setRefusedStarts] = useState(0)
 
   useEffect(() => {
     judgeQueue.token = token
     judgeQueue.onSent = (match) => {
       if (match.status === 'completed' || match.status === 'cancelled') reload()
+    }
+    judgeQueue.onRefused = (item) => {
+      if (item.action === 'start') setRefusedStarts((n) => n + 1)
+      reload()
     }
     const retry = () => void judgeQueue.flush()
     retry()
@@ -179,6 +215,7 @@ export default function Judge() {
       clearInterval(id)
       window.removeEventListener('online', retry)
       judgeQueue.onSent = null
+      judgeQueue.onRefused = null
     }
   }, [token, reload])
 
@@ -219,8 +256,11 @@ export default function Judge() {
       {data && !data.current && <p>No game is ready on this court right now.</p>}
       {data?.current && (
         <ScoreCard
-          key={data.current.id}
+          key={`${data.current.id}-${refusedStarts}`}
           match={data.current}
+          waiting={data.waiting}
+          offset={receivedAt ? Date.parse(data.now) - receivedAt : 0}
+          canStartEarly={auth?.role === 'admin'}
           send={(action, body) => void judgeQueue.push({ matchId: data.current!.id, action, body })}
         />
       )}

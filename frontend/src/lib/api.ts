@@ -31,7 +31,8 @@ async function send(path: string, { method = 'GET', body, token, form }: Options
   }
   let response: Response
   try {
-    response = await fetch(`/api${path}`, { method, headers, body: payload })
+    // no-cache: the browser always asks; CloudFront still answers public pages from its cache
+    response = await fetch(`/api${path}`, { method, headers, body: payload, cache: 'no-cache' })
   } catch {
     throw new ApiError(0, 'Cannot reach the server. Check your connection.')
   }

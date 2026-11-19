@@ -118,6 +118,17 @@ describe('the player page', () => {
     expect(screen.queryByRole('button', { name: 'Accept' })).not.toBeInTheDocument()
   })
 
+  it("shows a teamed player's games from the public team page", async () => {
+    const { calls } = mockApi({
+      'GET /player/me': page({ team: teamPage({ players: [{ id: 1, name: 'Aarav Tester' }, { id: 2, name: 'Dev Tester' }] }) }),
+      'GET /public/teams/1': teamPage({ players: [{ id: 1, name: 'Aarav Tester' }, { id: 2, name: 'Dev Renamed' }] }),
+    })
+    renderAt('/my-team', PLAYER)
+    const mine = await screen.findByRole('region', { name: 'My team' })
+    expect(await within(mine).findByText('Aarav Tester & Dev Renamed')).toBeInTheDocument()
+    expect(calls.find((c) => c.path === '/public/teams/1')?.headers).not.toHaveProperty('Authorization')
+  })
+
   it('shows refused invitations and lets the sender cancel', async () => {
     let cancelled = false
     mockApi({

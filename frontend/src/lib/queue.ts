@@ -21,6 +21,7 @@ export class ActionQueue {
   private state: State = { pending: this.items.length, error: null, offline: false }
   token: string | null = null
   onSent: ((match: Match) => void) | null = null
+  onRefused: ((item: Queued) => void) | null = null
 
   subscribe = (listener: () => void) => {
     this.listeners.add(listener)
@@ -75,6 +76,7 @@ export class ActionQueue {
           }
           this.items.shift() // the server refused it; keeping it would block the queue
           this.update({ error: error.message, offline: false })
+          this.onRefused?.(item)
         }
       }
     } finally {

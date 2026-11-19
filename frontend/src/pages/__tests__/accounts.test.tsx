@@ -76,6 +76,7 @@ describe('home page states', () => {
         phase: 'group_play',
         tournament: { ...overview().tournament, event_date: '2020-01-01', name: 'SAMP Cup' },
         live: [match({ status: 'in_progress', team_b: { id: 9, name: 'New Pair', number: null, group: null } })],
+        courts: [{ court: 1, match: match({ status: 'in_progress', team_b: { id: 9, name: 'New Pair', number: null, group: null } }) }],
       }),
     })
     renderAt('/')

@@ -3,10 +3,29 @@
 The working record of the build. Read this first; update it after every chunk.
 Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_STAGES.md`.
 
-## Current position (2026-11-18, later)
+## Current position (2026-11-18, evening)
 - **State:** live at **https://sampcup.com**. The owner (admin `imgp004`) imported the real
   registration export. Alarm emails go to the owner (subscription confirmation pending).
-- **Branch:** `app/brand-and-staff` (brand redesign + staff accounts), then deploy and merge.
+- **Branch:** `app/court-and-start-rules` (fixes from the mock tournament), then deploy and merge.
+- **Mock tournament findings (2026-11-18, `tools/mock_tournament.py` on prod, then restored):**
+  - Games started as soon as a court was free, so 24 times a team was in two games at once.
+    Now a game starts only at its scheduled time (1 minute grace for phone clocks) and only
+    when neither team is still playing elsewhere. Admins can start a game early. The judge
+    screen shows the time, a countdown and why it is waiting; Start stays locked until then.
+  - The home page court board showed "Free" for courts whose next game was not among the next
+    9 games overall. The overview now sends each court's own game (`courts`).
+  - A small venue-time clock sits in the header on every page.
+  - Load test (100 logged-in players, 60 spectators, 9 judges, 3 minutes): the account's
+    limit of 10 Lambda runs at once was reached and ~5% of requests got 429. Requests are
+    CPU-bound (parsing DynamoDB replies, ~160 ms at 512 MB). Fixes: Lambda memory 1769 MB
+    (one vCPU, same GB-seconds bill), players' pages poll less (account every 30s, team page
+    every 10s from the cached public page; home page account check every 60s), CloudFront may
+    serve a stale public page while refreshing (`stale-while-revalidate`, `stale-if-error`).
+    Re-run the load test after deploying.
+  - The 9 judges predated temporary PINs; now flagged to choose their own PIN at first login
+    (done in the data after the restore).
+  - Restore: prod is back to the real registrations. One real player claimed their account
+    during the mock (claims stay open while registration is closed); that login was kept.
 - **This chunk (owner requests, 2026-11-18):**
   - Staff usernames are the display name, unique, renamable by admins, and the login.
   - A password or PIN set by an admin is temporary: the user must choose their own at the
@@ -142,6 +161,9 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   local stack (DynamoDB Local), secret scan.
 
 ## Session log
+- 2026-11-18 (evening): Mock tournament run twice on prod with the real registrations (teams
+  by center, dummy partners for odd centers), then restored from a snapshot. Fixed the start
+  rules, the court board and the server load found by it (see Current position).
 - 2026-11-02: Tournament structure final. Application build started. Workspace moved out of OneDrive.
 - 2026-11-02: M0 finished. Full stack verified in Docker, CI green.
 - 2026-11-17: Registration export received (kept out of git). Range extended to 32-42. App

@@ -1,15 +1,18 @@
 """Run a mock tournament on a deployed SampCup with the real registrations.
 
 Pairs the registered players within their own center (a dummy partner fills each odd
-center), checks every team in, draws, schedules and plays every game on 9 courts at a
-watchable pace, so the live site shows a real-looking day. Take a snapshot first
-(tools/snapshot.py) and restore it afterwards.
+center), checks every team in, draws, schedules and plays the day on 9 courts, so the live
+site shows a real-looking day. Games follow the schedule on a fast clock (--speed 20: the
+day's 9 hours in about half an hour): each game starts at its own time, never just because
+its court is free, and waits while one of its teams is still playing elsewhere. Take a
+snapshot first (tools/snapshot.py) and restore it afterwards.
 
     MOCK_ADMIN_PASSWORD=... python tools/mock_tournament.py https://sampcup.com \
-        --admin mock-admin [--seconds-per-game 6]
+        --admin mock-admin [--speed 20]
 """
 
 import argparse
+import datetime as dt
 import os
 import random
 import sys
@@ -44,9 +47,11 @@ def add_dummy_partners(table: str) -> int:
     return len(odd)
 
 
-def play_court(base: str, token: str, court: int, pace: float) -> int:
+def play_court(base: str, token: str, court: int, speed: float, day_start: dt.datetime,
+               wall_start: float) -> int:
     rng = random.Random(court)  # noqa: S311
-    api = Api(base, token)
+    api = Api(base)
+    api.token = token
     played = 0
     while True:
         _, board = api.call("GET", f"/judge/matches?court={court}")
@@ -57,11 +62,21 @@ def play_court(base: str, token: str, court: int, pace: float) -> int:
             time.sleep(2)
             continue
         url = f"/judge/matches/{game['id']}"
-        if rng.random() < 0.03:
-            api.call("POST", f"{url}/forfeit", {"winner": rng.choice("ab")})
-            played += 1
-            continue
-        api.call("POST", f"{url}/start")
+        if game["status"] == "scheduled":
+            # the game's time on the fast clock; the real day is weeks away, so the admin
+            # starts it "early", exactly when the fast clock reaches it
+            due = wall_start + (dt.datetime.fromisoformat(game["scheduled_at"]) - day_start).total_seconds() / speed
+            if time.time() < due or board["waiting"]:
+                time.sleep(min(2.0, max(0.2, due - time.time())))
+                continue
+            if rng.random() < 0.03:
+                api.call("POST", f"{url}/forfeit", {"winner": rng.choice("ab")})
+                played += 1
+                continue
+            status, _ = api.call("POST", f"{url}/start", {"early": True}, ok=(200, 409))
+            if status == 409:  # a team got busy meanwhile
+                continue
+        pace = rng.uniform(8, 12) * 60 / speed  # an 8-12 minute game on the fast clock
         winner, loser_points = rng.choice("ab"), rng.randint(2, 10)
         a = b = 0
         for _ in range(4):  # a few live score updates, so the site shows rallies
@@ -72,8 +87,7 @@ def play_court(base: str, token: str, court: int, pace: float) -> int:
                 a, b = min(loser_points, a + rng.randint(0, 2)), min(10, b + rng.randint(2, 3))
             api.call("POST", f"{url}/score", {"score_a": a, "score_b": b})
         time.sleep(pace / 5)
-        roll = rng.random()
-        if roll < 0.15:
+        if rng.random() < 0.15:
             body = {"score_a": 8, "score_b": 8, "end_reason": "clock_lead", "sudden_death_winner": winner}
         else:
             body = ({"score_a": 11, "score_b": loser_points} if winner == "a"
@@ -87,7 +101,7 @@ def main() -> None:
     parser.add_argument("base")
     parser.add_argument("--admin", default="mock-admin")
     parser.add_argument("--table", default="sampcup-prod")
-    parser.add_argument("--seconds-per-game", type=float, default=6)
+    parser.add_argument("--speed", type=float, default=20, help="how much faster than real time")
     args = parser.parse_args()
     base = args.base
     admin = Api(base)
@@ -126,10 +140,13 @@ def main() -> None:
     admin.call("POST", "/admin/schedule/lock", {"locked": True})
     print(f"  ok  {made['matches']} games scheduled and locked")
 
-    print(f"4. Playing on 9 courts (about {args.seconds_per_game:g}s per game) - watch {base}")
+    _, games = Api(base).call("GET", "/public/schedule")
+    day_start = min(dt.datetime.fromisoformat(m["scheduled_at"]) for m in games)
+    print(f"4. Playing the schedule on 9 courts at {args.speed:g}x speed - watch {base}")
     started = time.time()
     with ThreadPoolExecutor(9) as pool:
-        played = list(pool.map(lambda c: play_court(base, admin.token, c, args.seconds_per_game), range(1, 10)))
+        played = list(pool.map(lambda c: play_court(base, admin.token, c, args.speed, day_start, started),
+                               range(1, 10)))
     print(f"  ok  {sum(played)} games in {time.time() - started:.0f}s")
 
     print("5. Result")

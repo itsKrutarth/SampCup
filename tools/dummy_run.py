@@ -8,6 +8,7 @@ table, then wipe it with `python -m app.cli reset-data --yes`. Usage:
 """
 
 import argparse
+import datetime as dt
 import io
 import json
 import os
@@ -117,6 +118,8 @@ def judge_court(base: str, court: int, pin: str) -> int:
     _, login = api.call("POST", "/auth/staff-login", {"username": f"dummy-judge-{court}",
                                                       "password": pin})
     api.token = login["token"]
+    if login["user"]["must_change_password"]:  # an admin-set PIN is only for the first login
+        api.call("POST", "/auth/change-password", {"current_password": pin, "new_password": f"{pin}-own"})
     played, idle = 0, 0
     while not stop.is_set():
         _, board = api.call("GET", "/judge/matches")
@@ -183,7 +186,9 @@ def main() -> None:
     print("1. Settings and roster")
     _, summary = admin.call("GET", "/admin/summary")
     check(summary["players"] == 0, "the table starts empty")
-    admin.call("PATCH", "/admin/tournament", {"event_date": "2026-12-06", "registration_open": True,
+    # yesterday: games only start at their time, so the whole made-up day is already due
+    day = (dt.date.today() - dt.timedelta(days=1)).isoformat()
+    admin.call("PATCH", "/admin/tournament", {"event_date": day, "registration_open": True,
                                               "team_cap": 42})
     n_pairs = args.teams + 1  # one extra pair must land on the waitlist
     body, content_type = multipart("dummy.xlsx", roster(n_pairs * 2))
@@ -226,7 +231,7 @@ def main() -> None:
     _, made = admin.call("POST", "/admin/schedule")
     _, matches = public.call("GET", "/public/schedule")
     check(made["matches"] == len(matches), f"schedule generated: {len(matches)} games")
-    check(matches[0]["scheduled_at"].startswith("2026-12-06T15:00"), "first game 10:00 AM on Dec 6")
+    check(matches[0]["scheduled_at"].startswith(day), f"first game on {day}")
     admin.call("POST", "/admin/schedule/lock", {"locked": True})
     admin.call("POST", "/admin/announcements", {"title": "Dummy run in progress"})
     _, overview = public.call("GET", "/public/overview")

@@ -6,6 +6,7 @@ import { TAGLINE } from '../lib/brand'
 import { useApi } from '../lib/live'
 import type { Overview } from '../lib/types'
 import Logo from './Logo'
+import VenueClock from './VenueClock'
 
 export function Banner() {
   const { data } = useApi<Overview>('/public/overview')
@@ -90,6 +91,7 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
+        <VenueClock />
       </header>
       <Banner />
       <main className="page">

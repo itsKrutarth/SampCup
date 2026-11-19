@@ -61,8 +61,11 @@ resource "aws_lambda_function" "api" {
   architectures    = ["arm64"] # Graviton: cheaper per millisecond
   filename         = var.lambda_zip
   source_code_hash = filebase64sha256(var.lambda_zip)
-  memory_size      = 512 # more memory also means more CPU, so faster cold starts
-  timeout          = 15
+  # 1769 MB is one full vCPU. Requests are CPU-bound (parsing DynamoDB replies), so they run
+  # ~3x faster than at 512 MB for the same GB-seconds bill, and the account's limit of 10
+  # requests at once goes ~3x further (load test, 2026-11-18).
+  memory_size = 1769
+  timeout     = 15
 
   environment {
     variables = {

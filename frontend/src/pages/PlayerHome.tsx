@@ -19,7 +19,7 @@ type Me = {
 const fullName = (p: PlayerLite) => `${p.first_name} ${p.last_name}`
 
 function PartnerForm({ me, token, onSent, invited }: { me: PlayerLite; token: string; onSent: () => void; invited: boolean }) {
-  const { data } = useApi<PlayerLite[]>('/registration/players', token)
+  const { data } = useApi<PlayerLite[]>('/registration/players', token, 30_000)
   const [error, setError] = useState('')
   const partners = data?.filter((p) => p.state !== 'teamed') ?? []
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -69,11 +69,21 @@ function PartnerForm({ me, token, onSent, invited }: { me: PlayerLite; token: st
   )
 }
 
+/**
+ * Scores and the next game come from the public team page (cached by CloudFront), every 10s:
+ * live rallies are on the home page's court board; this is for "when and where do we play".
+ */
+function LiveTeam({ team }: { team: TeamPage }) {
+  const { data } = useApi<TeamPage>(team.number ? `/public/teams/${team.number}` : null, null, 10_000)
+  return <TeamDetails team={data ?? team} />
+}
+
 /** A logged-in player's page: their team, or their invitations and the partner picker. */
 export default function PlayerHome() {
   const { auth, signOut } = useAuth()
   const token = auth?.kind === 'player' ? auth.token : null
-  const { data, loading, error, reload } = useApi<Me>(token ? '/player/me' : null, token)
+  // invitations and team changes are rare: check every 30s (and whenever the page comes back)
+  const { data, loading, error, reload } = useApi<Me>(token ? '/player/me' : null, token, 30_000)
   const navigate = useNavigate()
   const [message, setMessage] = useState('')
   const [actionError, setActionError] = useState('')
@@ -127,7 +137,7 @@ export default function PlayerHome() {
       {team ? (
         <section aria-label="My team">
           <h2 className="eyebrow">My team</h2>
-          <TeamDetails team={team} />
+          <LiveTeam team={team} />
         </section>
       ) : (
         <>
