@@ -115,12 +115,13 @@ describe('navigation', () => {
 })
 
 describe('schedule page', () => {
-  it('filters by group, court and team number', async () => {
+  it('filters by group, court and team, picking the team by name', async () => {
     const { calls } = mockApi({
       'GET /public/schedule': [match()],
       'GET /public/schedule?group=B': [],
       'GET /public/schedule?group=B&court=3': [],
       'GET /public/schedule?group=B&court=3&team=7': [match({ id: 9 })],
+      'GET /public/teams': [team(7, 'zebra Smash'), { ...team(9, 'Waitlisted'), number: null }, team(12, 'Aces High')],
     })
     const user = userEvent.setup()
     renderAt('/schedule')
@@ -130,10 +131,26 @@ describe('schedule page', () => {
     expect(screen.getByRole('button', { name: 'Group B' })).toHaveAttribute('aria-pressed', 'true')
     expect(await screen.findByText(/No games yet/)).toBeInTheDocument()
     await user.selectOptions(screen.getByLabelText('Court'), '3')
-    await user.type(screen.getByLabelText('Team #'), '7x')
+    const picker = await screen.findByLabelText('Team')
+    // by name (any case), with the number shown; teams not yet drawn are left out
+    expect(within(picker).getAllByRole('option').map((o) => o.textContent)).toEqual(['All teams', '#12 Aces High', '#7 zebra Smash'])
+    await user.selectOptions(picker, '#7 zebra Smash')
     await waitFor(() => expect(calls.at(-1)?.path).toBe('/public/schedule?group=B&court=3&team=7'))
     await user.click(screen.getByRole('button', { name: 'All groups' }))
     await waitFor(() => expect(calls.at(-1)?.path).toBe('/public/schedule?court=3&team=7'))
+    await user.selectOptions(picker, 'All teams')
+    await waitFor(() => expect(calls.at(-1)?.path).toBe('/public/schedule?court=3'))
+  })
+
+  it('keeps old links to a team number working, and hides the picker before the draw', async () => {
+    mockApi({ 'GET /public/schedule?team=12': [match({ id: 9 })], 'GET /public/teams': [team(12, 'Aces High')] })
+    const first = renderAt('/schedule?team=12')
+    expect(await screen.findByLabelText('Team')).toHaveDisplayValue('#12 Aces High')
+    first.unmount()
+    mockApi({ 'GET /public/schedule': [], 'GET /public/teams': [] })
+    renderAt('/schedule')
+    expect(await screen.findByText(/No games yet/)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Team')).not.toBeInTheDocument()
   })
 })
 

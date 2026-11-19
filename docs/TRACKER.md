@@ -6,7 +6,8 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
 ## Current position (2026-11-18, evening)
 - **State:** live at **https://sampcup.com**. The owner (admin `imgp004`) imported the real
   registration export. Alarm emails go to the owner (subscription confirmation pending).
-- **Branch:** `app/court-and-start-rules` (fixes from the mock tournament), then deploy and merge.
+- **Branch:** `app/schedule-team-picker` (schedule team dropdown), then deploy and merge.
+  The mock-tournament fixes (`app/court-and-start-rules`) are deployed and merged.
 - **Mock tournament findings (2026-11-18, `tools/mock_tournament.py` on prod, then restored):**
   - Games started as soon as a court was free, so 24 times a team was in two games at once.
     Now a game starts only at its scheduled time (1 minute grace for phone clocks) and only
@@ -15,6 +16,8 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   - The home page court board showed "Free" for courts whose next game was not among the next
     9 games overall. The overview now sends each court's own game (`courts`).
   - A small venue-time clock sits in the header on every page.
+  - Schedule filter: a team dropdown sorted by name ("#3 Net Ninjas") replaces the "Team #"
+    number box, since people won't know their drawn number. Links with `?team=N` still work.
   - Load test (100 logged-in players, 60 spectators, 9 judges, 3 minutes): the account's
     limit of 10 Lambda runs at once was reached and ~5% of requests got 429. Requests are
     CPU-bound (parsing DynamoDB replies, ~160 ms at 512 MB). Fixes: Lambda memory 1769 MB

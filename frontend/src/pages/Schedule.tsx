@@ -6,7 +6,7 @@ import Status from '../components/Status'
 import { accent } from '../lib/brand'
 import { time } from '../lib/format'
 import { useApi } from '../lib/live'
-import type { Match } from '../lib/types'
+import type { Match, TeamBrief } from '../lib/types'
 
 const FILTERS = ['group', 'court', 'team'] as const
 
@@ -18,6 +18,12 @@ export default function Schedule() {
     if (value) query.set(key, value)
   }
   const { data, loading, error } = useApi<Match[]>(`/public/schedule?${query}`)
+  // the team list barely changes and CloudFront caches it, so a slow refresh is plenty
+  const teams = useApi<TeamBrief[]>('/public/teams', null, 60_000)
+  // only drawn teams have a number, and the number is what the schedule filters on
+  const picks = (teams.data ?? [])
+    .filter((t) => t.number !== null)
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
   const set = (key: string, value: string) => {
     const next = new URLSearchParams(params)
     if (value) next.set(key, value)
@@ -51,15 +57,19 @@ export default function Schedule() {
             ))}
           </select>
         </label>
-        <label>
-          Team #
-          <input
-            inputMode="numeric"
-            placeholder="e.g. 12"
-            value={params.get('team') ?? ''}
-            onChange={(e) => set('team', e.target.value.replace(/\D/g, ''))}
-          />
-        </label>
+        {picks.length > 0 && (
+          <label>
+            Team
+            <select value={params.get('team') ?? ''} onChange={(e) => set('team', e.target.value)}>
+              <option value="">All teams</option>
+              {picks.map((t) => (
+                <option key={t.id} value={t.number!}>
+                  #{t.number} {t.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
       <Status loading={loading} error={error} />
       {data && data.length === 0 && <p className="info">No games yet. The schedule is published after the draw.</p>}
