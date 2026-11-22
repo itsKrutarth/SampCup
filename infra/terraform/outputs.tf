@@ -11,7 +11,7 @@ output "table_name" {
 }
 
 output "log_group" {
-  value = aws_cloudwatch_log_group.api.name
+  value = data.aws_cloudwatch_log_group.api.name
 }
 
 output "dashboard_url" {

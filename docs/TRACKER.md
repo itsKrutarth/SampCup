@@ -8,12 +8,19 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   2026-11-21 night). Restored `~/dev/sampcup-snapshot-2026-11-21-before-teardown.json`:
   110 items, 59 real players (6 with logins), 1 real team, 8 partner requests, admin,
   9 judges, settings (registration open, event 2026-12-06). The alarm email subscription
-  awaits confirmation. Both snapshots (11-18, 11-21) are still on the owner's Mac.
+  awaits confirmation. Both snapshots (11-18, 11-21) stay on the owner's Mac (owner's choice).
 - **Teardown/bring-back recipe:** `tools/snapshot.py save`, `infra/destroy.sh` (keeps the
   foundation and state bucket); later `infra/deploy.sh apply`, then `tools/snapshot.py
   restore` (returns admin and judges too; skip create-admin/create-judges). Only one deploy
   at a time: a second `deploy.sh` rebuilds `api.zip` under a running apply and fails it.
-- **Branch:** `fix/final-series-and-judge-message` (not pushed yet; needs a deploy to go live).
+  After a deploy, check the table: a fresh one holds only the default settings until restored.
+- **Deployed 2026-11-22 (owner):** mock clock, Final as one series, clearer judge message
+  (commit ce776b4, branch `fix/final-series-and-judge-message`).
+- **Branch `infra/keep-api-logs` (owner: "keep logs"):** the API log group moves to
+  `infra/foundation`; the app stack reads it and forgets it without deleting it (`removed`
+  block). Plans checked: foundation 1 import + tag change, app 0 destroy. Apply
+  `infra/deploy.sh apply` and `infra/foundation.sh apply` (either order), then delete the
+  foundation's one-time `import` block (it would fail in a brand-new account).
 - **Second mock (2026-11-21, `--speed 30`, ~20 s a game, 32 teams, 145 games):** the app held
   up; the mock tool did not:
   - Real players have started forming teams, so the mock now leaves real teams out (never
@@ -38,7 +45,8 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
     (marked "Mock"), the home countdown, the judge screens' countdown and timer, and the
     server's game-start rule and game times. It switches itself off after 6 hours, and the
     snapshot restore removes it, so the real day always runs on real time.
-  - Yesterday's API logs were lost with the teardown (the log group is in the app stack).
+  - Yesterday's API logs were lost with the teardown (the log group was in the app stack);
+    see `infra/keep-api-logs`.
   - `tools/mock_restore.py` restores the snapshot and keeps real changes made during the
     mock (3 accounts were set or claimed that day). Run it with `--dry-run` first.
 - **Mock tournament findings (2026-11-18, `tools/mock_tournament.py` on prod, then restored):**

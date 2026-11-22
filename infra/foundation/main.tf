@@ -1,6 +1,7 @@
 # Long-lived pieces that stay when the app stack is torn down:
 #   - the Route 53 hosted zone for the domain (its nameservers are entered at Namecheap once)
 #   - the HTTPS certificate, validated through that zone
+#   - the API's log group, so a teardown never deletes the logs (kept 30 days; pennies)
 # Apply once:  infra/foundation.sh apply      (about $0.50 a month for the zone)
 
 terraform {
@@ -71,4 +72,33 @@ output "name_servers" {
 
 output "certificate_status" {
   value = aws_acm_certificate.site.status
+}
+
+# The API's logs (the app stack's Lambda writes here). They live in this layer so that
+# infra/destroy.sh never deletes them: after a teardown the past days can still be read.
+variable "api_log_group" {
+  type    = string
+  default = "/aws/lambda/sampcup-prod-api"
+}
+
+variable "log_retention_days" {
+  description = "How long API logs are kept."
+  type        = number
+  default     = 30
+}
+
+resource "aws_cloudwatch_log_group" "api" {
+  name              = var.api_log_group
+  retention_in_days = var.log_retention_days
+}
+
+# One-time move (2026-11-22): adopt the log group the app stack created, logs and all.
+# Delete this block once applied.
+import {
+  to = aws_cloudwatch_log_group.api
+  id = "/aws/lambda/sampcup-prod-api"
+}
+
+output "api_log_group" {
+  value = aws_cloudwatch_log_group.api.name
 }

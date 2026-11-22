@@ -15,7 +15,7 @@ resource "aws_sns_topic_subscription" "email" {
 # The app logs one JSON line per request; count the ones that failed on our side.
 resource "aws_cloudwatch_log_metric_filter" "server_errors" {
   name           = "${local.name}-server-errors"
-  log_group_name = aws_cloudwatch_log_group.api.name
+  log_group_name = data.aws_cloudwatch_log_group.api.name
   pattern        = "{ $.status >= 500 }"
   metric_transformation {
     name      = "ServerErrors"
@@ -144,7 +144,7 @@ resource "aws_cloudwatch_dashboard" "main" {
           title  = "Latest API errors"
           region = "us-east-1"
           view   = "table"
-          query  = "SOURCE '${aws_cloudwatch_log_group.api.name}' | fields @timestamp, method, path, status, ms, @message | filter status >= 500 or @message like /Traceback|ERROR/ | sort @timestamp desc | limit 50"
+          query  = "SOURCE '${data.aws_cloudwatch_log_group.api.name}' | fields @timestamp, method, path, status, ms, @message | filter status >= 500 or @message like /Traceback|ERROR/ | sort @timestamp desc | limit 50"
         }
       },
     ]

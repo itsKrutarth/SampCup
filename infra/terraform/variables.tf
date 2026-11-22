@@ -22,12 +22,6 @@ variable "alert_email" {
   default     = ""
 }
 
-variable "log_retention_days" {
-  description = "How long API logs are kept."
-  type        = number
-  default     = 30
-}
-
 variable "lambda_zip" {
   description = "API package built by infra/build.sh."
   type        = string

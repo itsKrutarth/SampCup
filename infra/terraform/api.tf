@@ -1,9 +1,17 @@
 # The API: one Lambda function (FastAPI through Mangum) behind a function URL.
 # Only CloudFront can use it: CloudFront adds a secret header the app checks.
 
-resource "aws_cloudwatch_log_group" "api" {
-  name              = "/aws/lambda/${local.name}-api"
-  retention_in_days = var.log_retention_days
+# The log group belongs to infra/foundation, so a teardown keeps the logs.
+data "aws_cloudwatch_log_group" "api" {
+  name = "/aws/lambda/${local.name}-api"
+}
+
+# It used to be created here: forget it without deleting it (infra/foundation owns it now).
+removed {
+  from = aws_cloudwatch_log_group.api
+  lifecycle {
+    destroy = false
+  }
 }
 
 data "aws_iam_policy_document" "lambda_assume" {
@@ -38,7 +46,7 @@ data "aws_iam_policy_document" "api" {
   }
   statement {
     actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]
-    resources = ["${aws_cloudwatch_log_group.api.arn}:*"]
+    resources = ["${data.aws_cloudwatch_log_group.api.arn}:*"]
   }
 }
 
@@ -77,7 +85,7 @@ resource "aws_lambda_function" "api" {
 
   logging_config {
     log_format = "Text" # the app already writes one JSON line per request
-    log_group  = aws_cloudwatch_log_group.api.name
+    log_group  = data.aws_cloudwatch_log_group.api.name
   }
 
   depends_on = [aws_iam_role_policy.api]

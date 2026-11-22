@@ -10,7 +10,7 @@ clicked together in the console.
 | HTTPS, caching, one address for site and API | CloudFront | free tier (1 TB, 10M requests a month) |
 | API | Lambda (Python 3.12, arm64) behind a function URL | free tier (1M requests a month) |
 | Database | DynamoDB on-demand, point-in-time recovery | free tier for storage; cents for requests |
-| Logs | CloudWatch Logs, 30-day retention | free tier (5 GB) |
+| Logs | CloudWatch Logs, 30-day retention (`infra/foundation`, kept through teardowns) | free tier (5 GB) |
 | Alarms and dashboard | CloudWatch alarms (4), dashboard (1), SNS | free tier |
 | DNS for sampcup.com | Route 53 hosted zone (`infra/foundation`, kept through teardowns) | $0.50 a month |
 | Certificate | ACM (`infra/foundation`) | free |
@@ -21,7 +21,8 @@ The domain stays registered at Namecheap; only its nameservers point to Route 53
 
 Three Terraform layers, each with its own state:
 1. `infra/bootstrap`: the state bucket (once per account, local state).
-2. `infra/foundation`: Route 53 zone and certificate (long-lived; `infra/foundation.sh`).
+2. `infra/foundation`: Route 53 zone, certificate and the API's log group (long-lived;
+   `infra/foundation.sh`), so a teardown keeps the logs.
 3. `infra/terraform`: the app (`infra/deploy.sh` / `infra/destroy.sh`, safe to tear down).
 
 ## Commands (from the repo root, with AWS CLI credentials)
