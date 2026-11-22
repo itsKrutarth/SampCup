@@ -52,11 +52,13 @@ class Api:
                     status, text = response.status, response.read()
             except urllib.error.HTTPError as exc:
                 status, text = exc.code, exc.read()
+            except (urllib.error.URLError, TimeoutError, ConnectionError):
+                status, text = 0, b""  # this machine lost the network for a moment
             with stats_lock:
                 timings.append(time.perf_counter() - started)
                 codes[status] += 1
-            # Like the real app: a busy server (throttled) is retried, never fatal.
-            if status not in (429, 502, 503, 504) or (status == 429 and b"Too many tries" in text):
+            # Like the real app: a busy server (throttled) or a network blip is retried, never fatal.
+            if status not in (0, 429, 502, 503, 504) or (status == 429 and b"Too many tries" in text):
                 break
             time.sleep(0.5 * 2**attempt)
         payload = json.loads(text) if text else None

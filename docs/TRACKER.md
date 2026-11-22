@@ -4,10 +4,31 @@ The working record of the build. Read this first; update it after every chunk.
 Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_STAGES.md`.
 
 ## Current position (2026-11-18, evening)
-- **State:** live at **https://sampcup.com**. The owner (admin `imgp004`) imported the real
-  registration export. Alarm emails go to the owner (subscription confirmation pending).
-- **Branch:** `app/schedule-team-picker` (schedule team dropdown), then deploy and merge.
-  The mock-tournament fixes (`app/court-and-start-rules`) are deployed and merged.
+- **State:** live again at **https://sampcup.com** since 2026-11-21 (offline 2026-11-18 to
+  2026-11-21 at the owner's request). Data restored from the teardown snapshot: 95 items,
+  59 real players (none had claimed an account yet), admin, 9 judges, settings
+  (registration open, event 2026-12-06). New alarm email subscription awaits confirmation.
+  Snapshot `~/dev/sampcup-snapshot-2026-11-18-before-teardown.json` stays on the owner's Mac
+  until the owner has checked the site; then delete it.
+- **Teardown/bring-back recipe:** `tools/snapshot.py save`, `infra/destroy.sh` (keeps the
+  foundation and state bucket); later `infra/deploy.sh apply`, then `tools/snapshot.py
+  restore` (returns admin and judges too; skip create-admin/create-judges). Only one deploy
+  at a time: a second `deploy.sh` rebuilds `api.zip` under a running apply and fails it.
+- **Branch:** `tools/mock-leaves-real-teams` (mock tool fixes below; no app change, no deploy).
+- **Second mock (2026-11-21, `--speed 30`, ~20 s a game, 32 teams, 145 games):** the app held
+  up; the mock tool did not:
+  - Real players have started forming teams, so the mock now leaves real teams out (never
+    checked in or drawn) and tops the field up to the draw's 32 with dummy pairs.
+  - The owner scored court 1 from the real judge screen during the mock; the app correctly
+    refused the mock's stale update (409) but the mock's court worker gave up, freezing
+    court 1 and the knockouts behind it. Now the mock re-reads the board on a 409.
+  - A short network drop on the Mac killed the other court workers (SSL handshake timeout),
+    leaving the last 6 games unplayed for two hours with registration closed. The API
+    client now retries network errors like a throttled server.
+  - Owner's two 15-minute delays moved exactly the Final games (best of 3); the bracket shows
+    game 3 only when needed, so it looked like game 1 had gone. Working as designed.
+  - `tools/mock_restore.py` restores the snapshot and keeps real changes made during the
+    mock (3 accounts were set or claimed that day). Run it with `--dry-run` first.
 - **Mock tournament findings (2026-11-18, `tools/mock_tournament.py` on prod, then restored):**
   - Games started as soon as a court was free, so 24 times a team was in two games at once.
     Now a game starts only at its scheduled time (1 minute grace for phone clocks) and only
@@ -164,6 +185,13 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   local stack (DynamoDB Local), secret scan.
 
 ## Session log
+- 2026-11-21: Owner asked to start the app. Two deploys overlapped (mine and the owner's);
+  mine stopped on a rebuilt `api.zip`, the owner's finished all 42 resources. Restored the
+  snapshot; site, API and www redirect verified.
+- 2026-11-21 (evening): Second mock at ~20 s a game, finished after fixing the mock tool's
+  court workers; restored keeping 3 real accounts made meanwhile; registration open again.
+- 2026-11-18 (night): Owner asked to take the app offline for now. Saved a full snapshot,
+  then ran `infra/destroy.sh`; foundation (zone + certificate) and state bucket kept.
 - 2026-11-18 (evening): Mock tournament run twice on prod with the real registrations (teams
   by center, dummy partners for odd centers), then restored from a snapshot. Fixed the start
   rules, the court board and the server load found by it (see Current position).
