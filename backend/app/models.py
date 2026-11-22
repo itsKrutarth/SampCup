@@ -28,6 +28,11 @@ class Tournament(Record):
     team_cap: int = 42
     draw_seed: int | None = None
     schedule_locked: bool = False
+    # A mock run's fast clock (tools/mock_tournament.py): from mock_started_at (real time) the
+    # tournament's time reads mock_day_start, running mock_speed times faster. Unset otherwise.
+    mock_started_at: dt.datetime | None = None
+    mock_day_start: dt.datetime | None = None
+    mock_speed: float = 1.0
 
 
 @dataclasses.dataclass(kw_only=True)

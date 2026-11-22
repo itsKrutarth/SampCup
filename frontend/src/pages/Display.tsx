@@ -20,7 +20,7 @@ export default function Display() {
           <p className="muted">{TAGLINE}</p>
         </div>
       </header>
-      <Banner />
+      <Banner announcements={data?.announcements} />
       {data?.champion && <ChampionCard name={data.champion.name} />}
       <section aria-label="Playing now">
         <div className="section-head">

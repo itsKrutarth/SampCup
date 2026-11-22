@@ -3,18 +3,17 @@
 The working record of the build. Read this first; update it after every chunk.
 Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_STAGES.md`.
 
-## Current position (2026-11-18, evening)
-- **State:** live again at **https://sampcup.com** since 2026-11-21 (offline 2026-11-18 to
-  2026-11-21 at the owner's request). Data restored from the teardown snapshot: 95 items,
-  59 real players (none had claimed an account yet), admin, 9 judges, settings
-  (registration open, event 2026-12-06). New alarm email subscription awaits confirmation.
-  Snapshot `~/dev/sampcup-snapshot-2026-11-18-before-teardown.json` stays on the owner's Mac
-  until the owner has checked the site; then delete it.
+## Current position (2026-11-22)
+- **State:** live at **https://sampcup.com** again since 2026-11-22 (owner redeployed; offline
+  2026-11-21 night). Restored `~/dev/sampcup-snapshot-2026-11-21-before-teardown.json`:
+  110 items, 59 real players (6 with logins), 1 real team, 8 partner requests, admin,
+  9 judges, settings (registration open, event 2026-12-06). The alarm email subscription
+  awaits confirmation. Both snapshots (11-18, 11-21) are still on the owner's Mac.
 - **Teardown/bring-back recipe:** `tools/snapshot.py save`, `infra/destroy.sh` (keeps the
   foundation and state bucket); later `infra/deploy.sh apply`, then `tools/snapshot.py
   restore` (returns admin and judges too; skip create-admin/create-judges). Only one deploy
   at a time: a second `deploy.sh` rebuilds `api.zip` under a running apply and fails it.
-- **Branch:** `tools/mock-leaves-real-teams` (mock tool fixes below; no app change, no deploy).
+- **Branch:** `fix/final-series-and-judge-message` (not pushed yet; needs a deploy to go live).
 - **Second mock (2026-11-21, `--speed 30`, ~20 s a game, 32 teams, 145 games):** the app held
   up; the mock tool did not:
   - Real players have started forming teams, so the mock now leaves real teams out (never
@@ -25,8 +24,21 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   - A short network drop on the Mac killed the other court workers (SSL handshake timeout),
     leaving the last 6 games unplayed for two hours with registration closed. The API
     client now retries network errors like a throttled server.
-  - Owner's two 15-minute delays moved exactly the Final games (best of 3); the bracket shows
-    game 3 only when needed, so it looked like game 1 had gone. Working as designed.
+  - Owner's two 15-minute delays moved exactly the Final games (5:55/6:10/6:25 to
+    6:25/6:40/6:55). The bracket spread the three Final cards down the whole column, so game 3
+    was below the screen and game 1 sat at game 3's old time: it looked like a game had gone.
+    Now the Final's games sit together at the top of the column with the series score
+    ("X leads 1-0"). A judge phone that sends a score for a game already finished elsewhere
+    now reads "already final" instead of "Start the game first".
+  - All of it came from the mock tool, not from the owner's actions: scoring on the judge
+    screen and adding delays during play is exactly what staff will do on the day.
+  - The header clock showed the real time during the mock, so nobody could tell where the
+    mock's day was. Now a mock clock (tournament settings `mock_started_at`, `mock_day_start`,
+    `mock_speed`, set by `tools/mock_tournament.py` when play begins) drives the header clock
+    (marked "Mock"), the home countdown, the judge screens' countdown and timer, and the
+    server's game-start rule and game times. It switches itself off after 6 hours, and the
+    snapshot restore removes it, so the real day always runs on real time.
+  - Yesterday's API logs were lost with the teardown (the log group is in the app stack).
   - `tools/mock_restore.py` restores the snapshot and keeps real changes made during the
     mock (3 accounts were set or claimed that day). Run it with `--dry-run` first.
 - **Mock tournament findings (2026-11-18, `tools/mock_tournament.py` on prod, then restored):**
@@ -185,6 +197,12 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   local stack (DynamoDB Local), secret scan.
 
 ## Session log
+- 2026-11-22: Owner redeployed; restored the 2026-11-21 snapshot (110 items). Branch
+  `fix/final-series-and-judge-message`: Final kept together with series score, clearer judge
+  message for a game finished on another phone, and the mock clock (owner: the header showed
+  the real time during the mock).
+- 2026-11-21 (night): Owner asked to take the app offline again. Saved a full snapshot
+  (110 items), then ran `infra/destroy.sh`; foundation and state bucket kept.
 - 2026-11-21: Owner asked to start the app. Two deploys overlapped (mine and the owner's);
   mine stopped on a rebuilt `api.zip`, the owner's finished all 42 resources. Restored the
   snapshot; site, API and www redirect verified.

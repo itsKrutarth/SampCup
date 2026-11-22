@@ -7,7 +7,9 @@ real-looking day. Teams the players formed themselves stay out: never checked in
 played. Games follow the schedule on a fast clock (--speed 20: a game in 24-36 seconds, the
 day in about half an hour; --speed 30: about 20 seconds a game): each game starts at its own
 time, never just because its court is free, and waits while one of its teams is still
-playing elsewhere. Take a snapshot first (tools/snapshot.py save) and restore it afterwards
+playing elsewhere. The site's clock runs on the same fast clock meanwhile (marked "Mock" in
+the header), so the header, countdowns and judge screens show the mock's time.
+Take a snapshot first (tools/snapshot.py save) and restore it afterwards
 with tools/mock_restore.py, which keeps what real people did meanwhile (account claims,
 judge PIN changes, logins).
 
@@ -31,16 +33,35 @@ from dummy_run import Api, check, ready  # noqa: E402
 BANNER = "Mock tournament: test data only"
 
 
+def backend_store(table: str):
+    """The live table through the app's own code (uses this Mac's AWS credentials)."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
+    os.environ.setdefault("TABLE_NAME", table)
+    from app.store import Store, get_table
+
+    return Store(get_table())
+
+
+def start_mock_clock(table: str, day_start: dt.datetime, wall_start: float, speed: float) -> None:
+    """Run the site's clock on the mock's fast clock: the header clock (marked "Mock"), the
+    countdown and the judge screens show mock time, and games may start by it. Restoring the
+    snapshot removes it; it also switches itself off after 6 hours."""
+    store = backend_store(table)
+    from app.services.tournament import get_tournament
+
+    tournament = get_tournament(store)
+    tournament.mock_started_at = dt.datetime.fromtimestamp(wall_start, dt.UTC)
+    tournament.mock_day_start, tournament.mock_speed = day_start, speed
+    store.save(tournament)
+
+
 def add_dummy_players(table: str) -> int:
     """Made-up players: a partner for each center with an odd number of unpaired players,
     then pairs at a "Mock" center until the mock teams reach the draw's minimum."""
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
-    os.environ.setdefault("TABLE_NAME", table)
+    store = backend_store(table)
     from app.models import Player
-    from app.store import Store, get_table
     from app.tournament.templates import MIN_TEAMS
 
-    store = Store(get_table())
     players = [p for p in store.all(Player) if p.active and not p.team_id]
     per_center: dict[str, int] = defaultdict(int)
     for p in players:
@@ -163,6 +184,8 @@ def main() -> None:
     day_start = min(dt.datetime.fromisoformat(m["scheduled_at"]) for m in games)
     print(f"4. Playing the schedule on 9 courts at {args.speed:g}x speed - watch {base}")
     started = time.time()
+    start_mock_clock(args.table, day_start, started, args.speed)
+    print("  ok  the site's clock now shows the mock's time")
     with ThreadPoolExecutor(9) as pool:
         played = list(pool.map(lambda c: play_court(base, admin.token, c, args.speed, day_start, started),
                                range(1, 10)))

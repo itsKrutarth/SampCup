@@ -1,3 +1,5 @@
+import type { MockClock } from './clock'
+
 export type TeamBrief = { id: number; name: string; number: number | null; group: string | null }
 
 export type Match = {
@@ -39,6 +41,8 @@ export type Overview = {
     timezone: string
     registration_open: boolean
     team_cap: number
+    /** Set only while a mock run's fast clock is running. */
+    mock_clock?: MockClock | null
   }
   phase: 'registration' | 'scheduled' | 'group_play' | 'knockout' | 'finished'
   teams: number

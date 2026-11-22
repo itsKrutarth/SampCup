@@ -1,9 +1,9 @@
-import { useNow } from '../lib/clock'
+import { useVenueNow } from '../lib/clock'
 import { venueTimeToIso } from '../lib/format'
 
 /** Days, hours, minutes and seconds to the first serve; nothing once it has started. */
 export default function Countdown({ eventDate }: { eventDate: string }) {
-  const now = useNow()
+  const now = useVenueNow()
   const left = Math.floor((Date.parse(venueTimeToIso(eventDate, '10:00')) - now) / 1000)
   if (left <= 0) return null
   const parts = [

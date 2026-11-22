@@ -7,10 +7,11 @@ from fastapi import APIRouter
 from app.api.deps import Db
 from app.api.serializers import Lookup, announcement_out, team_brief
 from app.models import Announcement, Match, Team
+from app.services import scoring
 from app.services.errors import NotFound
 from app.services.scoring import champion_id
 from app.services.standings import group_standings
-from app.services.tournament import get_tournament
+from app.services.tournament import get_tournament, mock_clock
 from app.store import Store
 
 router = APIRouter(prefix="/public", tags=["public"])
@@ -61,6 +62,8 @@ def overview(store: Db) -> dict[str, Any]:
             "timezone": tournament.timezone,
             "registration_open": tournament.registration_open,
             "team_cap": tournament.team_cap,
+            # during a mock run the site's clock shows the mock's time
+            "mock_clock": mock_clock(tournament, scoring.now()),
         },
         "phase": phase(matches, champion),
         "teams": statuses.count("active"),

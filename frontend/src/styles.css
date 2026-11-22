@@ -207,6 +207,24 @@ a {
   color: var(--muted);
 }
 
+/* During a mock run the header shows the mock's time, plainly marked. */
+.venue-clock.mock {
+  border-color: var(--red);
+}
+
+.venue-clock em {
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  background: var(--red);
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.6rem;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .page {
   max-width: 72rem;
   margin: 0 auto;
@@ -1133,6 +1151,18 @@ button.link {
   justify-content: space-around;
   gap: 0.75rem;
   scroll-snap-align: start;
+}
+
+/* The Final's games are one best-of-3 series: keep them together at the top of the
+   column, so moving them (a delay) never pushes game 3 out of sight. */
+.bracket section.final {
+  justify-content: flex-start;
+}
+
+.bracket .series {
+  margin: 0;
+  font-weight: 600;
+  color: var(--gold);
 }
 
 .bracket h2 {

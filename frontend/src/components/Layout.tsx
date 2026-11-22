@@ -3,17 +3,17 @@ import { NavLink, Outlet } from 'react-router'
 
 import { useAuth } from '../lib/auth'
 import { TAGLINE } from '../lib/brand'
+import { MockClockContext } from '../lib/clock'
 import { useApi } from '../lib/live'
-import type { Overview } from '../lib/types'
+import type { Announcement, Overview } from '../lib/types'
 import Logo from './Logo'
 import VenueClock from './VenueClock'
 
-export function Banner() {
-  const { data } = useApi<Overview>('/public/overview')
-  if (!data?.announcements.length) return null
+export function Banner({ announcements }: { announcements?: Announcement[] }) {
+  if (!announcements?.length) return null
   return (
     <section className="banner" aria-label="Announcements">
-      {data.announcements.map((a) => (
+      {announcements.map((a) => (
         <div key={a.id} className="banner-item">
           <Megaphone size={20} />
           <p>
@@ -58,6 +58,7 @@ function Footer() {
 
 export default function Layout() {
   const { auth } = useAuth()
+  const { data } = useApi<Overview>('/public/overview')
   const account =
     auth?.kind === 'player'
       ? { to: '/my-team', label: 'My team', Icon: UserRound }
@@ -74,7 +75,7 @@ export default function Layout() {
     account,
   ]
   return (
-    <>
+    <MockClockContext.Provider value={data?.tournament.mock_clock ?? null}>
       <header className="topbar">
         <NavLink to="/" className="brand">
           <Logo size={38} />
@@ -93,11 +94,11 @@ export default function Layout() {
         </nav>
         <VenueClock />
       </header>
-      <Banner />
+      <Banner announcements={data?.announcements} />
       <main className="page">
         <Outlet />
       </main>
       <Footer />
-    </>
+    </MockClockContext.Provider>
   )
 }

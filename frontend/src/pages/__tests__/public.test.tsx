@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
+import type { Match } from '../../lib/types'
 import { groups, match, overview, team, teamPage } from '../../test/data'
 import { ADMIN, fail, JUDGE, mockApi, PLAYER, renderAt } from '../../test/utils'
 
@@ -50,6 +51,17 @@ describe('home page', () => {
     expect(screen.queryByRole('timer')).not.toBeInTheDocument()
     expect(screen.getByText('Organizer (555) 010-0100')).toBeInTheDocument()
     expect(within(screen.getByRole('region', { name: 'Up next' })).getByText('Group A 1st')).toBeInTheDocument()
+  })
+
+  it('shows the mock tournament time in the header during a mock run', async () => {
+    // a 30x mock clock that has just reached 2:30 PM on the event day
+    const mock_clock = { started_at: new Date().toISOString(), day_start: '2026-12-12T19:30:00Z', speed: 30 }
+    mockApi({ 'GET /public/overview': overview({ phase: 'group_play', tournament: { ...overview().tournament, mock_clock } }) })
+    renderAt('/')
+    const clock = await screen.findByTitle('Mock tournament time (30x speed)')
+    expect(clock).toHaveTextContent(/Mock\s*2:3\d\s*PM/)
+    expect(clock).toHaveClass('mock')
+    expect(screen.queryByRole('timer', { name: 'Countdown to the first serve' })).not.toBeInTheDocument()
   })
 
   it('shows a live ticker, every court and the leaderboard during play', async () => {
@@ -178,6 +190,7 @@ describe('standings and bracket', () => {
         matches: [
           match({ id: 1, code: 'R16-1', phase: 'knockout', round: 'Round of 16' }),
           match({ id: 2, code: 'F-1', phase: 'knockout', round: 'Final game 1', status: 'completed', score_a: 11, score_b: 5, winner_id: 1 }),
+          match({ id: 4, code: 'F-2', phase: 'knockout', round: 'Final game 2', status: 'completed', score_a: 11, score_b: 9, winner_id: 1 }),
           match({ id: 3, code: 'F-3', phase: 'knockout', round: 'Final game 3 (if needed)', status: 'cancelled' }),
         ],
         champion: team(1, 'Net Ninjas'),
@@ -186,8 +199,42 @@ describe('standings and bracket', () => {
     renderAt('/bracket')
     const final = await screen.findByRole('region', { name: 'Final (best of 3)' })
     expect(within(final).getByText('Not needed')).toBeInTheDocument()
+    expect(within(final).getByText('Net Ninjas wins 2-0')).toBeInTheDocument()
     expect(within(screen.getByRole('region', { name: 'Round of 16' })).getByText('Court 1')).toBeInTheDocument()
     expect(screen.getByText('Champions')).toBeInTheDocument()
+  })
+
+  const finalGame = (n: number, overrides: Partial<Match> = {}) =>
+    match({ id: n, code: `F-${n}`, phase: 'knockout', group: null, round: `Final game ${n}`, ...overrides })
+  const won = (winner: number) => ({ status: 'completed' as const, score_a: 11, score_b: 6, winner_id: winner })
+
+  it('keeps the three Final games together with the series score', async () => {
+    mockApi({
+      'GET /public/bracket': { matches: [finalGame(1, won(2)), finalGame(2), finalGame(3)], champion: null },
+    })
+    renderAt('/bracket')
+    const final = await screen.findByRole('region', { name: 'Final (best of 3)' })
+    expect(final).toHaveClass('final')
+    expect(within(final).getAllByRole('article')).toHaveLength(3)
+    expect(within(final).getByText('Dink Squad leads 1-0')).toBeInTheDocument()
+  })
+
+  it('shows a tied series, and nothing before the Final starts', async () => {
+    mockApi({
+      'GET /public/bracket': { matches: [finalGame(1, won(2)), finalGame(2, won(1)), finalGame(3)], champion: null },
+    })
+    const tied = renderAt('/bracket')
+    expect(await screen.findByText('Series tied 1-1')).toBeInTheDocument()
+    tied.unmount()
+    mockApi({ 'GET /public/bracket': { matches: [finalGame(1), finalGame(2)], champion: null } })
+    const unplayed = renderAt('/bracket')
+    await screen.findByRole('region', { name: 'Final (best of 3)' })
+    expect(screen.queryByText(/Series|leads|wins/)).not.toBeInTheDocument()
+    unplayed.unmount()
+    mockApi({ 'GET /public/bracket': { matches: [finalGame(1, { team_a: null, source_a: 'Winner of SF-1' })], champion: null } })
+    renderAt('/bracket')
+    expect(await screen.findByText('Winner of SF-1')).toBeInTheDocument()
+    expect(screen.queryByText(/Series|leads|wins/)).not.toBeInTheDocument()
   })
 })
 

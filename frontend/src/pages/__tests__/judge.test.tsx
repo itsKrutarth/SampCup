@@ -2,7 +2,7 @@ import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
-import { match } from '../../test/data'
+import { match, overview } from '../../test/data'
 import { ADMIN, fail, JUDGE, mockApi, renderAt } from '../../test/utils'
 import { untilStart } from '../Judge'
 
@@ -118,6 +118,19 @@ describe('judge screen', () => {
     expect(start).toBeDisabled()
     expect(screen.getByRole('timer', { name: 'Time until this game starts' })).toHaveTextContent(/Starts in (5:00|4:5\d)/)
     expect(screen.queryByRole('button', { name: 'Start early (admin)' })).not.toBeInTheDocument()
+  })
+
+  it('follows the mock clock during a mock run', async () => {
+    const now = new Date().toISOString()
+    // the mock clock reads 10:00:30 AM, just past the game's 10:00 AM, though it is weeks early
+    const mock_clock = { started_at: now, day_start: '2026-12-12T15:00:30Z', speed: 30 }
+    mockApi({
+      'GET /public/overview': overview({ tournament: { ...overview().tournament, mock_clock } }),
+      'GET /judge/matches?court=1': board(match(), [], { now }),
+    })
+    renderAt('/judge', JUDGE)
+    expect(await screen.findByRole('button', { name: 'Start game' })).toBeEnabled()
+    expect(screen.getByTitle('Mock tournament time (30x speed)')).toHaveTextContent(/Mock\s*10:0\d\s*AM/)
   })
 
   it('lets only an admin start a game early', async () => {

@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from app.models import Match, ScoreAudit, Team
 from app.services import scoring
 from app.services.auth import create_staff
+from app.services.tournament import get_tournament
 from app.store import ConflictError, Store
 from tests.conftest import login, set_clock
 from tests.factories import find, seeded
@@ -44,6 +45,8 @@ def test_judge_plays_a_game_to_11(
     other = act(client, judge, game, "finish", score_a=11, score_b=8, end_reason="reached_11")
     assert other.status_code == 409
     assert act(client, judge, game, "start").status_code == 409
+    late = act(client, judge, game, "score", score_a=9, score_b=7)  # a second phone, behind
+    assert late.status_code == 409 and "already final" in late.json()["detail"]
     actions = [a.action for a in store.all(ScoreAudit) if a.match_id == game.id]
     assert actions == ["start", "final"]
 
@@ -126,6 +129,40 @@ def test_games_start_at_their_time_and_only_admins_start_early(
     create_staff(store, "judge2", "1234", "judge", court=2)
     set_clock(monkeypatch, other.scheduled_at - dt.timedelta(seconds=30))  # phone clock ahead
     assert act(client, login(client, "judge2", "1234"), other, "start").status_code == 200
+
+
+def test_a_mock_run_plays_on_its_fast_clock(
+    client: TestClient,
+    store: Store,
+    judge: dict,
+    game: Match,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    real = dt.datetime(2026, 11, 22, 18, tzinfo=dt.UTC)  # two weeks before the day
+    set_clock(monkeypatch, real)
+    assert client.get("/api/public/overview").json()["tournament"]["mock_clock"] is None
+    assert act(client, judge, game, "start").status_code == 409  # not its time yet
+    tournament = get_tournament(store)
+    # one real minute at 30x speed: the mock clock reads 10 minutes past the game's time
+    tournament.mock_started_at = real - dt.timedelta(minutes=1)
+    tournament.mock_day_start = game.scheduled_at - dt.timedelta(minutes=20)
+    tournament.mock_speed = 30.0
+    store.save(tournament)
+    shown = client.get("/api/public/overview").json()["tournament"]["mock_clock"]
+    assert shown["speed"] == 30 and shown["day_start"] == tournament.mock_day_start.isoformat()
+    started = act(client, judge, game, "start").json()
+    assert started["status"] == "in_progress"
+    # each real second the test itself takes adds 30 seconds on the mock clock
+    started_at = dt.datetime.fromisoformat(started["started_at"])
+    mock_minutes = (started_at - game.scheduled_at) / dt.timedelta(minutes=1)
+    assert 9 < mock_minutes < 15
+    set_clock(monkeypatch, real + dt.timedelta(seconds=20))  # ~10 minutes later on the mock clock
+    final = act(client, judge, game, "finish", score_a=11, score_b=4, end_reason="reached_11")
+    assert 300 < final.json()["seconds"] < 900  # minutes of mock time, not 20 real seconds
+    # a forgotten mock clock switches itself off: the real time comes back
+    set_clock(monkeypatch, real + dt.timedelta(hours=7))
+    assert client.get("/api/public/overview").json()["tournament"]["mock_clock"] is None
+    assert abs(scoring.clock(store) - (real + dt.timedelta(hours=7))) < dt.timedelta(minutes=1)
 
 
 def test_a_team_plays_one_game_at_a_time(

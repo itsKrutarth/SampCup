@@ -1,11 +1,11 @@
 import { Clock3, Flag, Hourglass, LogOut, Minus, Play, Plus, Timer as TimerIcon, Wifi, WifiOff } from 'lucide-react'
-import { useEffect, useState, useSyncExternalStore, type CSSProperties } from 'react'
+import { useContext, useEffect, useState, useSyncExternalStore, type CSSProperties } from 'react'
 import { Navigate, useSearchParams } from 'react-router'
 
 import { teamLabel } from '../components/MatchCard'
 import Status from '../components/Status'
 import { useAuth } from '../lib/auth'
-import { useNow } from '../lib/clock'
+import { MockClockContext, useNow, venueNow } from '../lib/clock'
 import { clock, time } from '../lib/format'
 import { useApi } from '../lib/live'
 import { judgeQueue, type Action } from '../lib/queue'
@@ -23,8 +23,7 @@ export function untilStart(seconds: number): string {
 
 type Send = (action: Action, body?: Record<string, unknown>) => void
 
-function Timer({ startedAt }: { startedAt: number }) {
-  const now = useNow()
+function Timer({ startedAt, now }: { startedAt: number; now: number }) {
   const left = GAME_SECONDS - (now - startedAt) / 1000
   const share = Math.max(0, left / GAME_SECONDS)
   return (
@@ -46,7 +45,9 @@ type CardProps = {
 }
 
 export function ScoreCard({ match, send, waiting = null, offset = 0, canStartEarly = false }: CardProps) {
-  const now = useNow() + offset
+  // the server's time; during a mock run, its fast clock (game times are stored on it too)
+  const mock = useContext(MockClockContext)
+  const now = venueNow(useNow() + offset, mock)
   const [scores, setScores] = useState<[number, number]>([match.score_a ?? 0, match.score_b ?? 0])
   const [startedAt, setStartedAt] = useState<number | null>(
     match.started_at ? Date.parse(match.started_at) : null,
@@ -72,7 +73,7 @@ export function ScoreCard({ match, send, waiting = null, offset = 0, canStartEar
     const wait = Math.ceil((Date.parse(match.scheduled_at) - now) / 1000)
     const early = wait > 0
     const begin = (body?: Record<string, unknown>) => {
-      setStartedAt(Date.now())
+      setStartedAt(now)
       send('start', body)
     }
     return (
@@ -116,7 +117,7 @@ export function ScoreCard({ match, send, waiting = null, offset = 0, canStartEar
   return (
     <section className="scorecard" aria-label="Current game">
       <h2>{match.round}</h2>
-      <Timer startedAt={startedAt} />
+      <Timer startedAt={startedAt} now={now} />
       <div className="scores">
         {([0, 1] as const).map((side) => (
           <div key={side} className="team-score">

@@ -8,7 +8,7 @@ from app.models import Match, ScoreAudit, StaffUser, Team
 from app.services.errors import Conflict, NotFound, ServiceError
 from app.services.schedule import save_match
 from app.services.standings import group_standings
-from app.services.tournament import get_tournament
+from app.services.tournament import get_tournament, tournament_time
 from app.store import ConflictError, Store
 from app.tournament.ranking import CLOCK_CAP, check_game, resolve_clock_end
 
@@ -20,6 +20,11 @@ EARLY_GRACE = timedelta(minutes=1)
 def now() -> datetime:
     """The server clock (tests move it to the tournament day)."""
     return datetime.now(UTC)
+
+
+def clock(store: Store) -> datetime:
+    """The tournament's time: the server clock, or during a mock run its fast clock."""
+    return tournament_time(get_tournament(store), now())
 
 
 def get_match(store: Store, match_id: int) -> Match:
@@ -107,10 +112,11 @@ def start_match(store: Store, match_id: int, user: StaffUser, early: bool = Fals
     blocker = start_blocker(store, match)
     if blocker:
         raise Conflict(blocker)
-    if now() < match.scheduled_at - EARLY_GRACE and not (early and user.role == "admin"):
+    at = clock(store)
+    if at < match.scheduled_at - EARLY_GRACE and not (early and user.role == "admin"):
         raise Conflict(f"This game starts at {venue_time(store, match.scheduled_at)}")
     old = _snapshot(match)
-    match.status, match.started_at = "in_progress", now()
+    match.status, match.started_at = "in_progress", at
     match.score_a = match.score_b = 0
     save_match(store, match)
     _audit(store, match, "start", old, user.username)
@@ -120,8 +126,12 @@ def start_match(store: Store, match_id: int, user: StaffUser, early: bool = Fals
 def live_score(store: Store, match_id: int, score_a: int, score_b: int, user: StaffUser) -> Match:
     match = get_match(store, match_id)
     check_court(user, match)
-    if match.status != "in_progress":
+    if match.status == "completed":  # finished meanwhile, perhaps on another phone
+        raise Conflict("This game is already final. Ask an admin to correct it.")
+    if match.status == "scheduled":
         raise Conflict("Start the game first")
+    if match.status != "in_progress":
+        raise Conflict(f"This game is {match.status}")
     if not (0 <= score_a <= 11 and 0 <= score_b <= 11):
         raise ServiceError("Scores run from 0 to 11")
     match.score_a, match.score_b = score_a, score_b
@@ -159,8 +169,10 @@ def finish_match(
     elif match.status != "in_progress":
         raise Conflict(f"This game is {match.status}")
     old = _snapshot(match)
-    ended = now()
-    elapsed = int((ended - match.started_at).total_seconds()) if match.started_at else CLOCK_CAP
+    ended = clock(store)
+    elapsed = CLOCK_CAP
+    if match.started_at:  # never negative, even if a mock clock stopped during the game
+        elapsed = max(0, int((ended - match.started_at).total_seconds()))
     match.ended_at = ended
     _set_result(match, score_a, score_b, end_reason, elapsed)
     save_match(store, match)
@@ -180,7 +192,7 @@ def forfeit_match(
     if match.team_a_id is None or match.team_b_id is None:
         raise Conflict("The teams for this game are not known yet")
     old = _snapshot(match)
-    match.ended_at = now()
+    match.ended_at = clock(store)
     _set_result(match, *((11, 0) if winner == "a" else (0, 11)), "forfeit", CLOCK_CAP)
     save_match(store, match)
     _audit(store, match, "forfeit", old, user.username)
