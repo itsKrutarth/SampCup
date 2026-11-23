@@ -82,6 +82,8 @@ def request_partner(store: Store, from_id: int, to_id: int, team_name: str) -> P
     me, partner = get_player(store, from_id), get_player(store, to_id)
     if me.id == partner.id:
         raise ServiceError("Pick someone else as your partner")
+    if not me.center:
+        raise ServiceError("Your center isn't set yet. Ask an admin to add it or to pair you up.")
     if me.center != partner.center:
         raise ServiceError("Your partner must be from your center")
     if me.team_id or partner.team_id:

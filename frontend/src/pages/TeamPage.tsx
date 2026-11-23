@@ -44,9 +44,11 @@ export function TeamDetails({ team }: { team: Team }) {
         </p>
       )}
       <dl className="facts">
-        <Fact icon={<MapPin size={14} />} label="Center">
-          {team.center}
-        </Fact>
+        {team.center && (
+          <Fact icon={<MapPin size={14} />} label="Center">
+            {team.center}
+          </Fact>
+        )}
         {team.players && (
           <Fact icon={<Users size={14} />} label="Players">
             {team.players.map((p) => p.name).join(' & ')}

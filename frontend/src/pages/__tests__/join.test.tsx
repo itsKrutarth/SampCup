@@ -18,8 +18,7 @@ const page = (overrides = {}) => ({ player: me, team: null, incoming: [], outgoi
 describe('creating your account', () => {
   it('matches the registration and logs the player in', async () => {
     const { sent } = mockApi({
-      'GET /registration/status': { open: true, team_cap: 42 },
-      'GET /registration/centers': ['North', 'South'],
+      'GET /registration/status': { open: true, team_cap: 42, loaded: true },
       'POST /players/claim': { token: 'tok', kind: 'player', player: { id: 1, first_name: 'Aarav' } },
       'GET /player/me': page(),
       'GET /registration/players': [],
@@ -28,7 +27,7 @@ describe('creating your account', () => {
     renderAt('/join')
     await user.type(screen.getByLabelText('First name'), 'aarav')
     await user.type(screen.getByLabelText('Last name'), 'tester')
-    await user.selectOptions(await screen.findByLabelText('Center'), 'North')
+    await user.type(screen.getByLabelText('Registration email'), 'Aarav@Example.com')
     await user.type(screen.getByLabelText('Username'), 'aarav_t')
     await user.type(screen.getByLabelText('Password'), 'secret1')
     await user.type(screen.getByLabelText('Password again'), 'secret2')
@@ -39,14 +38,13 @@ describe('creating your account', () => {
     await user.click(screen.getByRole('button', { name: 'Create account' }))
     expect(await screen.findByText(/^Hi/)).toBeInTheDocument()
     expect(sent('POST', '/players/claim')[0].body).toEqual({
-      first_name: 'aarav', last_name: 'tester', center: 'North', username: 'aarav_t', password: 'secret1',
+      first_name: 'aarav', last_name: 'tester', email: 'Aarav@Example.com', username: 'aarav_t', password: 'secret1',
     })
   })
 
   it('explains when the player is not found, registration is closed or nothing is loaded', async () => {
     mockApi({
-      'GET /registration/status': { open: false, team_cap: 42 },
-      'GET /registration/centers': [],
+      'GET /registration/status': { open: false, team_cap: 42, loaded: false },
       'POST /players/claim': fail(404, "We couldn't find you."),
     })
     const user = userEvent.setup()
@@ -55,7 +53,12 @@ describe('creating your account', () => {
     expect(await screen.findByText(/have not been loaded yet/)).toBeInTheDocument()
     await user.type(screen.getByLabelText('First name'), 'x')
     await user.type(screen.getByLabelText('Last name'), 'y')
-    mockApi({ 'GET /registration/centers': ['North'], 'POST /players/claim': fail(404, "We couldn't find you.") })
+    await user.type(screen.getByLabelText('Registration email'), 'x@example.com')
+    await user.type(screen.getByLabelText('Username'), 'xy_123')
+    await user.type(screen.getByLabelText('Password'), 'secret1')
+    await user.type(screen.getByLabelText('Password again'), 'secret1')
+    await user.click(screen.getByRole('button', { name: 'Create account' }))
+    expect(await screen.findByText(/couldn't find/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/login')
   })
 
@@ -147,6 +150,13 @@ describe('the player page', () => {
     await user.type(screen.getByLabelText('Team name'), 'Taken')
     await user.click(screen.getByRole('button', { name: 'Send invitation' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('That team name is taken')
+  })
+
+  it('tells a player without a center that an admin pairs them', async () => {
+    mockApi({ 'GET /player/me': page({ player: { ...me, center: '' } }) })
+    renderAt('/my-team', PLAYER)
+    expect(await screen.findByText(/no center yet/)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Partner')).not.toBeInTheDocument()
   })
 
   it('needs a login, a password of their own, and handles an expired login', async () => {

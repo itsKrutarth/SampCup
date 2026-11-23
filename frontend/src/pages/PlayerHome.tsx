@@ -172,7 +172,14 @@ export default function PlayerHome() {
               </button>
             </section>
           ) : (
-            <PartnerForm me={player} token={token} onSent={reload} invited={incoming.length > 0} />
+            player.center ? (
+              <PartnerForm me={player} token={token} onSent={reload} invited={incoming.length > 0} />
+            ) : (
+              <p className="info">
+                Your registration has no center yet, so you can't pick a partner here. An admin will add your center or pair you
+                up.
+              </p>
+            )
           )}
         </>
       )}

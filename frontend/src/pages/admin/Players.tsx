@@ -5,13 +5,17 @@ import { api, ApiError } from '../../lib/api'
 import { useApi } from '../../lib/live'
 import { Message, useAction } from './common'
 
-// rows imported without a center (an admin sets it below, or teams them up)
-export const NO_CENTER = 'No center provided'
+// rows imported without a center come in blank (an admin sets it below, or teams them up)
+export const NO_CENTER = 'No center'
 
 export type AdminPlayer = {
   id: number
   mis_id: string
   baps_id?: string
+  email?: string
+  has_email?: boolean
+  card_name?: string
+  registered_at?: string
   first_name: string
   last_name: string
   center: string
@@ -34,6 +38,7 @@ type Report = {
   center_changes?: string[]
   deactivated_names?: string[]
   no_center?: string[]
+  no_email?: string[]
   possible_duplicates: string[]
   skipped: { row: number; reason: string }[]
   teams_with_removed_players: string[]
@@ -69,6 +74,9 @@ function ImportReport({ report }: { report: Report }) {
           {NO_CENTER}: {report.no_center!.join(', ')}. Set their center below, or team them up in Teams.
         </p>
       )}
+      {(report.no_email?.length ?? 0) > 0 && (
+        <p>No email on file (they can't create their own account; use Set login): {report.no_email!.join(', ')}.</p>
+      )}
       {report.skipped.length > 0 && <p>Skipped rows: {report.skipped.map((s) => `${s.row} (${s.reason})`).join(', ')}</p>}
       {report.possible_duplicates.length > 0 && <p>Same name at one center (check they are different people): {report.possible_duplicates.join(', ')}</p>}
       {report.teams_with_removed_players.length > 0 && <p>Teams with removed players: {report.teams_with_removed_players.join(', ')}</p>}
@@ -87,7 +95,7 @@ function Center({ player, onChange }: { player: AdminPlayer; onChange: () => voi
       onChange()
     }
   }
-  const missing = player.center === NO_CENTER
+  const missing = !player.center
   return (
     <div className="stack" style={{ margin: 0, gap: '0.3rem' }}>
       {open ? (
@@ -128,7 +136,7 @@ function Account({ player, onChange }: { player: AdminPlayer; onChange: () => vo
   return (
     <div className="stack" style={{ margin: 0, gap: '0.3rem' }}>
       <span>
-        {player.username ?? <span className="muted">No account</span>}
+        {player.username ?? <span className="muted">No account{player.has_email === false && ' · no email on file'}</span>}
         {player.must_change_password && <small className="muted"> · temporary password</small>}
       </span>
       {open ? (
@@ -187,15 +195,18 @@ export default function Players() {
     }
   }
   const shown = (data ?? []).filter((p) =>
-    `${p.first_name} ${p.last_name} ${p.center} ${p.mis_id} ${p.baps_id ?? ''}`.toLowerCase().includes(filter.toLowerCase()),
+    `${p.first_name} ${p.last_name} ${p.center} ${p.email ?? ''} ${p.card_name ?? ''} ${p.mis_id} ${p.baps_id ?? ''}`
+      .toLowerCase()
+      .includes(filter.toLowerCase()),
   )
   return (
     <>
       <form onSubmit={check} className="stack">
         <h2>Import registrations</h2>
         <p className="hint">
-          Upload the registration export (.xlsx or .csv). Players are recognised by first name, last name and center; MISID, BAPS ID or
-          email help tell namesakes apart when present. You see every change before it is saved, and nobody is deleted.
+          Upload the registration export (.xlsx or .csv); every column is kept. Players are recognised by first name, last name and email,
+          and create their account with them. Rows without an email are matched by name and center. You see every change before it is
+          saved, and nobody is deleted.
         </p>
         <input
           name="file"
@@ -230,7 +241,7 @@ export default function Players() {
         </div>
       )}
       <h2>Players ({data?.length ?? 0})</h2>
-      <input placeholder="Search name, center, MISID or BAPS ID" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Search players" />
+      <input placeholder="Search name, center, email or ID" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Search players" />
       <Status loading={loading} error={error} />
       <div className="table-wrap">
         <table>
@@ -238,7 +249,9 @@ export default function Players() {
             <tr>
               <th>Name</th>
               <th>Center</th>
+              <th>Email</th>
               <th>ID</th>
+              <th>Registered</th>
               <th>Shirt</th>
               <th>Team</th>
               <th>Account</th>
@@ -254,7 +267,14 @@ export default function Players() {
                 <td>
                   <Center player={p} onChange={reload} />
                 </td>
+                <td>
+                  {p.email || <span className="muted">none</span>}
+                  {p.card_name && p.card_name.toLowerCase() !== `${p.first_name} ${p.last_name}`.toLowerCase() && (
+                    <small className="muted"> · card: {p.card_name}</small>
+                  )}
+                </td>
                 <td>{p.mis_id || p.baps_id}</td>
+                <td>{p.registered_at}</td>
                 <td>{p.tshirt_size}</td>
                 <td>{p.team?.name ?? '-'}</td>
                 <td>

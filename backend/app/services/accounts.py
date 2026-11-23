@@ -6,6 +6,7 @@ from app.core.security import DUMMY_HASH, hash_password, verify_password
 from app.models import Player
 from app.services.auth import LoginFailed, end_sessions, new_session
 from app.services.errors import Conflict, NotFound, ServiceError
+from app.services.players import email_key
 from app.store import ConflictError, Store
 
 LOGIN = "PLAYERNAME"  # lock kind: player usernames are unique
@@ -29,21 +30,27 @@ def check_password(password: str) -> None:
         raise ServiceError("Password must be 6-72 characters")
 
 
-def find_player(store: Store, first_name: str, last_name: str, center: str) -> Player:
-    """The one active registered player with this name at this center."""
+def find_player(store: Store, first_name: str, last_name: str, email: str) -> Player:
+    """The one active registered player with this name and registration email. The center comes
+    from the registration, so players don't pick it."""
     wanted = (_norm(first_name), _norm(last_name))
+    key = email_key(email)
     matches = [
         p
         for p in store.all(Player)
-        if p.active and p.center == center and (_norm(p.first_name), _norm(p.last_name)) == wanted
+        if p.active
+        and key
+        and p.email_key == key
+        and (_norm(p.first_name), _norm(p.last_name)) == wanted
     ]
     if not matches:
         raise NotFound(
-            "We couldn't find you. Check the spelling and center, or ask your coordinator."
+            "We couldn't find a registration with this name and email. Use the email you "
+            "registered with, or ask your coordinator."
         )
     if len(matches) > 1:
         raise Conflict(
-            "More than one player has this name at this center. "
+            "More than one registration has this name and email. "
             "Ask an admin to set up your account."
         )
     return matches[0]
@@ -54,9 +61,9 @@ def _owner(player: Player) -> str:
 
 
 def claim_account(
-    store: Store, first_name: str, last_name: str, center: str, username: str, password: str
+    store: Store, first_name: str, last_name: str, email: str, username: str, password: str
 ) -> Player:
-    player = find_player(store, first_name, last_name, center)
+    player = find_player(store, first_name, last_name, email)
     if player.username:
         raise Conflict(
             "This player already has an account. Log in, or ask an admin if that wasn't you."

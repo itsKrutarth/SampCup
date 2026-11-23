@@ -17,7 +17,7 @@ router = APIRouter(tags=["registration"])
 class Claim(BaseModel):
     first_name: str = Field(max_length=80)
     last_name: str = Field(max_length=80)
-    center: str = Field(max_length=80)
+    email: str = Field(max_length=254)
     username: str = Field(max_length=40)
     password: str = Field(max_length=72)
 
@@ -30,20 +30,15 @@ class NewRequest(BaseModel):
 @router.get("/registration/status")
 def status(store: Db) -> dict[str, Any]:
     tournament = get_tournament(store)
-    return {"open": tournament.registration_open, "team_cap": tournament.team_cap}
-
-
-@router.get("/registration/centers")
-def centers(store: Db) -> list[str]:
-    """Center names only, for the account form (no player names in public)."""
-    return sorted({p.center for p in store.all(Player) if p.active})
+    loaded = any(p.active for p in store.all(Player))
+    return {"open": tournament.registration_open, "team_cap": tournament.team_cap, "loaded": loaded}
 
 
 @router.post("/players/claim", status_code=201)
 def claim(body: Claim, store: Db, request: Request) -> dict[str, Any]:
     limit(store, request, "claim", REGISTRATION_PER_IP)
     player = accounts.claim_account(
-        store, body.first_name, body.last_name, body.center, body.username, body.password
+        store, body.first_name, body.last_name, body.email, body.username, body.password
     )
     token = auth.new_session(store, player_id=player.id)
     return {"token": token, "kind": "player", "player": Lookup(store).player(player)}
@@ -51,7 +46,7 @@ def claim(body: Claim, store: Db, request: Request) -> dict[str, Any]:
 
 @router.get("/registration/players")
 def players(me: PlayerDep, store: Db) -> list[dict[str, Any]]:
-    """Players at my own center, for picking a partner."""
+    """Players at my own center, for picking a partner (none until my center is set)."""
     look = Lookup(store)
     pending = {
         pid
@@ -60,7 +55,11 @@ def players(me: PlayerDep, store: Db) -> list[dict[str, Any]]:
         for pid in (r.from_player_id, r.to_player_id)
     }
     rows = sorted(
-        (p for p in look.players.values() if p.active and p.center == me.center and p.id != me.id),
+        (
+            p
+            for p in look.players.values()
+            if p.active and me.center and p.center == me.center and p.id != me.id
+        ),
         key=lambda p: (p.first_name, p.last_name),
     )
     out = []

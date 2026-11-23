@@ -1,14 +1,16 @@
 """Import registrations from the registration system's export (.xlsx or .csv).
 
-A player is recognised by first name + last name + center (owner, 2026-11-23). MISID, BAPS ID
-and email are optional: they only tell apart people that key cannot (two people with the same
-name at one center, or a player whose center changed). Empty cells never erase what the app
-has. A row without a center comes in as "No center provided"; an admin sets the center in the
-Players tab or teams them up. A preview shows every change before anything is saved, and a
-file that would switch off most players is refused.
+Every column is kept (owner, 2026-11-23). A player is recognised by first name + last name +
+registration email, which is also how they create their account (app.services.accounts). Rows
+or older records without an email fall back to name + center, then MISID or BAPS ID, then a
+name that is unique. Empty cells never erase what the app has. A row without a center comes in
+with a blank center: an admin sets it in the Players tab, and until then the player can't pick a
+partner. A preview shows every change before anything is saved, and a file that would switch
+off most players is refused.
 """
 
 import csv
+import datetime as dt
 import hashlib
 import io
 import re
@@ -27,6 +29,9 @@ FIELDS = {
     "bapsidmetadata": "baps_id",
     "email": "email",
     "customeremail": "email",
+    "cardname": "card_name",
+    "createddate": "registered_at",
+    "createddateutc": "registered_at",
     "firstname": "first_name",
     "lastname": "last_name",
     "center": "center",
@@ -36,13 +41,12 @@ FIELDS = {
 }
 REQUIRED = ("first_name", "last_name")
 IDS = ("mis_id", "baps_id", "email_key")
-NO_CENTER = "No center provided"
 MAX_BYTES = 5 * 1024 * 1024
 
 
 def email_key(email: str) -> str:
-    """A one-way fingerprint of an email address: enough to recognise a player again, while
-    the address itself is never stored."""
+    """The email as matching compares it (spaces and capitals don't count), as a fingerprint:
+    the first import of 2026-11-23 kept only this."""
     clean = email.strip().casefold()
     return hashlib.sha256(clean.encode()).hexdigest()[:32] if clean else ""
 
@@ -71,6 +75,8 @@ def _key(header: object) -> str:
 def _text(value: object) -> str:
     if isinstance(value, float) and value.is_integer():
         value = int(value)
+    if isinstance(value, dt.datetime):
+        value = value.strftime("%Y-%m-%d %H:%M")
     return " ".join(str(value if value is not None else "").split())
 
 
@@ -123,7 +129,7 @@ def parse_players(content: bytes) -> tuple[list[dict[str, str]], list[dict[str, 
         record = {field: _text(row[i]) if i < len(row) else "" for i, field in columns.items()}
         if not any(record.values()):
             continue
-        record["email_key"] = email_key(record.pop("email", ""))
+        record["email_key"] = email_key(record.get("email", ""))
         empty = [f for f in REQUIRED if not record.get(f)]
         if empty:
             skipped.append({"row": number, "reason": f"missing {', '.join(empty)}"})
@@ -138,25 +144,20 @@ def parse_players(content: bytes) -> tuple[list[dict[str, str]], list[dict[str, 
 
 
 def _match(record: dict[str, str], pool: list[Player], in_file: Counter[Any]) -> Player | None:
-    """The existing player this row is, in order: name + center; the same name with a shared
-    ID; a personal ID (MISID or BAPS ID) used once in the file (a corrected name); the name
-    alone when it is unique in both the app and the file (a center that changed or is
-    missing). Email only ever counts alongside the name: families share one address."""
+    """The existing player this row is. First the key, name + email (a different email is a
+    different person). For a row or record without an email: name + center; the same name with
+    a shared MISID or BAPS ID; a personal ID used once in the file (a corrected name); the name
+    alone when it is unique in both the app and the file."""
     named = [p for p in pool if _name(vars(p)) == _name(record) and not _conflict(record, vars(p))]
+    if record.get("email_key"):
+        keyed = [p for p in named if p.email_key == record["email_key"]]
+        if keyed:
+            return _one_of(record, keyed)
     center = _fold(record.get("center", ""))
     if center:
         here = [p for p in named if _fold(p.center) == center]
-        if len(here) == 1:
-            return here[0]
-        if len(here) > 1:
-            by_id = [p for p in here if _shared_id(record, vars(p))]
-            if len(by_id) == 1:
-                return by_id[0]
-            # Namesakes at one center that nothing tells apart: when none of them has a login
-            # or a team (nothing to mix up), pair them with the file's rows in order.
-            if not by_id and not any(p.username or p.team_id for p in here):
-                return here[0]
-            return None
+        if here:
+            return _one_of(record, here)
     by_id = [p for p in named if _shared_id(record, vars(p))]
     if len(by_id) == 1:
         return by_id[0]
@@ -168,6 +169,19 @@ def _match(record: dict[str, str], pool: list[Player], in_file: Counter[Any]) ->
                 return same[0]
     if len(named) == 1 and in_file[_name(record)] == 1:
         return named[0]
+    return None
+
+
+def _one_of(record: dict[str, str], found: list[Player]) -> Player | None:
+    """One of several same-name players: a shared ID tells; when nothing does and none of them
+    has a login or a team (nothing to mix up), the file's rows pair with them in order."""
+    if len(found) == 1:
+        return found[0]
+    by_id = [p for p in found if _shared_id(record, vars(p))]
+    if len(by_id) == 1:
+        return by_id[0]
+    if not by_id and not any(p.username or p.team_id for p in found):
+        return found[0]
     return None
 
 
@@ -212,7 +226,8 @@ def import_players(store: Store, content: bytes, preview: bool = False) -> dict[
         before = player.center
         fields = _apply(player, record)
         if "center" in fields:
-            report["center_changes"].append(f"{player.full_name}: {before} -> {player.center}")
+            was = before or "no center"
+            report["center_changes"].append(f"{player.full_name}: {was} -> {player.center}")
         if fields or not player.active:
             player.active = True
             changed.append(player)
@@ -229,20 +244,19 @@ def import_players(store: Store, content: bytes, preview: bool = False) -> dict[
     next_id = store.next_id(Player, len(new)) if new and not preview else 0
     for record in new:
         fields = {k: v for k, v in record.items() if not k.startswith("_")}
-        fields["center"] = fields.get("center") or NO_CENTER
         player = Player(id=next_id, **fields)
         next_id += 1
         players.append(player)
         changed.append(player)
         report["added"] += 1
-        report["added_names"].append(f"{player.full_name} ({player.center})")
+        report["added_names"].append(f"{player.full_name} ({player.center or 'no center'})")
     teams_affected = set()
     report["deactivated_names"] = []
     for player in leaving:
         player.active = False
         changed.append(player)
         report["deactivated"] += 1
-        report["deactivated_names"].append(f"{player.full_name} ({player.center})")
+        report["deactivated_names"].append(f"{player.full_name} ({player.center or 'no center'})")
         if player.team_id in teams:
             teams_affected.add(teams[player.team_id].name)
     if not preview:
@@ -251,18 +265,21 @@ def import_players(store: Store, content: bytes, preview: bool = False) -> dict[
         (p.first_name.casefold(), p.last_name.casefold(), p.center) for p in players if p.active
     )
     report["possible_duplicates"] = sorted(
-        f"{first.title()} {last.title()} ({center})"
+        f"{first.title()} {last.title()} ({center or 'no center'})"
         for (first, last, center), count in names.items()
         if count > 1
     )
-    report["no_center"] = sorted(p.full_name for p in players if p.active and p.center == NO_CENTER)
+    active = [p for p in players if p.active]
+    report["no_center"] = sorted(p.full_name for p in active if not p.center)
+    # they can't create their own account: an admin sets their login
+    report["no_email"] = sorted(p.full_name for p in active if not p.email_key)
     report["skipped"] = skipped
     report["teams_with_removed_players"] = sorted(teams_affected)
     return report
 
 
 def set_center(store: Store, player_id: int, center: str) -> Player:
-    """An admin sets a player's center (for example one that came in as "No center provided")."""
+    """An admin sets a player's center (for example one the registration didn't have)."""
     player = store.get(Player, player_id)
     if player is None:
         raise NotFound("Player not found")

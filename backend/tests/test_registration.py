@@ -5,7 +5,7 @@ from app.api import registration
 from app.models import PartnerRequest, Player, Team
 from app.services.tournament import get_tournament
 from app.store import Store
-from tests.factories import make_player, make_team, player_headers
+from tests.factories import email_of, make_player, make_team, player_headers
 
 
 def claim(
@@ -14,7 +14,7 @@ def claim(
     body = {
         "first_name": player.first_name,
         "last_name": player.last_name,
-        "center": player.center,
+        "email": email_of(player.first_name),
         "username": username,
         "password": password,
         **kw,
@@ -33,13 +33,13 @@ def answer(client: TestClient, headers: dict, request_id: int, action: str):
 
 
 def test_players_claim_their_account_once(client: TestClient, store: Store) -> None:
-    a = make_player(store, first="Aarav")
-    make_player(store, center="South")
-    assert client.get("/api/registration/centers").json() == ["North", "South"]
+    assert client.get("/api/registration/status").json()["loaded"] is False
+    a = make_player(store, first="Aarav", center="")  # the center comes from the registration
+    assert client.get("/api/registration/status").json()["loaded"] is True
     body = {
         "first_name": f"  {a.first_name.upper()} ",
         "last_name": "tester",
-        "center": "North",
+        "email": f" {email_of(a.first_name).upper()} ",
         "username": "Aarav_P",
         "password": "secret1",
     }
@@ -64,13 +64,15 @@ def test_players_claim_their_account_once(client: TestClient, store: Store) -> N
 def test_claim_rules(client: TestClient, store: Store) -> None:
     a, b = make_player(store), make_player(store)
     twin_a = make_player(store, first="Twin")
+    no_email = make_player(store, email_key="")  # an old registration without an email
     store.save(
         Player(
             id=store.next_id(Player),
             mis_id="X1",
             first_name=twin_a.first_name,
             last_name="Tester",
-            center="North",
+            center="South",
+            email_key=twin_a.email_key,
         )
     )
     assert claim(client, a, username="taken").status_code == 201
@@ -79,7 +81,10 @@ def test_claim_rules(client: TestClient, store: Store) -> None:
         (claim(client, b, username="no"), 400, "3-30"),
         (claim(client, b, password="short"), 400, "6-72"),
         (claim(client, b, first_name="Nobody"), 404, "couldn't find"),
-        (claim(client, b, center="South"), 404, "couldn't find"),
+        (claim(client, b, email="someone.else@example.com"), 404, "couldn't find"),
+        (claim(client, b, email=email_of(a.first_name)), 404, "couldn't find"),  # a's email
+        (claim(client, b, email=""), 404, "couldn't find"),
+        (claim(client, no_email, email=""), 404, "couldn't find"),
         (claim(client, twin_a, username="twin"), 409, "More than one"),
     ]
     for response, code, text in cases:
@@ -133,8 +138,18 @@ def test_request_rules(client: TestClient, store: Store) -> None:
         (invite(client, me, b.id, name="x"), 400, "2-40 characters"),
         (invite(client, me, b.id, name="taken  name"), 409, "taken"),
     ]
+    # a player without a center (an admin sets it) can't invite anyone, nor be listed
+    blank, other_blank = make_player(store, center=""), make_player(store, center="")
+    alone = player_headers(client, store, blank)
+    checks += [
+        (invite(client, alone, other_blank.id), 400, "center isn't set yet"),
+        (invite(client, me, blank.id), 400, "from your center"),
+    ]
     for response, code, text in checks:
         assert response.status_code == code and text in response.json()["detail"], response.text
+    assert client.get("/api/registration/players", headers=alone).json() == []
+    listed = client.get("/api/registration/players", headers=me).json()
+    assert blank.id not in {p["id"] for p in listed}
     assert invite(client, me, b.id, name="Fresh").status_code == 201
     second = invite(client, me, c.id, name="Second")
     assert second.status_code == 409 and "already have a request" in second.json()["detail"]
@@ -184,7 +199,8 @@ def test_teams_past_the_cap_wait_and_closed_registration_refuses(
     store.save(tournament)
     assert invite(client, player_headers(client, store, c), a.id, name="Later").status_code == 409
     assert answer(client, player_headers(client, store, d), pending, "accept").status_code == 409
-    assert client.get("/api/registration/status").json() == {"open": False, "team_cap": 1}
+    status = client.get("/api/registration/status").json()
+    assert status == {"open": False, "team_cap": 1, "loaded": True}
     assert len(store.all(Team)) == 2
 
 

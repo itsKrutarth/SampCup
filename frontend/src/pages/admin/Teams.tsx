@@ -83,7 +83,7 @@ export default function Teams() {
             <select name={field} required defaultValue="">
               <option value="" disabled>Choose…</option>
               {free.map((p) => (
-                <option key={p.id} value={p.id}>{p.first_name} {p.last_name} ({p.center})</option>
+                <option key={p.id} value={p.id}>{p.first_name} {p.last_name} ({p.center || 'no center'})</option>
               ))}
             </select>
           </label>

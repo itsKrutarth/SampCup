@@ -9,6 +9,7 @@ from openpyxl import Workbook
 from app.cli import seed_demo
 from app.core.security import hash_password
 from app.models import Player, Team
+from app.services.players import email_key
 from app.services.teams import NAME, name_key
 from app.store import Record, Store
 
@@ -46,8 +47,14 @@ def row(mis_id: object, first: str, last: str = "Tester", center: str = "North")
 _counter = iter(range(1, 100_000))
 
 
+def email_of(first_name: str) -> str:
+    """The made-up registration email of a test player."""
+    return f"{first_name.lower()}@example.com"
+
+
 def make_player(store: Store, first: str = "Player", center: str = "North", **kw: Any) -> Player:
     n = next(_counter)
+    kw.setdefault("email_key", email_key(email_of(f"{first}{n}")))
     player = Player(
         id=store.next_id(Player),
         mis_id=f"T{n:05d}",

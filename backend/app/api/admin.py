@@ -197,7 +197,7 @@ async def import_players(
 
 @router.patch("/players/{player_id}")
 def update_player(player_id: int, body: PlayerPatch, _: Admin, store: Db) -> dict[str, Any]:
-    """An admin sets a player's center (rows imported without one say "No center provided")."""
+    """An admin sets a player's center (rows imported without one come in blank)."""
     return Lookup(store).player(players.set_center(store, player_id, body.center), admin=True)
 
 

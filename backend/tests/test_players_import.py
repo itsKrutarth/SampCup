@@ -1,9 +1,11 @@
+import datetime as dt
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.models import Player
 from app.services.errors import ServiceError
-from app.services.players import NO_CENTER, email_key, import_players, parse_players
+from app.services.players import email_key, import_players, parse_players
 from app.store import Store
 from tests.factories import HEADER, find, make_team, row, xlsx
 
@@ -12,9 +14,11 @@ NEW_HEADER = ["Created date (UTC)", "Card Name", "Customer Email", "BAPSId (meta
 NEW_HEADER += ["LastName", "FirstName", "MISID", "Center"]
 
 
-def new_row(first: str, last: str, center: str, baps: str = "", email: str = "") -> list:
+def new_row(
+    first: str, last: str, center: str, baps: str = "", email: str = "", card: str = ""
+) -> list:
     email = email or f"{first}.{last}@example.com".lower()
-    return ["11/21/26 19:42", "", email, baps, last, first, None, center]
+    return ["11/21/26 19:42", card, email, baps, last, first, None, center]
 
 
 def upload(client: TestClient, headers: dict[str, str], content: bytes, name: str = "export.xlsx"):
@@ -45,6 +49,8 @@ def test_reimport_matches_players_and_deactivates_missing_ones(store: Store) -> 
         "deactivated": 3,  # Jay, and the two players of the test team
     }
     assert report["added_names"] == ["Om Tester (North)"]
+    # the old export has no emails: these players can't create their own accounts
+    assert report["no_email"] == ["Aarav Tester", "Devan Tester", "Om Tester"]
     assert report["teams_with_removed_players"] == [team.name] and report["skipped"] == []
     assert find(store, Player, mis_id="2").first_name == "Devan"
     report = import_players(store, xlsx([row(1, "Aarav"), row(2, "Devan"), row(3, "Jay")]))
@@ -93,19 +99,63 @@ def test_the_newer_export_without_misids(store: Store) -> None:
     assert (report["added"], report["updated"], report["deactivated"]) == (5, 2, 0)
     assert report["skipped"] == [{"row": 9, "reason": "same person as row 7"}]
     assert report["center_changes"] == ["Neel Chauhan: Toronto -> Boston"]
-    assert report["no_center"] == ["Kush Patel"]
+    assert report["no_center"] == ["Kush Patel"] and report["no_email"] == []
     players = {(p.first_name, p.baps_id): p for p in store.all(Player)}
     aalay = players[("Aalay", "AL3838001")]
     assert aalay.mis_id == "11" and aalay.center == "Westborough"  # empty cells erase nothing
-    assert players[("Kush", "KP1006002")].center == NO_CENTER
+    assert players[("Kush", "KP1006002")].center == ""  # blank until an admin sets it
     assert players[("Ved", "")].email_key == email_key(family) == players[("Rudra", "")].email_key
-    assert all("@" not in str(vars(p)) for p in store.all(Player))  # no email address stored
+    assert players[("Ved", "")].email == family  # every column is kept
+    assert aalay.registered_at == "11/21/26 19:42" and aalay.email == "aalay.shah@example.com"
     # two Jay Patels at Boston, neither with a login or team: paired in order on the next
     # import of a file that still has no IDs for them (nothing to mix up)
     assert sum(p.first_name == "Jay" for p in store.all(Player)) == 2
     # the same file again: everyone recognised, nothing changes
     again = import_players(store, xlsx(rows, NEW_HEADER))
     assert (again["added"], again["updated"], again["unchanged"]) == (0, 0, 7)
+
+
+def test_every_column_is_kept_and_name_plus_email_is_the_key(store: Store) -> None:
+    when = dt.datetime(2026, 11, 21, 19, 42)
+    prem = [when, "Prem Patel", "Prem@Example.com", "", "Patel", "Prem", None, "Westborough"]
+    first = [
+        prem,
+        new_row("Chintan", "Patel", "New Haven", "CP1"),
+        # another Chintan Patel (a different email), with no center
+        new_row("Chintan", "Patel", "", email="chintan2@example.com", card="CHINTAN PATEL"),
+    ]
+    report = import_players(store, xlsx(first, NEW_HEADER))
+    assert (
+        report["added"] == 3
+        and report["skipped"] == []
+        and report["no_center"] == ["Chintan Patel"]
+    )
+    made = find(store, Player, first_name="Prem")
+    assert (made.email, made.card_name, made.registered_at, made.baps_id) == (
+        "Prem@Example.com",
+        "Prem Patel",
+        "2026-11-21 19:42",
+        "",
+    )
+    # the next export: Prem moved center, the second Chintan has one now; both are found by
+    # name + email (capitals and spaces in the email don't count)
+    later = [
+        [when, "Prem Patel", " prem@example.COM", "", "Patel", "Prem", None, "Boston"],
+        new_row("Chintan", "Patel", "New Haven", "CP1"),
+        new_row(
+            "Chintan", "Patel", "New Haven", email="chintan2@example.com", card="CHINTAN PATEL"
+        ),
+    ]
+    report = import_players(store, xlsx(later, NEW_HEADER))
+    assert (report["added"], report["updated"], report["deactivated"]) == (0, 2, 0)
+    assert sorted(report["center_changes"]) == [
+        "Chintan Patel: no center -> New Haven",
+        "Prem Patel: Westborough -> Boston",
+    ]
+    # the same name with a new email is someone else: added, and the old record is switched off
+    other = [*later[:2], new_row("Chintan", "Patel", "New Haven", email="new@example.com")]
+    report = import_players(store, xlsx(other, NEW_HEADER), preview=True)
+    assert (report["added"], report["deactivated"]) == (1, 1)
 
 
 def test_an_import_that_would_switch_off_most_players_is_refused(store: Store) -> None:
@@ -129,7 +179,7 @@ def test_admins_set_a_players_center(
 ) -> None:
     import_players(store, xlsx([new_row("Kush", "Patel", "")], NEW_HEADER))
     kush = store.all(Player)[0]
-    assert kush.center == NO_CENTER
+    assert kush.center == ""
     url = f"/api/admin/players/{kush.id}"
     saved = client.patch(url, headers=admin, json={"center": "  Boston "})
     assert saved.status_code == 200 and saved.json()["center"] == "Boston"
@@ -142,6 +192,13 @@ def test_admins_set_a_players_center(
     assert client.patch(url, headers=judge, json={"center": "X"}).status_code == 403
     listed = client.get("/api/admin/players", headers=admin).json()
     assert listed[0]["baps_id"] == "" and listed[0]["center"] == "Boston"
+    assert listed[0]["has_email"] is True
+    # the next export still has no center for him: the admin's center stays
+    again = import_players(store, xlsx([new_row("Kush", "Patel", "")], NEW_HEADER))
+    assert again["unchanged"] == 1 and store.get(Player, kush.id).center == "Boston"
+    # players saved by the first import of 2026-11-23 read "No center provided": now blank
+    store.save(Player(id=50, first_name="Old", last_name="Label", center="No center provided"))
+    assert store.get(Player, 50).center == ""
 
 
 def test_same_names_in_one_center_are_flagged_not_merged(store: Store) -> None:

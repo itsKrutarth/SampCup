@@ -83,19 +83,24 @@ describe('players tab', () => {
   it('checks the export first, then imports what the check showed, and searches players', async () => {
     const report = {
       added: 3, updated: 1, unchanged: 0, deactivated: 1,
-      added_names: ['Om Tester (North)', 'Kush Patel (No center provided)', 'Ved Shah (Hartford)'], updated_names: ['Aarav Tester'],
-      center_changes: ['Aarav Tester: South -> North'], deactivated_names: ['Dev Tester (North)'], no_center: ['Kush Patel'],
+      added_names: ['Om Tester (North)', 'Kush Patel (no center)', 'Ved Shah (Hartford)'], updated_names: ['Aarav Tester'],
+      center_changes: ['Aarav Tester: South -> North'], deactivated_names: ['Dev Tester (North)'], no_center: ['Kush Patel'], no_email: ['Om Tester'],
       possible_duplicates: ['Aarav Tester (North)'], skipped: [{ row: 4, reason: 'same person as row 2' }], teams_with_removed_players: ['Net Ninjas'],
     }
     const { sent } = mockApi({
-      'GET /admin/players': [player(1, 'Aarav', { id: 7, name: 'Net Ninjas' }), player(2, 'Dev', null, false)],
+      'GET /admin/players': [
+        { ...player(1, 'Aarav', { id: 7, name: 'Net Ninjas' }), email: 'aarav@example.com', card_name: 'Parent Tester', registered_at: '2026-11-21 19:42' },
+        player(2, 'Dev', null, false),
+      ],
       'POST /admin/players/import?preview=true': { ...report, preview: true },
       'POST /admin/players/import': { ...report, preview: false },
     })
     const user = userEvent.setup()
     renderAt('/admin/players', ADMIN)
     expect(await screen.findByText('Dev Tester (removed)')).toBeInTheDocument()
-    await user.type(screen.getByLabelText('Search players'), 'aarav')
+    expect(screen.getByText('aarav@example.com')).toBeInTheDocument()
+    expect(screen.getByText(/card: Parent Tester/)).toBeInTheDocument()
+    await user.type(screen.getByLabelText('Search players'), 'aarav@')
     expect(screen.queryByText('Dev Tester (removed)')).not.toBeInTheDocument()
     await user.upload(screen.getByLabelText('Registration file'), new File(['x'], 'export.xlsx'))
     await user.click(screen.getByRole('button', { name: 'Check file' }))
@@ -104,7 +109,8 @@ describe('players tab', () => {
     expect(within(check).getByText(/This file would add 3, update 1, leave 0 unchanged and switch off 1/)).toBeInTheDocument()
     expect(within(check).getByText('Center changes (1)')).toBeInTheDocument()
     expect(within(check).getByText('Would be switched off (not in the file) (1)')).toBeInTheDocument()
-    expect(within(check).getByText(/No center provided: Kush Patel/)).toBeInTheDocument()
+    expect(within(check).getByText(/No center: Kush Patel/)).toBeInTheDocument()
+    expect(within(check).getByText(/No email on file .*: Om Tester/)).toBeInTheDocument()
     expect(within(check).getByText('Skipped rows: 4 (same person as row 2)')).toBeInTheDocument()
     expect(within(check).getByText(/Same name at one center/)).toBeInTheDocument()
     expect(within(check).getByText('Teams with removed players: Net Ninjas')).toBeInTheDocument()
@@ -117,7 +123,7 @@ describe('players tab', () => {
   })
 
   it('cancels a checked file and sets a center by hand', async () => {
-    const kush = { ...player(3, 'Kush'), center: 'No center provided' }
+    const kush = { ...player(3, 'Kush'), center: '', has_email: false }
     const { sent } = mockApi({
       'GET /admin/players': [kush],
       'POST /admin/players/import?preview=true': { added: 1, updated: 0, unchanged: 0, deactivated: 0, possible_duplicates: [], skipped: [], teams_with_removed_players: [], preview: true },
@@ -125,7 +131,8 @@ describe('players tab', () => {
     })
     const user = userEvent.setup()
     renderAt('/admin/players', ADMIN)
-    expect(await screen.findByText('No center provided')).toBeInTheDocument()
+    expect(await screen.findByText('No center')).toBeInTheDocument()
+    expect(screen.getByText('No account · no email on file')).toBeInTheDocument()
     await user.upload(screen.getByLabelText('Registration file'), new File(['x'], 'export.xlsx'))
     await user.click(screen.getByRole('button', { name: 'Check file' }))
     await user.click(await screen.findByRole('button', { name: 'Cancel' }))

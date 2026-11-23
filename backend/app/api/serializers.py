@@ -36,6 +36,11 @@ def player_out(player: Player, admin: bool = False, team: Team | None = None) ->
     }
     if admin:
         out |= {
+            # without an email the player can't create their own account: an admin sets it
+            "email": player.email,
+            "has_email": bool(player.email_key),
+            "card_name": player.card_name,
+            "registered_at": player.registered_at,
             "mis_id": player.mis_id,
             "baps_id": player.baps_id,
             "region": player.region,

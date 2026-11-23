@@ -9,12 +9,11 @@ import { useApi } from '../lib/live'
 
 type Claimed = { token: string; player: { id: number; first_name: string } }
 
-/** A registered player claims their account: name and center must match the registration. */
+/** A registered player claims their account: name and email must match the registration (the center comes from it). */
 export default function Join() {
   const { auth, signIn } = useAuth()
   const navigate = useNavigate()
-  const status = useApi<{ open: boolean }>('/registration/status')
-  const centers = useApi<string[]>('/registration/centers')
+  const status = useApi<{ open: boolean; loaded?: boolean }>('/registration/status')
   const [error, setError] = useState('')
   if (auth?.kind === 'player') return <Navigate to="/my-team" replace />
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -30,7 +29,7 @@ export default function Join() {
         body: {
           first_name: form.get('first_name'),
           last_name: form.get('last_name'),
-          center: form.get('center'),
+          email: form.get('email'),
           username: form.get('username'),
           password: form.get('password'),
         },
@@ -46,12 +45,12 @@ export default function Join() {
       <header>
         <Logo size={56} />
         <h1>Create your account</h1>
-        <p className="muted">Use the name you registered with on MySatsang.</p>
+        <p className="muted">Use your name and the email you registered with on MySatsang.</p>
       </header>
       {status.data && !status.data.open && (
         <p role="alert" className="error">Team registration is closed. Ask an admin if you need a change.</p>
       )}
-      {centers.data?.length === 0 && <p className="info">Registrations have not been loaded yet. Check back soon.</p>}
+      {status.data?.loaded === false && <p className="info">Registrations have not been loaded yet. Check back soon.</p>}
       <form onSubmit={submit} className="stack">
         <label>
           First name
@@ -62,15 +61,8 @@ export default function Join() {
           <input name="last_name" required autoComplete="family-name" />
         </label>
         <label>
-          Center
-          <select name="center" required defaultValue="">
-            <option value="" disabled>
-              Choose your center…
-            </option>
-            {centers.data?.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
+          Registration email
+          <input name="email" type="email" required maxLength={254} autoCapitalize="none" autoComplete="email" />
         </label>
         <label>
           Username

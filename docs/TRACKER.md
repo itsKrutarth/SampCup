@@ -189,11 +189,14 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
 - **Team range 32-42 (2026-11-17):** 32 and 33 passed the rule checker and 200 simulated
   tournaments each. 43+ is impossible with 8 games each before Sabha.
 - **Registration (owner):** admins upload the BAPS registration export (.xlsx/.csv, one row per
-  player, matched by first name + last name + center since 2026-11-23; MISID, BAPS ID and
-  email only tell namesakes apart). Players claim their account (name + center, once), then invite a
-  same-center partner who accepts; then only admins can change the team. MISID is not used
-  for sign-up (players never see it). Cap 42 active teams, then a waitlist.
-- **Announcements:** in-app banner only (the export has no email or phone).
+  player; every column is kept since 2026-11-23, email included, admins only). A player is
+  first name + last name + registration email: the import matches on it (records without an
+  email fall back to name + center, then MISID/BAPS ID), and players create their account
+  with it once; the center comes from the registration. A player without a center can't pick
+  a partner until an admin sets it in the Players tab. Then they invite a same-center partner
+  who accepts; after that only admins can change the team. Cap 42 active teams, then a waitlist.
+- **Announcements:** in-app banner only (no email or SMS is sent, though the export now has
+  emails).
 - **Auth:** sessions stored in DynamoDB with TTL (random bearer token, SHA-256 stored), scrypt
   password hashes.
 - **Results:** one match record per game (Final = F-1..F-3); every start, final, forfeit,
@@ -232,6 +235,15 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   local stack (DynamoDB Local), secret scan.
 
 ## Session log
+- 2026-11-23 (afternoon): The owner imported the export after the deploy: 72 active, 4 logins
+  kept, the 2 old duplicate records stay off; `feature/import-without-misid` fast-forwarded
+  into main. Owner: import every column; first name + last name + email is the key; players
+  create their account with name + registration email (no center picker); a missing center
+  stays blank until an admin sets it, and only then can the player pick a partner. Branch
+  `feature/claim-by-email`. Players saved as "No center provided" read as blank. Preview of
+  the real file against live data with the new code: 72 recognised by name + email (all
+  "updated": email, card name and date filled in), 0 new, 0 off, 0 center changes, 2 without
+  a center, 0 without an email.
 - 2026-11-23: Owner uploaded the newer registration export (no MISID values; BAPSId, email)
   with the old importer at 10:46 AM: every row was skipped and all 59 players were switched
   off (nothing else changed). Branch `feature/import-without-misid`: the key is first name +
