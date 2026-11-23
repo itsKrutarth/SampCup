@@ -60,7 +60,7 @@ export default function Staff() {
       <Status loading={loading} error={error} />
       <p className="hint">
         Usernames are unique and used to log in. A password or PIN you set is temporary: the person chooses their own the
-        first time they log in.
+        first time they log in. Court judges: court1 to court9, role judge, with their court.
       </p>
       <div className="table-wrap">
         <table className="cards">

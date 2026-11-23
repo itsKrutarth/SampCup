@@ -1,7 +1,7 @@
 """Admin commands, run with AWS credentials (or against DynamoDB Local):
 
 python -m app.cli create-admin <username>      # asks for the password
-python -m app.cli create-judges [--courts 9]   # court-1..court-9 with random PINs
+python -m app.cli create-judges [--courts 9]   # court1..court9 with random PINs
 python -m app.cli reset-data --yes [--keep-staff] [--event-date 2026-12-06]
 python -m app.cli seed-demo [--teams 40]       # made-up teams, never real data
 python -m app.cli create-table                 # DynamoDB Local only
@@ -90,14 +90,15 @@ def seed_demo(store: Store, n_teams: int = 40, event_date: date | None = None) -
 
 
 def create_judges(store: Store, courts: int = 9) -> list[tuple[str, str]]:
-    """One judge per court with a random 4-digit PIN; existing usernames are skipped."""
+    """One judge per court (court1, court2, ...: no dashes, owner 2026-11-23) with a random
+    4-digit PIN they change at first login; existing usernames are skipped."""
     made = []
     for court in range(1, courts + 1):
         pin = f"{secrets.randbelow(10_000):04d}"
         try:
             create_staff(
                 store,
-                f"court-{court}",
+                f"court{court}",
                 pin,
                 "judge",
                 f"Court {court} judge",
@@ -106,7 +107,7 @@ def create_judges(store: Store, courts: int = 9) -> list[tuple[str, str]]:
             )
         except Conflict:
             continue
-        made.append((f"court-{court}", pin))
+        made.append((f"court{court}", pin))
     return made
 
 

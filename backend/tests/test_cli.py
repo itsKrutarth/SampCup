@@ -28,7 +28,7 @@ def test_create_admin_reads_the_password_from_the_environment(
 def test_create_judges_once_per_court(cli_store: Store, capsys: pytest.CaptureFixture) -> None:
     cli.main(["create-judges"])
     lines = capsys.readouterr().out.splitlines()
-    assert len(lines) == 9 and lines[0].startswith("court-1  PIN ")
+    assert len(lines) == 9 and lines[0].startswith("court1  PIN ")
     assert sorted(u.court for u in cli_store.all(StaffUser)) == list(range(1, 10))
     cli.main(["create-judges"])
     assert capsys.readouterr().out == ""  # nobody is created twice

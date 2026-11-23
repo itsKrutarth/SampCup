@@ -122,7 +122,9 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   the same center until teams form; formed teams and members are public. Admins set or reset a
   player's login (temporary password, must change) and can release a wrongly claimed account.
   Same-name players at one center need the admin to set their logins.
-- **Judges:** court-1..court-9; PINs in `~/dev/sampcup-judge-pins.txt` (owner's Mac only).
+- **Judges:** court1..court9 (no dashes, owner 2026-11-23), made by an admin in the Staff tab
+  with a temporary password the judge changes at first login. None exist for now: the old
+  court-1..court-9 accounts were removed on 2026-11-23 (their PIN file in ~/dev is obsolete).
 - **Waiting on the owner:** approve the production deploy (a permission check stopped me
   deploying without an explicit go-ahead), and the logo file (transparent PNG or SVG).
 - **Next:** M10 runbook and paper fallback; failure drill on AWS; QR poster.
@@ -251,6 +253,12 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   Toronto; Parth Patel, Charlotte: no login, team or requests): snapshot saved in ~/dev, then
   deleted from prod (72 players, all active, 4 logins). Then: a Volunteer column (Yes = not a
   player) feeds a new Volunteers list; `GET /admin/volunteers`.
+- 2026-11-23 (evening): Owner deployed `feature/claim-by-email` and imported the file with the
+  Volunteer column: 69 players active (all with email), 3 volunteers (their old player records
+  switched off), Chintan Patel and Hitesh Amin still need centers. Owner released 3 logins at
+  3:30 PM, then asked to release all logins: no player accounts now, only admins `imgp004` and
+  `ravi_admin`; the 9 court-N judge accounts (no games or audits yet) were deleted with their
+  username locks and sessions. Court logins will be court1..court9, made by an admin.
 - 2026-11-23: Owner uploaded the newer registration export (no MISID values; BAPSId, email)
   with the old importer at 10:46 AM: every row was skipped and all 59 players were switched
   off (nothing else changed). Branch `feature/import-without-misid`: the key is first name +
