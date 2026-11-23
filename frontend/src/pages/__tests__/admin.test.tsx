@@ -42,6 +42,9 @@ describe('overview tab', () => {
     await user.type(screen.getByLabelText('Event date'), '2026-12-13')
     await user.type(screen.getByLabelText('Contacts on the home page'), 'Organizer (555) 010-0100')
     await user.click(screen.getByLabelText('Players can form teams'))
+    expect(within(screen.getByRole('region', { name: 'Backup sheet' })).getByText(/Not linked yet/)).toBeInTheDocument()
+    const sheet = 'https://docs.google.com/spreadsheets/d/abc/edit'
+    await user.type(screen.getByLabelText('Backup sheet address (Google Sheets)'), sheet)
     await user.click(screen.getByRole('button', { name: 'Save settings' }))
     expect(await screen.findByText('Settings saved')).toBeInTheDocument()
     expect(sent('PATCH', '/admin/tournament')[0].body).toEqual({
@@ -53,6 +56,7 @@ describe('overview tab', () => {
       contacts: 'Organizer (555) 010-0100',
       registration_open: false,
       team_cap: 42,
+      backup_sheet_url: sheet,
       event_date: '2026-12-13',
     })
     await user.click(screen.getByRole('button', { name: 'Download results (CSV)' }))
@@ -63,6 +67,15 @@ describe('overview tab', () => {
     mockApi({ 'GET /admin/summary': summary({ schedule_exists: true }) })
     renderAt('/admin', ADMIN)
     expect(await screen.findByText(/Schedule: generated, not locked/)).toBeInTheDocument()
+  })
+
+  it('links the backup sheet once its address is saved', async () => {
+    const sheet = 'https://docs.google.com/spreadsheets/d/abc/edit'
+    mockApi({ 'GET /admin/summary': summary({ backup_sheet_url: sheet }) })
+    renderAt('/admin', ADMIN)
+    const link = await screen.findByRole('link', { name: 'Open the backup sheet' })
+    expect(link).toHaveAttribute('href', sheet)
+    expect(link).toHaveAttribute('target', '_blank')
   })
 })
 

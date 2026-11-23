@@ -117,6 +117,36 @@ describe('home page states', () => {
     expect(await screen.findByRole('heading', { name: 'Your game now' })).toBeInTheDocument()
   })
 
+  it('reads the schedule from now during play: live games, then coming up, then results', async () => {
+    const at = (h: number, m: number) => `2026-12-12T${String(h + 5).padStart(2, '0')}:${String(m).padStart(2, '0')}:00+00:00`
+    mockApi({
+      'GET /public/schedule': [
+        match({ id: 1, code: 'G001', scheduled_at: at(10, 0), status: 'completed', score_a: 11, score_b: 4, winner_id: 1 }),
+        match({ id: 2, code: 'G010', scheduled_at: at(10, 17), status: 'completed', score_a: 6, score_b: 11, winner_id: 2 }),
+        match({ id: 3, code: 'G020', scheduled_at: at(10, 34), status: 'in_progress', score_a: 5, score_b: 3 }),
+        match({ id: 4, code: 'G030', scheduled_at: at(10, 51) }),
+        match({ id: 5, code: 'G040', scheduled_at: at(11, 8) }),
+      ],
+    })
+    renderAt('/schedule')
+    const live = await screen.findByRole('region', { name: 'Playing now' })
+    const coming = screen.getByRole('region', { name: 'Coming up' })
+    const done = screen.getByRole('region', { name: 'Completed' })
+    expect(within(live).getByRole('article', { name: /G020/ })).toBeInTheDocument()
+    expect(within(coming).getAllByRole('article').map((a) => a.getAttribute('aria-label'))).toEqual([
+      expect.stringMatching(/^G030/),
+      expect.stringMatching(/^G040/),
+    ])
+    // results last, the most recent first
+    expect(within(done).getAllByRole('article').map((a) => a.getAttribute('aria-label'))).toEqual([
+      expect.stringMatching(/^G010/),
+      expect.stringMatching(/^G001/),
+    ])
+    const order = [live, coming, done].map((s) => s.compareDocumentPosition(done))
+    expect(order[0] & Node.DOCUMENT_POSITION_FOLLOWING && order[1] & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(live.compareDocumentPosition(coming) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('opens a logged-in player on their own schedule, and lets them see everyone', async () => {
     const mine = team(1, 'Net Ninjas')
     const { calls } = mockApi({
@@ -130,7 +160,10 @@ describe('home page states', () => {
     expect(await screen.findByRole('heading', { name: 'Your schedule' })).toBeInTheDocument()
     const game = await screen.findByRole('region', { name: 'Your game' })
     expect(within(game).getByRole('article', { name: /G009/ })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Your whole day' })).toBeInTheDocument()
+    // the rest of their day below it, without repeating the game on top
+    const next = screen.getByRole('region', { name: 'Your next games' })
+    expect(within(next).getByRole('article', { name: /G020/ })).toBeInTheDocument()
+    expect(within(next).queryByRole('article', { name: /G009/ })).not.toBeInTheDocument()
     expect(calls.some((c) => c.path === '/public/schedule?')).toBe(false) // never everyone's games first
     const teamPick = await screen.findByRole('combobox', { name: 'Team' })
     expect(teamPick).toHaveValue('1')

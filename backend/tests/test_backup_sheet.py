@@ -31,14 +31,43 @@ STATUS["cancelled"] = "not needed"
 HARNESS = r"""
 const fs = require('fs')
 const vm = require('vm')
-const sheet = vm.runInNewContext(fs.readFileSync(process.argv[1], 'utf8') +
-  '\n;({ rankGroup, scheduleRows, teamRows, recomputeAll })', {})
+const names = 'rankGroup, scheduleRows, teamRows, recomputeAll, importPayload, bracketGrid, ' +
+  'courtsGrid'
+const sheet = vm.runInNewContext(fs.readFileSync(process.argv[1], 'utf8') + `\n;({ ${names} })`, {})
+// the venue time as the real sheet shows it (Apps Script: "h:mm a" at the venue)
+const venueTime = (iso) => new Date(iso).toLocaleTimeString('en-US',
+  { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }).replace(/\s/g, ' ')
 const input = JSON.parse(fs.readFileSync(0, 'utf8'))
 const asShown = (row) => Object.fromEntries(Object.entries(row).map(
   ([k, v]) => [k, v === null || v === undefined ? '' : String(v)]))
+const teamsOf = (teams) => sheet.teamRows(teams, (iso) => iso).map(
+  (t) => ({ number: t[0] === '' ? null : Number(t[0]), name: t[1], group: t[2] }))
 let out
 if (input.rank) {
   out = input.rank.map((c) => sheet.rankGroup(c.teams, c.games))
+} else if (input.rest_of_the_day) {
+  // The app is down: organizers type every game left as it is played (every third won by
+  // team B), recomputing after each round so the knockout teams appear, then send the sheet.
+  const teams = teamsOf(input.teams)
+  let rows = sheet.scheduleRows(input.schedule, venueTime).map(asShown)
+  for (let round = 0; round < 12; round++) {
+    let typed = 0
+    const done = (code) => rows.some((x) => x.Game === code && x.Status === 'done')
+    rows.forEach((r, i) => {
+      if (['done', 'not needed'].includes(r.Status) || !r['Team A #'] || !r['Team B #']) return
+      if ((r.Game === 'F-2' && !done('F-1')) || (r.Game === 'F-3' && !done('F-2'))) return
+      const bWins = i % 3 === 0
+      Object.assign(r, { 'Score A': bWins ? '6' : '11', 'Score B': bWins ? '11' : '7',
+        'How it ended': 'reached 11', 'Game time': '8:30', 'Changed in sheet': 'yes' })
+      typed++
+    })
+    out = sheet.recomputeAll(teams, rows)
+    rows = out.rows.map(asShown)
+    if (!typed) break
+  }
+  out.payload = sheet.importPayload(rows)
+  out.bracket = sheet.bracketGrid(rows)
+  out.courts = sheet.courtsGrid(rows)
 } else {
   const rows = sheet.scheduleRows(input.schedule, (iso) => iso).map(asShown)
   for (const r of rows) {
@@ -52,9 +81,7 @@ if (input.rank) {
       r['Team B'] = r['From B']
     }
   }
-  const teams = sheet.teamRows(input.teams, (iso) => iso).map(
-    (t) => ({ number: t[0] === '' ? null : Number(t[0]), name: t[1], group: t[2] }))
-  out = sheet.recomputeAll(teams, rows)
+  out = sheet.recomputeAll(teamsOf(input.teams), rows)
 }
 process.stdout.write(JSON.stringify(out))
 """
@@ -223,6 +250,12 @@ def test_the_sheet_carries_on_where_the_app_stopped(
     assert rows["F-1"]["Status"] == rows["F-2"]["Status"] == "done"
     assert rows["F-3"]["Status"] == "not needed" and out["champion"] == a
     assert out["problems"] == 0
+    # Game 3 typed by mistake after the 2-0: flagged, not counted, the champion unchanged.
+    third = typed["F-1"] | {"Score A": "4", "Score B": "11"}
+    out = check_against_app(client, typed | {"F-3": third})
+    rows = {r["Game"]: r for r in out["rows"]}
+    assert rows["F-3"]["Status"] == "not needed" and "does not count" in rows["F-3"]["Check"]
+    assert out["champion"] == a and rows["F-3"]["Winner"] == ""
     # A mistyped result is flagged, not counted.
     typed["F-2"] = typed["F-2"] | {"Score A": "11", "Score B": "11"}
     out = check_against_app(client, typed)
@@ -263,7 +296,7 @@ def test_the_sheet_menus_work_end_to_end(client: TestClient, store: Store, admin
     report = json.loads(done.stdout)
 
     setup = report["setup"]
-    assert setup["tabs"] == ["Info", "Schedule", "Standings", "Teams"]
+    assert setup["tabs"] == ["Info", "Courts", "Schedule", "Bracket", "Standings", "Teams"]
     assert setup["triggers"] == ["copyFromApp/1"] and setup["mode"] == "AUTO"
     assert setup["games"] == len(pages["schedule"]) and setup["teams"] == 32
     assert setup["check"].endswith(": OK") and setup["standings"][0] == "Group A"
@@ -278,7 +311,80 @@ def test_the_sheet_menus_work_end_to_end(client: TestClient, store: Store, admin
     assert manual["standings"] == ["complete"] * 4 and manual["checks"] == []
     assert all(a and b for a, b in manual["r16"])  # the Round of 16 worked out by the sheet
 
-    back = report["back"]  # the app is back: the sheet lists what to enter, then copies again
-    assert "Enter them into the app first" in back["alert"]
+    views = report["views"]  # Courts and Bracket follow the typed results
+    assert [row[0] for row in views["courts"]] == ["Court"] + [f"Court {c}" for c in range(1, 10)]
+    assert all(row[3].startswith("R16-") for row in views["courts"][1:9])  # each court's next game
+    assert views["bracket"][:2] == ["Round of 16", "Game"]
+
+    # the app is back: a wrong password is refused, then the app takes the changed rows
+    assert "refused the login (401)" in report["wrong"]
+    partly = report["partly"]
+    assert partly["sent"] == len(group) - 40 and partly["auth"] == "Bearer tok"
+    first = partly["first"]
+    assert first["end_reason"] == "reached_11" and first["seconds"] == 510
+    assert {first["score_a"], first["score_b"]} == {11, 7} and first["team_a"] and first["team_b"]
+    assert partly["mode"] == "MANUAL" and partly["marked"] == [partly["refused"]]
+    assert partly["check"].startswith("Not taken by the app: the sheet has other teams")
+    assert "1 could not be taken" in partly["message"]
+    back = report["back"]  # the last game taken: back to AUTO, copying the app again
+    assert "took all 1 changed game(s)" in back["message"] and "Back to AUTO" in back["message"]
     assert back["mode"] == "AUTO" and back["validation"] is None and back["marked"] == 0
     assert back["done"] == 40 and back["check"].endswith(": OK")
+    assert back["dialog"] == "Send the sheet to the app"
+    assert (
+        report["nothing"]["mode"] == "AUTO"
+        and "Nothing was changed" in report["nothing"]["message"]
+    )
+
+
+def test_the_app_carries_on_from_what_the_sheet_recorded(
+    client: TestClient, store: Store, admin: dict
+) -> None:
+    """The app goes down after 60 games; the organizers run the rest of the day in the sheet
+    (manual mode, recompute after each round) and send it back: the app ends where the sheet
+    did, with the same standings, bracket, game times and champion."""
+    rng = random.Random(11)
+    seeded(store, 32)
+    group = [m for m in client.get("/api/public/schedule").json() if m["phase"] == "group"]
+    for match in group[:60]:
+        play(client, admin, match, rng)
+    out = sheet(
+        {
+            "rest_of_the_day": True,
+            "schedule": client.get("/api/public/schedule").json(),
+            "teams": client.get("/api/public/teams").json(),
+        }
+    )
+    rows = {r["Game"]: r for r in out["rows"]}
+    assert all(r["Check"] == "" for r in rows.values())
+    third = rows["F-3"]["Status"]  # game 3 only after a 1-1 split
+    assert third in ("done", "not needed") and out["champion"] is not None
+    assert len(out["payload"]) == 145 - 60 - (third == "not needed")
+    assert all(":" in g["time"] and g["time"].endswith(("AM", "PM")) for g in out["payload"])
+    titles = [r[0] for r in out["bracket"]]
+    assert {"Round of 16", "Quarterfinals", "Semifinals", "Final (best of 3)"} <= set(titles)
+    assert [r[1] for r in out["courts"][1:]] == ["done for the day"] * 9
+
+    report = client.post(
+        "/api/admin/sheet-import", headers=admin, json={"games": out["payload"]}
+    ).json()
+    assert report["skipped"] == [] and len(report["taken"]) == len(out["payload"])
+
+    # the app now matches the sheet: standings, every knockout game, game times, champion
+    for group_name, table in client.get("/api/public/standings").json()["groups"].items():
+        assert table["complete"]
+        assert blocks(table["rows"], "team_number") == blocks(
+            out["standings"][group_name]["rows"], "team_number"
+        )
+    for m in client.get("/api/public/schedule").json():
+        row = rows[m["code"]]
+        assert STATUS[m["status"]] == row["Status"], m["code"]
+        for side in ("a", "b"):
+            team = m[f"team_{side}"]
+            assert str(row[f"Team {side.upper()} #"]) == (
+                "" if team is None else str(team["number"])
+            )
+        if m["code"] in report["taken"]:
+            assert m["seconds"] == 510  # the 8:30 typed in the sheet, a tiebreak
+    champion = client.get("/api/public/overview").json()["champion"]
+    assert champion["number"] == out["champion"]

@@ -10,7 +10,12 @@
  *
  * If the app goes down: SampCup menu -> "The app is down: switch to manual". Organizers type
  * results into the Schedule tab, and "Recompute standings and bracket" ranks each group by
- * the app's rules (Tournament Resources/ranking.py) and fills in the knockout games.
+ * the app's rules (Tournament Resources/ranking.py) and fills in the knockout games. When
+ * the app is back, "Send the sheet's changes to the app" hands every changed row (results,
+ * game times, new times and courts) to the app, which carries on from there.
+ *
+ * Tabs: Info (mode, status, what to do), Courts (each court now and next), Schedule (every
+ * game; the one to type in), Bracket (the knockout rounds), Standings, Teams (by group).
  *
  * Setup and the procedure: tools/backup-sheet/README.md. The functions under "Pure logic"
  * are checked against the app itself in backend/tests/test_backup_sheet.py.
@@ -18,7 +23,12 @@
 
 const SITE = 'https://sampcup.com'
 const TZ = 'America/New_York'
-const TAB = { info: 'Info', schedule: 'Schedule', standings: 'Standings', teams: 'Teams' }
+const TAB = {
+  info: 'Info', courts: 'Courts', schedule: 'Schedule', bracket: 'Bracket', standings: 'Standings',
+  teams: 'Teams',
+}
+const ROUNDS = [['R16', 'Round of 16'], ['QF', 'Quarterfinals'], ['SF', 'Semifinals'], ['F', 'Final (best of 3)']]
+const STATUSES = ['scheduled', 'playing', 'done', 'not needed']
 const SCHEDULE_HEAD = [
   'Time', 'Court', 'Game', 'Round', 'Team A', 'Score A', 'Score B', 'Team B', 'Status',
   'How it ended', 'Game time', 'Winner', 'Check', 'Team A #', 'Team B #', 'From A', 'From B',
@@ -49,12 +59,13 @@ const INFO_ROWS = [
   ['Site', SITE],
   ['', ''],
   ['AUTO: the sheet copies the app every minute. Don\'t edit the other tabs: the next copy replaces them.', ''],
+  ['Courts shows what is on each court now and next; Bracket shows the knockout rounds. Both follow the Schedule tab.', ''],
   ['If the app goes down:', ''],
   ['1. SampCup menu > "The app is down: switch to manual". Copying stops; this sheet is now the record.', ''],
-  ['2. For each finished game, type in the Schedule tab: Score A, Score B, How it ended, and Game time (m:ss from the first serve to the 11th point) when it reached 11. Type the final score, after any sudden-death point.', ''],
-  ['3. SampCup menu > "Recompute standings and bracket" after each batch of results. Standings, knockout teams and the Final update. Read the Check column.', ''],
-  ['4. Running late? Change the Time column. Tell courts and teams from the Schedule tab (print it if the Wi-Fi is poor).', ''],
-  ['5. When the app is back: enter the games marked "yes" under "Changed in sheet" into the app in time order (judge screen as admin, then Admin > Results > Correct to set the game time), then SampCup menu > "The app is back: switch to automatic".', ''],
+  ['2. In the Schedule tab, set Status to "playing" when a game starts. When it ends, type Score A, Score B, How it ended, and Game time (m:ss from the first serve to the 11th point) when it reached 11. Type the final score, after any sudden-death point.', ''],
+  ['3. SampCup menu > "Recompute standings and bracket" after each batch of results. Standings, knockout teams, the Final and the Courts tab update. Read the Check column.', ''],
+  ['4. Running late? Change the Time (or Court) of games not yet played. Call courts and teams from the Courts tab (print the Schedule if the Wi-Fi is poor).', ''],
+  ['5. When the app is back: SampCup menu > "The app is back: send the sheet\'s changes to the app" and log in as an admin. The app takes every row marked "yes" under "Changed in sheet" (results with their game times, new times and courts) and the sheet goes back to AUTO. Anything the app could not take is listed in the Check column.', ''],
   ['', ''],
   ['Group ranking: 1) wins 2) points scored 3) lowest average game time (a game ended by the clock, or a forfeit, counts 12:00) 4) fewest points allowed 5) head-to-head, when exactly two teams are still tied 6) draw lots.', ''],
   ['Knockout: the top 4 of each group go to the Round of 16 (see From A and From B). The Final is best of 3; game 3 only if it is 1-1.', ''],
@@ -69,7 +80,8 @@ function onOpen() {
     .addSeparator()
     .addItem('The app is down: switch to manual', 'switchToManual')
     .addItem('Recompute standings and bracket', 'recompute')
-    .addItem('The app is back: switch to automatic', 'switchToAutomatic')
+    .addItem('The app is back: send the sheet\'s changes to the app', 'openSendDialog')
+    .addItem('Switch to automatic without sending', 'switchToAutomatic')
     .addSeparator()
     .addItem('Clear and copy again', 'clearAndCopy')
     .addToUi()
@@ -80,7 +92,7 @@ function setup() {
   const book = SpreadsheetApp.getActive()
   const first = book.getSheets()[0]
   if (!book.getSheetByName(TAB.info)) first.setName(TAB.info)
-  ;[TAB.schedule, TAB.standings, TAB.teams].forEach(function (name) {
+  ;[TAB.courts, TAB.schedule, TAB.bracket, TAB.standings, TAB.teams].forEach(function (name) {
     if (!book.getSheetByName(name)) book.insertSheet(name)
   })
   const info = book.getSheetByName(TAB.info)
@@ -157,6 +169,7 @@ function writeCopy(book, data) {
   writeTable(book.getSheetByName(TAB.schedule), [SCHEDULE_HEAD].concat(rows.map(function (r) {
     return SCHEDULE_HEAD.map(function (h) { return text(r[h]) })
   })), [1])
+  writeViews(book, rows)
   writeStandings(book, standingsFromApp(data.standings))
   const info = book.getSheetByName(TAB.info)
   info.getRange('B5').setValue(data.overview.champion ? data.overview.champion.name : '')
@@ -199,6 +212,8 @@ function switchToManual() {
   sheet.getRange(2, col, rows, 1).setDataValidation(SpreadsheetApp.newDataValidation()
     .requireValueInList(Object.keys(ENDINGS).map(function (k) { return ENDINGS[k] }), true)
     .setAllowInvalid(false).build())
+  sheet.getRange(2, SCHEDULE_HEAD.indexOf('Status') + 1, rows, 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInList(STATUSES, true).setAllowInvalid(false).build())
   book.getSheetByName(TAB.info).getRange('B4').setValue(stamp() + ': MANUAL. The sheet is the record.')
 }
 
@@ -231,6 +246,7 @@ function recompute() {
       })
     }
     writeStandings(book, result.standings)
+    writeViews(book, result.rows)
     const info = book.getSheetByName(TAB.info)
     info.getRange('B5').setValue(result.champion ? label(result.champion, teamName(teams, result.champion)) : '')
     info.getRange('B4').setValue(stamp() + ': MANUAL. Recomputed; ' + result.problems + ' game(s) to check (Check column).')
@@ -246,14 +262,118 @@ function switchToAutomatic() {
     .filter(function (r) { return r['Changed in sheet'] === 'yes' })
     .map(function (r) { return r['Game'] })
   const note = changed.length
-    ? 'These games were changed in the sheet: ' + changed.join(', ') + '. Enter them into the app first, or the next copy replaces them.\n\n'
+    ? 'These games were changed in the sheet: ' + changed.join(', ') + '. Without sending them to the app (SampCup > The app is back: send...), the next copy replaces them.\n\n'
     : ''
   if (ui.alert('Switch back to automatic?', note + 'The sheet will copy the app again every minute.', ui.ButtonSet.YES_NO) !== ui.Button.YES) return
+  backToAuto(book)
+}
+
+function backToAuto(book) {
   const sheet = book.getSheetByName(TAB.schedule)
   sheet.getRange(2, 1, Math.max(1, sheet.getMaxRows() - 1), SCHEDULE_HEAD.length).clearDataValidations()
   setMode(book, 'AUTO')
   PropertiesService.getDocumentProperties().deleteAllProperties()
   copyFromApp()
+}
+
+// ------------------------------------------------------------------ the app is back
+
+// A small dialog: the admin's password goes straight to the app's login and is never stored.
+const SEND_FORM = '<!doctype html><style>body{font-family:Arial,sans-serif;font-size:14px}' +
+  'label{display:block;margin:8px 0}input{width:100%;padding:6px;box-sizing:border-box}' +
+  'button{margin-top:10px;padding:8px 14px}#out{white-space:pre-wrap;margin-top:12px}</style>' +
+  '<form id="f"><p>Log in as an admin of the app. Every row marked "yes" under "Changed in sheet" ' +
+  'goes to the app. The password is not stored.</p>' +
+  '<label>Admin username <input name="u" autocomplete="username" required></label>' +
+  '<label>Password <input name="p" type="password" autocomplete="current-password" required></label>' +
+  '<button>Send to the app</button></form><div id="out"></div>' +
+  '<script>document.getElementById("f").onsubmit=function(e){e.preventDefault();var f=this,' +
+  'b=f.querySelector("button"),o=document.getElementById("out");b.disabled=true;o.textContent=' +
+  '"Sending...";google.script.run.withSuccessHandler(function(m){o.textContent=m;b.disabled=false})' +
+  '.withFailureHandler(function(x){o.textContent=x.message;b.disabled=false}).sendToApp(f.u.value,' +
+  'f.p.value)}</script>'
+
+function openSendDialog() {
+  const html = HtmlService.createHtmlOutput(SEND_FORM).setWidth(440).setHeight(360)
+  SpreadsheetApp.getUi().showModalDialog(html, 'Send the sheet to the app')
+}
+
+function postToApp(path, body, token) {
+  return UrlFetchApp.fetch(SITE + '/api' + path, {
+    method: 'post', contentType: 'application/json', payload: JSON.stringify(body),
+    headers: token ? { Authorization: 'Bearer ' + token } : {}, muteHttpExceptions: true,
+  })
+}
+
+/** From the dialog: log in to the app as an admin and hand it every row changed in the sheet. */
+function sendToApp(username, password) {
+  const book = SpreadsheetApp.getActive()
+  const lock = LockService.getDocumentLock()
+  lock.waitLock(20000)
+  let message
+  let allTaken = false
+  try {
+    const sheet = book.getSheetByName(TAB.schedule)
+    const rows = readTable(sheet)
+    const games = importPayload(rows)
+    if (!games.length) {
+      allTaken = true
+      message = 'Nothing was changed in the sheet.'
+    } else {
+      let answer
+      try {
+        answer = postToApp('/auth/staff-login', { username: username, password: password })
+      } catch (e) {
+        return 'The app did not answer (' + e.message + '). Is it back up? Try again in a minute.'
+      }
+      if (answer.getResponseCode() !== 200) {
+        return 'The app refused the login (' + answer.getResponseCode() + '). Check the username and password.'
+      }
+      const login = JSON.parse(answer.getContentText())
+      if (login.user.role !== 'admin') return 'That account is not an admin.'
+      if (login.user.must_change_password) return 'This admin must choose their own password in the app first.'
+      answer = postToApp('/admin/sheet-import', { games: games }, login.token)
+      if (answer.getResponseCode() !== 200) {
+        return 'The app could not take the sheet (' + answer.getResponseCode() + '): ' + answer.getContentText().slice(0, 300)
+      }
+      const outcome = applyReport(rows, JSON.parse(answer.getContentText()))
+      ;['Changed in sheet', 'Check'].forEach(function (h) {
+        sheet.getRange(2, SCHEDULE_HEAD.indexOf(h) + 1, outcome.rows.length, 1).setNumberFormat('@')
+          .setValues(outcome.rows.map(function (r) { return [text(r[h])] }))
+      })
+      allTaken = outcome.left.length === 0
+      message = allTaken
+        ? 'The app took all ' + outcome.taken + ' changed game(s).'
+        : 'The app took ' + outcome.taken + ' game(s); ' + outcome.left.length + ' could not be taken: ' +
+          outcome.left.join(', ') + ' (the Check column says why). The sheet stays in MANUAL: fix them, ' +
+          'send again, or switch to automatic without sending.'
+    }
+  } finally {
+    lock.releaseLock()
+  }
+  if (allTaken) {
+    backToAuto(book)
+    message += ' Back to AUTO: the sheet copies the app again.'
+  }
+  return message
+}
+
+// ------------------------------------------------------------------ the derived tabs
+
+/** Courts and Bracket follow the Schedule rows (the app's copy, or the organizers' typing). */
+function writeViews(book, rows) {
+  writeTable(tab(book, TAB.courts), courtsGrid(rows), [1])
+  const grid = bracketGrid(rows)
+  const titles = ROUNDS.map(function (r) { return r[1] })
+  const bold = []
+  grid.forEach(function (r, i) { if (r[0] === 'Game' || titles.indexOf(r[0]) >= 0) bold.push(i + 1) })
+  writeTable(tab(book, TAB.bracket), grid, bold)
+  tab(book, TAB.bracket).setFrozenRows(0)
+}
+
+/** A tab, made if missing (a sheet set up before the tab existed). */
+function tab(book, name) {
+  return book.getSheetByName(name) || book.insertSheet(name)
 }
 
 // ------------------------------------------------------------------ sheet helpers
@@ -476,15 +596,104 @@ function scheduleRows(games, formatTime) {
   })
 }
 
-/** Teams tab rows from the app's /public/teams. */
+/** Teams tab rows from the app's /public/teams, group by group (A..D, then undrawn teams). */
 function teamRows(teams, formatTime) {
-  return teams.map(function (t) {
+  const order = function (t) { return t.number === null || t.number === undefined ? 999 : t.number }
+  return teams.slice().sort(function (a, b) {
+    return (a.group || '~').localeCompare(b.group || '~') || order(a) - order(b)
+  }).map(function (t) {
     return [
-      t.number === null ? '' : t.number, t.name, t.group || '', t.center || '',
+      t.number === null || t.number === undefined ? '' : t.number, t.name, t.group || '', t.center || '',
       (t.players || []).map(function (p) { return p.name }).join(', '),
       t.lunch_start ? formatTime(t.lunch_start) : '',
     ]
   })
+}
+
+/** "4:30 PM" -> minutes after midnight (no AM/PM: 7-11 morning, 12-6 afternoon). */
+function minutesOf(value) {
+  const m = /^\s*(\d{1,2}):(\d{2})\s*([AaPp][Mm])?/.exec(text(value))
+  if (!m) return 99999
+  const half = (m[3] || '').toUpperCase()
+  let hour = Number(m[1]) % 12
+  if (half === 'PM' || (!half && Number(m[1]) < 7)) hour += 12
+  return hour * 60 + Number(m[2])
+}
+
+/** The Courts tab: what each court is playing now, and its next game. */
+function courtsGrid(rows) {
+  const head = ['Court', 'Now playing', 'Score', 'Next game', 'Time', 'Next teams']
+  if (!rows.some(function (r) { return r['Game'] })) return [head, ['No schedule yet: it appears here after the draw.']]
+  const grid = [head]
+  for (let c = 1; c <= 9; c++) {
+    const here = rows.filter(function (r) { return text(r['Court']) === String(c) })
+    const now = here.filter(function (r) { return r['Status'] === 'playing' })[0]
+    const next = here.filter(function (r) { return r['Status'] === 'scheduled' })
+      .sort(function (a, b) { return minutesOf(a['Time']) - minutesOf(b['Time']) })[0]
+    grid.push([
+      'Court ' + c,
+      now ? now['Game'] + ': ' + now['Team A'] + ' vs ' + now['Team B'] : (next ? 'free' : 'done for the day'),
+      now && text(now['Score A']) !== '' ? now['Score A'] + '-' + now['Score B'] : '',
+      next ? next['Game'] + ' (' + next['Round'] + ')' : '',
+      next ? next['Time'] : '',
+      next ? next['Team A'] + ' vs ' + next['Team B'] : '',
+    ])
+  }
+  return grid
+}
+
+/** The Bracket tab: the knockout games round by round, with scores and winners. */
+function bracketGrid(rows) {
+  const grid = []
+  ROUNDS.forEach(function (round) {
+    const games = rows.filter(function (r) {
+      return text(r['Game']).split('-')[0] === round[0] && (r['From A'] || r['From B'])
+    })
+    if (!games.length) return
+    grid.push([round[1]])
+    grid.push(['Game', 'Time', 'Court', 'Team A', 'Score', 'Team B', 'Winner', 'Status'])
+    games.forEach(function (r) {
+      const score = text(r['Score A']) !== '' && text(r['Score B']) !== '' ? r['Score A'] + '-' + r['Score B'] : ''
+      grid.push([r['Game'], r['Time'], r['Court'], r['Team A'], score, r['Team B'], r['Winner'], r['Status']])
+    })
+    grid.push([''])
+  })
+  return grid.length ? grid : [['The knockout games appear here after the draw.']]
+}
+
+/** What "send to the app" sends: every row marked as changed in the sheet. */
+function importPayload(rows) {
+  return rows.filter(function (r) { return r['Changed in sheet'] === 'yes' && r['Game'] }).map(function (r) {
+    const court = num(r['Court'])
+    const game = {
+      code: text(r['Game']).trim(),
+      time: text(r['Time']).trim().slice(0, 12),
+      court: Number.isInteger(court) && court >= 1 && court <= 9 ? court : null,
+      team_a: Number.isInteger(num(r['Team A #'])) ? num(r['Team A #']) : null,
+      team_b: Number.isInteger(num(r['Team B #'])) ? num(r['Team B #']) : null,
+    }
+    // a game the bracket made "not needed" (Final game 3 after a 2-0) sends no result
+    const read = r['Status'] === 'not needed' ? {} : readResult(r)
+    return read.result ? Object.assign(game, read.result) : game
+  })
+}
+
+/** The app's answer, back onto the rows: taken games stop being flagged, the rest say why. */
+function applyReport(rows, report) {
+  const taken = {}
+  ;(report.taken || []).forEach(function (code) { taken[code] = true })
+  const why = {}
+  ;(report.skipped || []).forEach(function (s) { why[s.code] = s.skipped })
+  return {
+    rows: rows.map(function (r) {
+      const row = Object.assign({}, r)
+      if (taken[row['Game']]) row['Changed in sheet'] = ''
+      if (why[row['Game']]) row['Check'] = 'Not taken by the app: ' + why[row['Game']]
+      return row
+    }),
+    taken: Object.keys(taken).length,
+    left: Object.keys(why),
+  }
 }
 
 /** The app's /public/standings in the shape recomputeAll returns. */
@@ -647,8 +856,15 @@ function recomputeAll(teams, rows) {
   if (f1 && f2 && f3) {
     const w1 = winnerOf(f1)
     const decided = w1 !== null && w1 === winnerOf(f2)
-    if (decided && !read[out.indexOf(f3)].result) f3['Status'] = 'not needed'
-    else if (!decided && f3['Status'] === 'not needed') f3['Status'] = 'scheduled'
+    if (decided) {
+      const i3 = out.indexOf(f3)
+      if (read[i3].result) { // typed by mistake after a 2-0: shown, not counted (the app agrees)
+        read[i3] = { problem: 'not needed: the Final was already won 2-0, so this result does not count' }
+        f3['Check'] = read[i3].problem
+        f3['Winner'] = ''
+      }
+      f3['Status'] = 'not needed'
+    } else if (f3['Status'] === 'not needed') f3['Status'] = 'scheduled'
     const wins = {}
     ;[f1, f2, f3].forEach(function (r) {
       const w = winnerOf(r)

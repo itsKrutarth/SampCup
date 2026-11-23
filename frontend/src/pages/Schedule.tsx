@@ -41,12 +41,15 @@ export default function Schedule() {
   }
   const group = params.get('group') ?? ''
   const mineShown = mine !== null && team === String(mine.number)
-  const slots: [string, Match[]][] = []
-  for (const match of data ?? []) {
-    const at = time(match.scheduled_at)
-    if (slots.at(-1)?.[0] === at) slots.at(-1)![1].push(match)
-    else slots.push([at, [match]])
-  }
+  const all = data ?? []
+  // a player's own game is on top (YourGame), so it is not repeated below
+  const featured = mineShown ? (all.find((m) => m.status === 'in_progress') ?? all.find((m) => m.status === 'scheduled')) : undefined
+  const rest = all.filter((m) => m !== featured)
+  // during play the schedule reads from now (owner, 2026-11-23): live games, then what is
+  // coming, then results, most recent first
+  const live = rest.filter((m) => m.status === 'in_progress')
+  const coming = rest.filter((m) => m.status === 'scheduled')
+  const done = rest.filter((m) => m.status === 'completed' || m.status === 'cancelled').reverse()
   return (
     <>
       <h1>{mineShown ? 'Your schedule' : 'Schedule'}</h1>
@@ -85,20 +88,48 @@ export default function Schedule() {
       <Status loading={loading} error={error} />
       {mineShown && data && <YourGame games={data} team={mine} />}
       {data && data.length === 0 && <p className="info">No games yet. The schedule is published after the draw.</p>}
-      {mineShown && slots.length > 0 && <h2 className="day-head">Your whole day</h2>}
-      {slots.map(([at, matches]) => (
-        <section key={at} aria-label={at}>
-          <h2 className="time-head">
-            <Clock size={16} />
-            {at}
+      {live.length > 0 && (
+        <section aria-label="Playing now" className="schedule-part">
+          <h2 className="day-head">
+            <span className="live-dot" /> Playing now
           </h2>
           <div className="matches">
-            {matches.map((m) => (
+            {live.map((m) => (
               <MatchCard key={m.id} match={m} highlight={mine?.id} />
             ))}
           </div>
         </section>
-      ))}
+      )}
+      {coming.length > 0 && <Part title={mineShown ? 'Your next games' : 'Coming up'} matches={coming} highlight={mine?.id} />}
+      {done.length > 0 && <Part title="Completed" matches={done} highlight={mine?.id} />}
     </>
+  )
+}
+
+/** One part of the day (coming up, or completed), by time slot in the order given. */
+function Part({ title, matches, highlight }: { title: string; matches: Match[]; highlight?: number }) {
+  const slots: [string, Match[]][] = []
+  for (const match of matches) {
+    const at = time(match.scheduled_at)
+    if (slots.at(-1)?.[0] === at) slots.at(-1)![1].push(match)
+    else slots.push([at, [match]])
+  }
+  return (
+    <section aria-label={title} className="schedule-part">
+      <h2 className="day-head">{title}</h2>
+      {slots.map(([at, slot]) => (
+        <section key={at} aria-label={at}>
+          <h3 className="time-head">
+            <Clock size={16} />
+            {at}
+          </h3>
+          <div className="matches">
+            {slot.map((m) => (
+              <MatchCard key={m.id} match={m} highlight={highlight} />
+            ))}
+          </div>
+        </section>
+      ))}
+    </section>
   )
 }

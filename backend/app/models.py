@@ -33,6 +33,8 @@ class Tournament(Record):
     mock_started_at: dt.datetime | None = None
     mock_day_start: dt.datetime | None = None
     mock_speed: float = 1.0
+    # The backup Google Sheet (tools/backup-sheet), linked from Admin > Overview. Admins only.
+    backup_sheet_url: str = ""
 
 
 @dataclasses.dataclass(kw_only=True)

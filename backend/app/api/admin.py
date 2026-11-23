@@ -14,6 +14,7 @@ from app.api.serializers import Lookup, announcement_out, iso, staff_out
 from app.models import Announcement, Delay, Match, PartnerRequest, ScoreAudit, StaffUser
 from app.services import accounts, auth, players, schedule, scoring, teams
 from app.services.errors import NotFound, ServiceError
+from app.services.sheet_import import import_games
 from app.services.tournament import get_tournament, schedule_exists
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -29,6 +30,28 @@ class TournamentPatch(BaseModel):
     event_date: date | None = None
     registration_open: bool | None = None
     team_cap: int | None = Field(default=None, ge=32, le=42)
+    # only a Google Sheets address (it becomes a link on the admin page), or "" to clear it
+    backup_sheet_url: str | None = Field(
+        default=None, max_length=300, pattern=r"^(https://docs\.google\.com/spreadsheets/\S*)?$"
+    )
+
+
+class SheetGame(BaseModel):
+    """One row the backup sheet changed while the app was down (tools/backup-sheet)."""
+
+    code: str = Field(max_length=12)
+    time: str = Field(default="", max_length=12)
+    court: int | None = Field(default=None, ge=1, le=9)
+    team_a: int | None = None
+    team_b: int | None = None
+    score_a: int | None = Field(default=None, ge=0, le=12)
+    score_b: int | None = Field(default=None, ge=0, le=12)
+    end_reason: str | None = Field(default=None, max_length=20)
+    seconds: int | None = Field(default=None, ge=0, le=3600)
+
+
+class SheetImport(BaseModel):
+    games: list[SheetGame] = Field(max_length=300)
 
 
 class TeamCreate(BaseModel):
@@ -132,6 +155,7 @@ def summary(_: Admin, store: Db) -> dict[str, Any]:
             "draw_seed": tournament.draw_seed,
             "schedule_locked": tournament.schedule_locked,
             "schedule_exists": schedule_exists(store),
+            "backup_sheet_url": tournament.backup_sheet_url,
         },
         "players": len(active_players),
         "players_on_teams": sum(1 for p in active_players if p.team_id),
@@ -288,6 +312,12 @@ def list_delays(_: Admin, store: Db) -> list[dict[str, Any]]:
         }
         for d in reversed(store.all(Delay))
     ]
+
+
+@router.post("/sheet-import")
+def sheet_import(body: SheetImport, user: Admin, store: Db) -> dict[str, Any]:
+    """The backup sheet sends back what was recorded in it while the app was down."""
+    return import_games(store, [g.model_dump() for g in body.games], user)
 
 
 @router.post("/delays")

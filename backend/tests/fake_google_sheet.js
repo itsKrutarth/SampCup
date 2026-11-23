@@ -121,8 +121,21 @@ const google = {
         return { getResponseCode: () => 200, getContentText: () => JSON.stringify(input.pages[page]) }
       })
     },
+    // "send to the app": the login, then the import; state.reply decides the app's answers
+    fetch: (url, options) => {
+      if (state.down) throw new Error('Address unavailable: https://sampcup.com')
+      const body = JSON.parse(options.payload)
+      state.posts.push({ path: url.replace(/^.*\/api/, ''), body, auth: (options.headers || {}).Authorization })
+      const [code, answer] = state.reply(url.replace(/^.*\/api/, ''), body)
+      return { getResponseCode: () => code, getContentText: () => JSON.stringify(answer) }
+    },
+  },
+  HtmlService: {
+    createHtmlOutput: (html) => { state.dialog = html; const out = { setWidth: () => out, setHeight: () => out }; return out },
   },
 }
+state.posts = []
+ui.showModalDialog = (html, title) => { state.dialogTitle = title }
 const ctx = vm.createContext(google)
 vm.runInContext(fs.readFileSync(process.argv[2], 'utf8'), ctx)
 const run = (code) => vm.runInContext(code, ctx)
@@ -170,11 +183,39 @@ report.manual = {
   check: info('B4'),
 }
 
-state.down = false
-run('switchToAutomatic()')
-report.back = {
-  mode: info('B2'), alert: state.alerts[state.alerts.length - 1], validation: sheet.validation,
-  done: table('Schedule').filter((r) => r.Status === 'done').length,
-  marked: table('Schedule').filter((r) => r['Changed in sheet'] === 'yes').length, check: info('B4'),
+report.views = {
+  courts: tab('Courts').getDataRange().getDisplayValues(),
+  bracket: tab('Bracket').getDataRange().getDisplayValues().map((r) => r[0]),
 }
+
+// The app is back: send the sheet. A wrong password first, then the app takes all but one
+// game, then (once that game is "fixed") the rest.
+state.down = false
+run('openSendDialog()')
+const marked = () => table('Schedule').filter((r) => r['Changed in sheet'] === 'yes').map((r) => r.Game)
+const login = (path, body) => (body.password === 'right'
+  ? [200, { token: 'tok', user: { role: 'admin', must_change_password: false } }]
+  : [401, { detail: 'Wrong username or password' }])
+let refuse = null
+state.reply = (path, body) => {
+  if (path === '/auth/staff-login') return login(path, body)
+  const codes = body.games.map((g) => g.code)
+  const skipped = codes.filter((c) => c === refuse).map((c) => ({ code: c, applied: [], skipped: 'the sheet has other teams for this game than the app' }))
+  return [200, { games: [], taken: codes.filter((c) => c !== refuse), skipped }]
+}
+report.wrong = run('sendToApp')('admin', 'wrong')
+refuse = marked()[0]
+report.partly = { message: run('sendToApp')('admin', 'right'), mode: info('B2'), marked: marked(), refused: refuse,
+  check: table('Schedule').find((r) => r.Game === refuse).Check, sent: state.posts.at(-1).body.games.length,
+  auth: state.posts.at(-1).auth, first: state.posts.at(-1).body.games[0] }
+refuse = null
+const message = run('sendToApp')('admin', 'right')
+report.back = {
+  message, mode: info('B2'), validation: sheet.validation, dialog: state.dialogTitle,
+  done: table('Schedule').filter((r) => r.Status === 'done').length,
+  marked: marked().length, check: info('B4'),
+}
+// nothing left to send: straight back to AUTO
+run('switchToManual()')
+report.nothing = { message: run('sendToApp')('admin', 'right'), mode: info('B2') }
 process.stdout.write(JSON.stringify(report))

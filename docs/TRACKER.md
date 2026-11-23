@@ -30,6 +30,18 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   whole simulated day, and the menus on a fake Google Sheet). Also: `/public/teams` now
   includes `lunch_start`, and Admin > Results > Correct takes a game time (for results
   entered after an outage). Owner sets the sheet up once (README there, ~5 minutes).
+- **Backup sheet round trip (owner, 2026-11-23), branch `feature/sheet-roundtrip`:** new tabs
+  Courts (each court now/next) and Bracket (knockout rounds); Teams by group; Status list in
+  manual mode. "The app is back: send the sheet's changes to the app" logs in as an admin
+  from a small dialog (password not stored) and posts the changed rows to
+  `POST /admin/sheet-import` (`app/services/sheet_import.py`): results with their game
+  times (`scoring.record_result`, audit "import"), corrections, new times and courts, in
+  schedule order so each round fills the next; refusals are reported per game and shown in
+  the Check column. A Final game 3 typed after a 2-0 is flagged and not counted. Admin >
+  Overview links the sheet (`backup_sheet_url`, Google Sheets addresses only). Schedule page
+  during play: Playing now, Coming up, Completed (most recent first). Tested: the rest of a
+  day run in the sheet and sent back leaves the app with the sheet's standings, bracket,
+  game times and champion.
 - **Official logo (owner, 2026-11-22), branch `home/logo-in-hero`:** the owner's logo
   (`frontend/public/brand/samp-cup-logo.webp`) replaces the drawn crest above the hero
   wordmark and in the header (same 38 px height); nothing else changes. The earlier version

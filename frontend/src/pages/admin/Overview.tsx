@@ -1,4 +1,4 @@
-import { CalendarCheck, Download, ListChecks, Save, Shirt, UserCheck, Users, UsersRound } from 'lucide-react'
+import { CalendarCheck, Download, ExternalLink, ListChecks, Save, Sheet, Shirt, UserCheck, Users, UsersRound } from 'lucide-react'
 import type { FormEvent, ReactNode } from 'react'
 
 import Status from '../../components/Status'
@@ -20,6 +20,7 @@ export type Summary = {
     draw_seed: number | null
     schedule_locked: boolean
     schedule_exists: boolean
+    backup_sheet_url?: string
   }
   players: number
   players_on_teams: number
@@ -58,6 +59,7 @@ export default function Overview() {
       contacts: form.get('contacts'),
       registration_open: form.get('registration_open') === 'on',
       team_cap: Number(form.get('team_cap')),
+      backup_sheet_url: String(form.get('backup_sheet_url') ?? '').trim(),
     }
     if (form.get('event_date') && form.get('event_date') !== t.event_date) body.event_date = form.get('event_date')
     if (await run('/admin/tournament', 'PATCH', body, () => 'Settings saved')) reload()
@@ -79,6 +81,22 @@ export default function Overview() {
         Schedule: {t.schedule_exists ? (t.schedule_locked ? 'locked' : 'generated, not locked') : 'not generated'}
         {t.draw_seed !== null && ` · Draw seed: ${t.draw_seed}`}
       </p>
+      <section className="card backup-sheet" aria-label="Backup sheet">
+        <h2>
+          <Sheet size={20} /> Backup sheet
+        </h2>
+        {t.backup_sheet_url ? (
+          <>
+            <p>A copy of the whole tournament, updated every minute. If the app goes down, run the day from it.</p>
+            <a className="button" href={t.backup_sheet_url} target="_blank" rel="noreferrer">
+              <ExternalLink size={18} />
+              Open the backup sheet
+            </a>
+          </>
+        ) : (
+          <p>Not linked yet. Set the sheet up once (tools/backup-sheet/README.md), then paste its address below in Settings.</p>
+        )}
+      </section>
       <form onSubmit={save} className="stack card" key={JSON.stringify(t)}>
         <h2>Settings</h2>
         <label>
@@ -115,6 +133,17 @@ export default function Overview() {
         </label>
         <label className="inline">
           <input name="registration_open" type="checkbox" defaultChecked={t.registration_open} /> Players can form teams
+        </label>
+        <label>
+          Backup sheet address (Google Sheets)
+          <input
+            name="backup_sheet_url"
+            type="url"
+            defaultValue={t.backup_sheet_url ?? ''}
+            maxLength={300}
+            pattern="https://docs\.google\.com/spreadsheets/.*"
+            placeholder="https://docs.google.com/spreadsheets/d/..."
+          />
         </label>
         <button type="submit">
           <Save size={18} />

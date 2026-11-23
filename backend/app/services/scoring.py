@@ -180,6 +180,33 @@ def finish_match(
     return match, refresh_bracket(store)
 
 
+def record_result(
+    store: Store,
+    match_id: int,
+    score_a: int,
+    score_b: int,
+    end_reason: str,
+    seconds: int | None,
+    user: StaffUser,
+) -> tuple[Match, list[str]]:
+    """A result played while the app was down (from the backup sheet): no start rules, and the
+    game time as recorded on the day."""
+    match = get_match(store, match_id)
+    if match.status not in ("scheduled", "in_progress"):
+        raise Conflict(f"This game is {match.status}")
+    if match.team_a_id is None or match.team_b_id is None:
+        raise Conflict("The teams for this game are not known yet")
+    _validate(score_a, score_b, end_reason)
+    old = _snapshot(match)
+    played = CLOCK_CAP if seconds is None else seconds
+    match.started_at = match.started_at or match.scheduled_at
+    match.ended_at = match.started_at + timedelta(seconds=played)
+    _set_result(match, score_a, score_b, end_reason, played)
+    save_match(store, match)
+    _audit(store, match, "import", old, user.username, "From the backup sheet")
+    return match, refresh_bracket(store)
+
+
 def forfeit_match(
     store: Store, match_id: int, winner: str, user: StaffUser
 ) -> tuple[Match, list[str]]:
