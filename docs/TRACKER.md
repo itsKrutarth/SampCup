@@ -219,6 +219,11 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   local stack (DynamoDB Local), secret scan.
 
 ## Session log
+- 2026-11-22 (late night): Fourth mock (`--speed 30`) to see the play-time home page and the
+  player views (all 59 real players paired by center, so the owner's logins aalay and
+  keertanp7 were in mock teams). Owner stopped it at 119/145 games; restored with
+  `mock_restore.py`. The login jay123 (player 20) was the owner's test again: released.
+  Logins in use now: aalay, hpatel, keertanp7, kpatel.
 - 2026-11-22 (late): Owner's feedback after the mock, branch `home/live-layout`: once play
   starts (group play, knockout, finished) the home hero stops at "Unity in every rally";
   then the logged-in player's own game, Courts, Up next, Leaderboard, the venue card
