@@ -149,6 +149,13 @@ a {
   flex: none;
 }
 
+/* the official logo in the header, beside the SAMP CUP name (as tall as the old crest) */
+.brand-logo {
+  flex: none;
+  width: auto;
+  height: 38px;
+}
+
 /* One nav: inline in the header on wide screens, a bottom tab bar on phones. */
 .nav {
   display: flex;

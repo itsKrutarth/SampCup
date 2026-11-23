@@ -6,7 +6,6 @@ import { TAGLINE } from '../lib/brand'
 import { MockClockContext } from '../lib/clock'
 import { useApi } from '../lib/live'
 import type { Announcement, Overview } from '../lib/types'
-import Logo from './Logo'
 import VenueClock from './VenueClock'
 
 export function Banner({ announcements }: { announcements?: Announcement[] }) {
@@ -78,7 +77,7 @@ export default function Layout() {
     <MockClockContext.Provider value={data?.tournament.mock_clock ?? null}>
       <header className="topbar">
         <NavLink to="/" className="brand">
-          <Logo size={38} />
+          <img className="brand-logo" src="/brand/samp-cup-logo.webp" width={532} height={642} alt="" />
           <span>
             SAMP Cup
             <small>2026 · New England</small>

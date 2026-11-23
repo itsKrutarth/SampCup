@@ -34,9 +34,9 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   entered after an outage). Owner sets the sheet up once (README there, ~5 minutes).
 - **Official logo (owner, 2026-11-22), branch `home/logo-in-hero`:** the owner's logo
   (`frontend/public/brand/samp-cup-logo.webp`) replaces the drawn crest above the hero
-  wordmark; nothing else on the page changes. The earlier hero is tag `home-before-logo`.
-  Branch `home/real-logo` (logo replacing the whole title block) was a misread; kept, unused.
-  The drawn crest is still in the header, Join, Logins and the projector screen.
+  wordmark and in the header (same 38 px height); nothing else changes. The earlier version
+  is tag `home-before-logo`. Branch `home/real-logo` (logo replacing the whole title block)
+  was a misread; kept, unused. The drawn crest is still on Join, Logins and the projector.
 - **Stack to deploy (all in the owner's working copy, `home/logo-in-hero`):** keep-logs ->
   backup sheet -> logo. Merge into `main` after the deploy.
 - **Second mock (2026-11-21, `--speed 30`, ~20 s a game, 32 teams, 145 games):** the app held
