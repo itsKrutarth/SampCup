@@ -102,6 +102,12 @@ a {
   color: var(--muted);
 }
 
+/* a value an admin should fill in (a player imported without a center) */
+.warning-text {
+  color: var(--gold);
+  font-weight: 600;
+}
+
 .hint {
   font-size: 0.9rem;
 }

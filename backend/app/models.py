@@ -41,10 +41,15 @@ class Tournament(Record):
 class Player(Record):
     KIND = "PLAYER"
     id: int
-    mis_id: str
     first_name: str
     last_name: str
     center: str
+    # The export's identifiers, each optional (owner, 2026-11-23: the key is first name, last
+    # name and center; these only tell apart people that key cannot). Email is kept only as a
+    # one-way fingerprint (app.services.players.email_key), never as readable text.
+    mis_id: str = ""
+    baps_id: str = ""
+    email_key: str = ""
     zone: str = ""
     region: str = ""
     gender: str = ""

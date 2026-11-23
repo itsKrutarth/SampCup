@@ -189,7 +189,8 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
 - **Team range 32-42 (2026-11-17):** 32 and 33 passed the rule checker and 200 simulated
   tournaments each. 43+ is impossible with 8 games each before Sabha.
 - **Registration (owner):** admins upload the BAPS registration export (.xlsx/.csv, one row per
-  player, matched by MISID). Players claim their account (name + center, once), then invite a
+  player, matched by first name + last name + center since 2026-11-23; MISID, BAPS ID and
+  email only tell namesakes apart). Players claim their account (name + center, once), then invite a
   same-center partner who accepts; then only admins can change the team. MISID is not used
   for sign-up (players never see it). Cap 42 active teams, then a waitlist.
 - **Announcements:** in-app banner only (the export has no email or phone).
@@ -231,6 +232,17 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   local stack (DynamoDB Local), secret scan.
 
 ## Session log
+- 2026-11-23: Owner uploaded the newer registration export (no MISID values; BAPSId, email)
+  with the old importer at 10:46 AM: every row was skipped and all 59 players were switched
+  off (nothing else changed). Branch `feature/import-without-misid`: the key is first name +
+  last name + center (owner); MISID, BAPS ID and email (kept only as a sha256 fingerprint)
+  only tell namesakes apart or recognise a corrected name or moved center; empty cells never
+  erase; rows without a center come in as "No center provided" and admins edit centers in
+  the Players tab (`PATCH /admin/players/{id}`); import is preview-then-confirm and refuses
+  a file that would switch off most players. Preview of the real file against live data:
+  57 recognised (all 4 logins), 15 new, 0 switched off, 7 center changes, 2 without a
+  center, 1 duplicate row skipped. The 59 stay switched off until the owner imports the file
+  after the deploy (owner did not ask to switch them on early).
 - 2026-11-22 (late night): Fourth mock (`--speed 30`) to see the play-time home page and the
   player views (all 59 real players paired by center, so the owner's logins aalay and
   keertanp7 were in mock teams). Owner stopped it at 119/145 games; restored with

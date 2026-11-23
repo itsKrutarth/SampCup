@@ -80,13 +80,17 @@ describe('overview tab', () => {
 })
 
 describe('players tab', () => {
-  it('imports the registration export and searches players', async () => {
+  it('checks the export first, then imports what the check showed, and searches players', async () => {
+    const report = {
+      added: 3, updated: 1, unchanged: 0, deactivated: 1,
+      added_names: ['Om Tester (North)', 'Kush Patel (No center provided)', 'Ved Shah (Hartford)'], updated_names: ['Aarav Tester'],
+      center_changes: ['Aarav Tester: South -> North'], deactivated_names: ['Dev Tester (North)'], no_center: ['Kush Patel'],
+      possible_duplicates: ['Aarav Tester (North)'], skipped: [{ row: 4, reason: 'same person as row 2' }], teams_with_removed_players: ['Net Ninjas'],
+    }
     const { sent } = mockApi({
       'GET /admin/players': [player(1, 'Aarav', { id: 7, name: 'Net Ninjas' }), player(2, 'Dev', null, false)],
-      'POST /admin/players/import': {
-        added: 3, updated: 1, unchanged: 0, deactivated: 1,
-        possible_duplicates: ['Aarav Tester (North)'], skipped: [{ row: 4, reason: 'missing mis_id' }], teams_with_removed_players: ['Net Ninjas'],
-      },
+      'POST /admin/players/import?preview=true': { ...report, preview: true },
+      'POST /admin/players/import': { ...report, preview: false },
     })
     const user = userEvent.setup()
     renderAt('/admin/players', ADMIN)
@@ -94,12 +98,46 @@ describe('players tab', () => {
     await user.type(screen.getByLabelText('Search players'), 'aarav')
     expect(screen.queryByText('Dev Tester (removed)')).not.toBeInTheDocument()
     await user.upload(screen.getByLabelText('Registration file'), new File(['x'], 'export.xlsx'))
-    await user.click(screen.getByRole('button', { name: 'Import' }))
-    expect(await screen.findByText(/Added 3, updated 1/)).toBeInTheDocument()
-    expect(screen.getByText('Skipped rows: 4 (missing mis_id)')).toBeInTheDocument()
-    expect(screen.getByText(/Check for duplicates/)).toBeInTheDocument()
-    expect(screen.getByText('Teams with removed players: Net Ninjas')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Check file' }))
+    // the check changes nothing and shows what would change
+    const check = await screen.findByRole('status', { name: 'Import preview' })
+    expect(within(check).getByText(/This file would add 3, update 1, leave 0 unchanged and switch off 1/)).toBeInTheDocument()
+    expect(within(check).getByText('Center changes (1)')).toBeInTheDocument()
+    expect(within(check).getByText('Would be switched off (not in the file) (1)')).toBeInTheDocument()
+    expect(within(check).getByText(/No center provided: Kush Patel/)).toBeInTheDocument()
+    expect(within(check).getByText('Skipped rows: 4 (same person as row 2)')).toBeInTheDocument()
+    expect(within(check).getByText(/Same name at one center/)).toBeInTheDocument()
+    expect(within(check).getByText('Teams with removed players: Net Ninjas')).toBeInTheDocument()
+    expect(sent('POST', '/admin/players/import')).toHaveLength(0)
+    await user.click(within(check).getByRole('button', { name: 'Import these changes' }))
+    const done = await screen.findByRole('status', { name: 'Import result' })
+    expect(within(done).getByText(/Added 3, updated 1, leave 0 unchanged and switched off 1/)).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: 'Import preview' })).not.toBeInTheDocument()
     expect(sent('POST', '/admin/players/import')[0].body).toBeInstanceOf(FormData)
+  })
+
+  it('cancels a checked file and sets a center by hand', async () => {
+    const kush = { ...player(3, 'Kush'), center: 'No center provided' }
+    const { sent } = mockApi({
+      'GET /admin/players': [kush],
+      'POST /admin/players/import?preview=true': { added: 1, updated: 0, unchanged: 0, deactivated: 0, possible_duplicates: [], skipped: [], teams_with_removed_players: [], preview: true },
+      'PATCH /admin/players/3': { ...kush, center: 'Boston' },
+    })
+    const user = userEvent.setup()
+    renderAt('/admin/players', ADMIN)
+    expect(await screen.findByText('No center provided')).toBeInTheDocument()
+    await user.upload(screen.getByLabelText('Registration file'), new File(['x'], 'export.xlsx'))
+    await user.click(screen.getByRole('button', { name: 'Check file' }))
+    await user.click(await screen.findByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('status', { name: 'Import preview' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Edit center for Kush Tester' }))
+    await user.click(within(screen.getByRole('form', { name: 'Center for Kush Tester' })).getByRole('button', { name: 'Cancel' }))
+    await user.click(screen.getByRole('button', { name: 'Edit center for Kush Tester' }))
+    const form = screen.getByRole('form', { name: 'Center for Kush Tester' })
+    await user.type(within(form).getByLabelText('Center'), 'Boston')
+    await user.click(within(form).getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText('Center saved')).toBeInTheDocument()
+    expect(sent('PATCH', '/admin/players/3')[0].body).toEqual({ center: 'Boston' })
   })
 
   it('sets, resets and releases player logins', async () => {
@@ -134,14 +172,15 @@ describe('players tab', () => {
   })
 
   it('shows a refused file', async () => {
-    mockApi({ 'GET /admin/players': [], 'POST /admin/players/import': fail(400, 'Missing columns: mis_id') })
+    mockApi({ 'GET /admin/players': [], 'POST /admin/players/import?preview=true': fail(400, 'Missing columns: first_name') })
     const user = userEvent.setup()
     renderAt('/admin/players', ADMIN)
-    await user.click(await screen.findByRole('button', { name: 'Import' }))
+    await user.click(await screen.findByRole('button', { name: 'Check file' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Choose the registration export first')
     await user.upload(await screen.findByLabelText('Registration file'), new File(['x'], 'bad.csv'))
-    await user.click(screen.getByRole('button', { name: 'Import' }))
+    await user.click(screen.getByRole('button', { name: 'Check file' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Missing columns')
+    expect(screen.queryByRole('button', { name: 'Import these changes' })).not.toBeInTheDocument()
   })
 })
 

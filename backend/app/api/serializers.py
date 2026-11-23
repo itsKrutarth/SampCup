@@ -37,6 +37,7 @@ def player_out(player: Player, admin: bool = False, team: Team | None = None) ->
     if admin:
         out |= {
             "mis_id": player.mis_id,
+            "baps_id": player.baps_id,
             "region": player.region,
             "gender": player.gender,
             "tshirt_size": player.tshirt_size,

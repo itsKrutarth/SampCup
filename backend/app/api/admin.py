@@ -72,6 +72,10 @@ class PlayerLogin(BaseModel):
     password: str | None = Field(default=None, max_length=72)
 
 
+class PlayerPatch(BaseModel):
+    center: str = Field(min_length=1, max_length=60)
+
+
 class Draw(BaseModel):
     seed: int | None = Field(default=None, ge=0, le=2**31 - 1)
 
@@ -183,9 +187,18 @@ def update_tournament(body: TournamentPatch, user: Admin, store: Db) -> dict[str
 
 
 @router.post("/players/import")
-async def import_players(file: UploadFile, _: Admin, store: Db) -> dict[str, Any]:
+async def import_players(
+    file: UploadFile, _: Admin, store: Db, preview: bool = False
+) -> dict[str, Any]:
+    """Import the registration export; with ?preview=true, report the changes without saving."""
     content = await file.read(players.MAX_BYTES + 1)
-    return players.import_players(store, content)
+    return players.import_players(store, content, preview=preview)
+
+
+@router.patch("/players/{player_id}")
+def update_player(player_id: int, body: PlayerPatch, _: Admin, store: Db) -> dict[str, Any]:
+    """An admin sets a player's center (rows imported without one say "No center provided")."""
+    return Lookup(store).player(players.set_center(store, player_id, body.center), admin=True)
 
 
 @router.get("/players")
