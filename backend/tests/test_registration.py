@@ -107,6 +107,18 @@ def test_invite_then_partner_claims_and_accepts(client: TestClient, store: Store
         p["id"]: p["state"] for p in client.get("/api/registration/players", headers=me).json()
     }
     assert names == {b.id: "free", c.id: "free"}
+    # two players with one name: a short hint from each email, never the address itself
+    twins = [make_player(store, email=f"{who}@example.com") for who in ("kirtan604", "imkp004")]
+    for twin in twins:
+        twin.first_name = "Kirtan"
+        store.save(twin)
+    listed = client.get("/api/registration/players", headers=me).json()
+    hints = {p["id"]: p["hint"] for p in listed}
+    assert hints[twins[0].id] == "kir…@example.com" and hints[twins[1].id] == "imk…@example.com"
+    assert hints[b.id] == "" and "kirtan604@" not in str(listed)
+    for twin in twins:
+        twin.active = False
+        store.save(twin)
     sent = invite(client, me, b.id)
     assert sent.status_code == 201 and sent.json()["to"]["id"] == b.id
     third = invite(client, player_headers(client, store, c), b.id, name="Other Team")

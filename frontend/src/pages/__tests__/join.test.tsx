@@ -74,7 +74,12 @@ describe('the player page', () => {
     let invited = false
     const { sent } = mockApi({
       'GET /player/me': () => (invited ? page({ outgoing: request(5, me, p(2, 'Dev')) }) : page()),
-      'GET /registration/players': [p(2, 'Dev', 'pending'), p(3, 'Jay', 'teamed')],
+      'GET /registration/players': [
+        p(2, 'Dev', 'pending'),
+        p(3, 'Jay', 'teamed'),
+        { ...p(4, 'Kirtan'), hint: 'kir…@example.com' },
+        { ...p(5, 'Kirtan'), hint: 'imk…@example.com' },
+      ],
       'POST /registration/requests': () => {
         invited = true
         return request(5, me, p(2, 'Dev'))
@@ -84,6 +89,10 @@ describe('the player page', () => {
     renderAt('/my-team', PLAYER)
     const dev = await screen.findByRole('option', { name: /Dev Tester/ })
     expect(dev).toHaveTextContent('has a pending request')
+    expect(dev).not.toHaveTextContent('Zone 1') // the export's zone is not a center: not shown
+    // namesakes are told apart by a short email hint
+    expect(screen.getByRole('option', { name: 'Kirtan Tester (kir…@example.com)' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Kirtan Tester (imk…@example.com)' })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: /Jay/ })).not.toBeInTheDocument()
     await user.selectOptions(screen.getByLabelText('Partner'), dev)
     await user.type(screen.getByLabelText('Team name'), 'Net Ninjas')

@@ -51,7 +51,9 @@ function PartnerForm({ me, token, onSent, invited }: { me: PlayerLite; token: st
           </option>
           {partners.map((p) => (
             <option key={p.id} value={p.id}>
-              {fullName(p)} ({p.zone}){p.state === 'pending' ? ' · has a pending request' : ''}
+              {fullName(p)}
+              {p.hint ? ` (${p.hint})` : ''}
+              {p.state === 'pending' ? ' · has a pending request' : ''}
             </option>
           ))}
         </select>

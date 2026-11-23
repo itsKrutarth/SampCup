@@ -89,6 +89,8 @@ export type PlayerLite = {
   last_name: string
   center: string
   zone: string
+  // partner list only: a short email hint when two players share a name
+  hint?: string
   state?: 'free' | 'pending' | 'teamed'
   team_name?: string | null
 }

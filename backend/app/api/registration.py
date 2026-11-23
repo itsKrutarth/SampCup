@@ -1,5 +1,6 @@
 """Players claim their account, then pair up: invite a partner, the partner accepts."""
 
+from collections import Counter
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -46,7 +47,8 @@ def claim(body: Claim, store: Db, request: Request) -> dict[str, Any]:
 
 @router.get("/registration/players")
 def players(me: PlayerDep, store: Db) -> list[dict[str, Any]]:
-    """Players at my own center, for picking a partner (none until my center is set)."""
+    """Players at my own center, for picking a partner (none until my center is set). Two
+    with the same name get a hint from their email, never the address itself."""
     look = Lookup(store)
     pending = {
         pid
@@ -62,12 +64,23 @@ def players(me: PlayerDep, store: Db) -> list[dict[str, Any]]:
         ),
         key=lambda p: (p.first_name, p.last_name),
     )
+    names = Counter(p.full_name.casefold() for p in rows)
     out = []
     for p in rows:
         team = look.team_of(p.team_id)
         state = "teamed" if team else "pending" if p.id in pending else "free"
-        out.append({**look.player(p), "state": state, "team_name": team.name if team else None})
+        hint = email_hint(p.email) if names[p.full_name.casefold()] > 1 else ""
+        player = {**look.player(p), "hint": hint}
+        out.append({**player, "state": state, "team_name": team.name if team else None})
     return out
+
+
+def email_hint(email: str) -> str:
+    """kirtan@gmail.com -> kir…@gmail.com: enough to tell two namesakes apart."""
+    local, at, domain = email.strip().partition("@")
+    if not at:
+        return ""
+    return f"{local[: 3 if len(local) > 4 else 1]}…@{domain}"
 
 
 @router.post("/registration/requests", status_code=201)
