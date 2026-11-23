@@ -5,8 +5,9 @@ registration email, which is also how they create their account (app.services.ac
 or older records without an email fall back to name + center, then MISID or BAPS ID, then a
 name that is unique. Empty cells never erase what the app has. A row without a center comes in
 with a blank center: an admin sets it in the Players tab, and until then the player can't pick a
-partner. A preview shows every change before anything is saved, and a file that would switch
-off most players is refused.
+partner. Rows whose Volunteer column says Yes are volunteers, not players: they go to a
+separate list that follows the latest file. A preview shows every change before anything is
+saved, and a file that would switch off most players is refused.
 """
 
 import csv
@@ -19,9 +20,9 @@ from typing import Any
 
 from openpyxl import load_workbook
 
-from app.models import Player, Team
+from app.models import Player, Team, Volunteer
 from app.services.errors import NotFound, ServiceError
-from app.store import Store
+from app.store import Record, Store
 
 FIELDS = {
     "misid": "mis_id",
@@ -32,6 +33,7 @@ FIELDS = {
     "cardname": "card_name",
     "createddate": "registered_at",
     "createddateutc": "registered_at",
+    "volunteer": "volunteer",
     "firstname": "first_name",
     "lastname": "last_name",
     "center": "center",
@@ -42,6 +44,7 @@ FIELDS = {
 REQUIRED = ("first_name", "last_name")
 IDS = ("mis_id", "baps_id", "email_key")
 MAX_BYTES = 5 * 1024 * 1024
+YES = {"yes", "y", "true", "1", "x"}
 
 
 def email_key(email: str) -> str:
@@ -109,7 +112,11 @@ def _same_person(record: dict[str, str], earlier: list[dict[str, str]]) -> int |
     return None
 
 
-def parse_players(content: bytes) -> tuple[list[dict[str, str]], list[dict[str, Any]]]:
+def parse_players(
+    content: bytes,
+) -> tuple[list[dict[str, str]], list[dict[str, Any]], list[dict[str, str]] | None]:
+    """The player rows, the skipped rows, and the volunteer rows (None when the file has no
+    Volunteer column)."""
     rows = read_rows(content)
     if not rows:
         raise ServiceError("The file is empty")
@@ -124,23 +131,25 @@ def parse_players(content: bytes) -> tuple[list[dict[str, str]], list[dict[str, 
     if missing:
         raise ServiceError(f"Missing columns: {', '.join(missing)}")
     players: list[dict[str, str]] = []
+    volunteers: list[dict[str, str]] = []
     skipped: list[dict[str, Any]] = []
     for number, row in enumerate(rows[1:], start=2):
         record = {field: _text(row[i]) if i < len(row) else "" for i, field in columns.items()}
         if not any(record.values()):
             continue
+        group = volunteers if _fold(record.pop("volunteer", "")) in YES else players
         record["email_key"] = email_key(record.get("email", ""))
         empty = [f for f in REQUIRED if not record.get(f)]
         if empty:
             skipped.append({"row": number, "reason": f"missing {', '.join(empty)}"})
             continue
-        same = _same_person(record, players)
+        same = _same_person(record, group)
         if same:
             skipped.append({"row": number, "reason": f"same person as row {same}"})
             continue
         record["_row"] = str(number)
-        players.append(record)
-    return players, skipped
+        group.append(record)
+    return players, skipped, volunteers if "volunteer" in columns.values() else None
 
 
 def _match(record: dict[str, str], pool: list[Player], in_file: Counter[Any]) -> Player | None:
@@ -185,7 +194,7 @@ def _one_of(record: dict[str, str], found: list[Player]) -> Player | None:
     return None
 
 
-def _apply(player: Player, record: dict[str, str]) -> list[str]:
+def _apply(player: Record, record: dict[str, str]) -> list[str]:
     """Copy the row onto the player; empty cells never erase what the app has."""
     changed = []
     for field, value in record.items():
@@ -199,7 +208,7 @@ def _apply(player: Player, record: dict[str, str]) -> list[str]:
 def import_players(store: Store, content: bytes, preview: bool = False) -> dict[str, Any]:
     """Add or update players from the export. Players missing from the file are deactivated,
     never deleted, so teams and history stay intact. With `preview`, nothing is saved."""
-    records, skipped = parse_players(content)
+    records, skipped, volunteer_rows = parse_players(content)
     if not records:
         raise ServiceError(
             "No usable rows in this file: it needs FirstName and LastName columns with names "
@@ -261,6 +270,7 @@ def import_players(store: Store, content: bytes, preview: bool = False) -> dict[
             teams_affected.add(teams[player.team_id].name)
     if not preview:
         store.save_many(changed)
+    report |= _volunteers(store, volunteer_rows, preview)
     names = Counter(
         (p.first_name.casefold(), p.last_name.casefold(), p.center) for p in players if p.active
     )
@@ -276,6 +286,40 @@ def import_players(store: Store, content: bytes, preview: bool = False) -> dict[
     report["skipped"] = skipped
     report["teams_with_removed_players"] = sorted(teams_affected)
     return report
+
+
+def _volunteer_key(item: dict[str, Any]) -> tuple[str, ...]:
+    return (*_name(item), item.get("email_key") or "center:" + _fold(item.get("center", "")))
+
+
+def _volunteers(store: Store, rows: list[dict[str, str]] | None, preview: bool) -> dict[str, Any]:
+    """Make the volunteers list the file's volunteer rows: matched by name + email (or name +
+    center without an email), so they keep their ids; those no longer in the file come off the
+    list (nothing in the app hangs on a volunteer). A file without the column changes nothing."""
+    if rows is None:
+        return {"volunteers": None, "volunteers_added": [], "volunteers_removed": []}
+    current = {_volunteer_key(vars(v)): v for v in store.all(Volunteer)}
+    changed: list[Volunteer] = []
+    new: list[dict[str, str]] = []
+    for record in rows:
+        volunteer = current.pop(_volunteer_key(record), None)
+        if volunteer is None:
+            new.append(record)
+        elif _apply(volunteer, record):
+            changed.append(volunteer)
+    if not preview:
+        next_id = store.next_id(Volunteer, len(new)) if new else 0
+        for offset, record in enumerate(new):
+            fields = {k: v for k, v in record.items() if not k.startswith("_")}
+            changed.append(Volunteer(id=next_id + offset, **fields))
+        store.save_many(changed)
+        for volunteer in current.values():
+            store.delete(volunteer)
+    return {
+        "volunteers": len(rows),
+        "volunteers_added": sorted(f"{r['first_name']} {r['last_name']}" for r in new),
+        "volunteers_removed": sorted(v.full_name for v in current.values()),
+    }
 
 
 def set_center(store: Store, player_id: int, center: str) -> Player:

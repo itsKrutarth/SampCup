@@ -3,7 +3,7 @@ import datetime as dt
 import pytest
 from fastapi.testclient import TestClient
 
-from app.models import Player
+from app.models import Player, Volunteer
 from app.services.errors import ServiceError
 from app.services.players import email_key, import_players, parse_players
 from app.store import Store
@@ -62,7 +62,8 @@ def test_rows_with_problems_are_skipped_and_reported() -> None:
     content = xlsx(
         [row(1, "Aarav"), row(1, "Aarav"), row(None, "NoId"), row(2, ""), row(1, "Again")]
     )
-    players, skipped = parse_players(content)
+    players, skipped, volunteers = parse_players(content)
+    assert volunteers is None  # no Volunteer column
     assert [(p["first_name"], p["mis_id"]) for p in players] == [
         ("Aarav", "1"),
         ("NoId", ""),  # a MISID is optional now
@@ -156,6 +157,59 @@ def test_every_column_is_kept_and_name_plus_email_is_the_key(store: Store) -> No
     other = [*later[:2], new_row("Chintan", "Patel", "New Haven", email="new@example.com")]
     report = import_players(store, xlsx(other, NEW_HEADER), preview=True)
     assert (report["added"], report["deactivated"]) == (1, 1)
+
+
+def test_rows_marked_volunteer_go_to_the_volunteers_list(
+    client: TestClient, store: Store, admin: dict, judge: dict
+) -> None:
+    header = [*NEW_HEADER, "Volunteer"]
+    rows = [
+        [*new_row("Aarav", "Patel", "Boston"), ""],
+        [*new_row("Dev", "Shah", "Boston"), "No"],
+        [*new_row("Om", "Amin", "Hartford"), "Yes"],
+        [*new_row("Jay", "Joshi", "", card="Jay Joshi"), " yes "],
+        [*new_row("Jay", "Joshi", ""), "Yes"],  # the same volunteer twice
+    ]
+    response = upload(client, admin, xlsx(rows, header))
+    assert response.status_code == 200
+    report = response.json()
+    assert (report["added"], report["volunteers"]) == (2, 2)
+    assert (
+        report["volunteers_added"] == ["Jay Joshi", "Om Amin"]
+        and report["volunteers_removed"] == []
+    )
+    assert report["skipped"] == [{"row": 6, "reason": "same person as row 5"}]
+    assert {p.first_name for p in store.all(Player)} == {
+        "Aarav",
+        "Dev",
+    }  # volunteers aren't players
+    listed = client.get("/api/admin/volunteers", headers=admin).json()
+    assert [(v["first_name"], v["center"], v["email"]) for v in listed] == [
+        ("Jay", "", "jay.joshi@example.com"),
+        ("Om", "Hartford", "om.amin@example.com"),
+    ]
+    assert client.get("/api/admin/volunteers", headers=judge).status_code == 403
+    om = find(store, Volunteer, first_name="Om")
+    # the next file: Om has a center change, Jay is gone, Dev now volunteers instead of playing
+    later = [
+        rows[0],
+        [*new_row("Dev", "Shah", "Boston"), "Yes"],
+        [*new_row("Om", "Amin", "Boston"), "Yes"],
+    ]
+    check = import_players(store, xlsx(later, header), preview=True)
+    assert len(store.all(Volunteer)) == 2  # a preview saves nothing
+    report = import_players(store, xlsx(later, header))
+    assert report == check | {"preview": False}
+    assert report["deactivated_names"] == ["Dev Shah (Boston)"]
+    assert (report["volunteers_added"], report["volunteers_removed"]) == (
+        ["Dev Shah"],
+        ["Jay Joshi"],
+    )
+    assert store.get(Volunteer, om.id).center == "Boston"  # the same volunteer, updated
+    assert sorted(v.first_name for v in store.all(Volunteer)) == ["Dev", "Om"]
+    # an older file without the Volunteer column leaves the list alone
+    report = import_players(store, xlsx([new_row("Aarav", "Patel", "Boston")], NEW_HEADER))
+    assert report["volunteers"] is None and len(store.all(Volunteer)) == 2
 
 
 def test_an_import_that_would_switch_off_most_players_is_refused(store: Store) -> None:

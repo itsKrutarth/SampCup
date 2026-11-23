@@ -2,7 +2,15 @@ from datetime import datetime
 from functools import cached_property
 from typing import Any
 
-from app.models import Announcement, Match, PartnerRequest, Player, StaffUser, Team
+from app.models import (
+    Announcement,
+    Match,
+    PartnerRequest,
+    Player,
+    StaffUser,
+    Team,
+    Volunteer,
+)
 from app.store import Store
 
 PLACES = {"1": "1st", "2": "2nd", "3": "3rd", "4": "4th"}
@@ -52,6 +60,12 @@ def player_out(player: Player, admin: bool = False, team: Team | None = None) ->
             "must_change_password": player.must_change_password,
         }
     return out
+
+
+def volunteer_out(volunteer: Volunteer) -> dict[str, Any]:
+    fields = ("id", "first_name", "last_name", "center", "email", "mis_id", "baps_id")
+    fields += ("card_name", "registered_at", "zone", "gender", "tshirt_size")
+    return {field: getattr(volunteer, field) for field in fields}
 
 
 def staff_out(user: StaffUser) -> dict[str, Any]:

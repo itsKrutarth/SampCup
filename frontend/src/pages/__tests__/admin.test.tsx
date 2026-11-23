@@ -86,11 +86,15 @@ describe('players tab', () => {
       added_names: ['Om Tester (North)', 'Kush Patel (no center)', 'Ved Shah (Hartford)'], updated_names: ['Aarav Tester'],
       center_changes: ['Aarav Tester: South -> North'], deactivated_names: ['Dev Tester (North)'], no_center: ['Kush Patel'], no_email: ['Om Tester'],
       possible_duplicates: ['Aarav Tester (North)'], skipped: [{ row: 4, reason: 'same person as row 2' }], teams_with_removed_players: ['Net Ninjas'],
+      volunteers: 2, volunteers_added: ['Hari Judge'], volunteers_removed: [],
     }
     const { sent } = mockApi({
       'GET /admin/players': [
         { ...player(1, 'Aarav', { id: 7, name: 'Net Ninjas' }), email: 'aarav@example.com', card_name: 'Parent Tester', registered_at: '2026-11-21 19:42' },
         player(2, 'Dev', null, false),
+      ],
+      'GET /admin/volunteers': [
+        { id: 1, first_name: 'Hari', last_name: 'Judge', center: '', email: 'hari@example.com', mis_id: '', baps_id: 'HJ1', card_name: '', registered_at: '2026-11-20 10:00' },
       ],
       'POST /admin/players/import?preview=true': { ...report, preview: true },
       'POST /admin/players/import': { ...report, preview: false },
@@ -99,6 +103,10 @@ describe('players tab', () => {
     renderAt('/admin/players', ADMIN)
     expect(await screen.findByText('Dev Tester (removed)')).toBeInTheDocument()
     expect(screen.getByText('aarav@example.com')).toBeInTheDocument()
+    const helpers = await screen.findByRole('table', { name: 'Volunteers' })
+    expect(within(helpers).getByText('Hari Judge')).toBeInTheDocument()
+    expect(within(helpers).getByText('HJ1')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Volunteers (1)' })).toBeInTheDocument()
     expect(screen.getByText(/card: Parent Tester/)).toBeInTheDocument()
     await user.type(screen.getByLabelText('Search players'), 'aarav@')
     expect(screen.queryByText('Dev Tester (removed)')).not.toBeInTheDocument()
@@ -114,6 +122,8 @@ describe('players tab', () => {
     expect(within(check).getByText('Skipped rows: 4 (same person as row 2)')).toBeInTheDocument()
     expect(within(check).getByText(/Same name at one center/)).toBeInTheDocument()
     expect(within(check).getByText('Teams with removed players: Net Ninjas')).toBeInTheDocument()
+    expect(within(check).getByText(/Volunteers in the file: 2/)).toBeInTheDocument()
+    expect(within(check).getByText('New volunteers (1)')).toBeInTheDocument()
     expect(sent('POST', '/admin/players/import')).toHaveLength(0)
     await user.click(within(check).getByRole('button', { name: 'Import these changes' }))
     const done = await screen.findByRole('status', { name: 'Import result' })
@@ -126,6 +136,7 @@ describe('players tab', () => {
     const kush = { ...player(3, 'Kush'), center: '', has_email: false }
     const { sent } = mockApi({
       'GET /admin/players': [kush],
+      'GET /admin/volunteers': [],
       'POST /admin/players/import?preview=true': { added: 1, updated: 0, unchanged: 0, deactivated: 0, possible_duplicates: [], skipped: [], teams_with_removed_players: [], preview: true },
       'PATCH /admin/players/3': { ...kush, center: 'Boston' },
     })
@@ -150,6 +161,7 @@ describe('players tab', () => {
   it('sets, resets and releases player logins', async () => {
     const { sent } = mockApi({
       'GET /admin/players': [player(1, 'Aarav', null, true, 'aarav_t'), player(2, 'Twin')],
+      'GET /admin/volunteers': [],
       'PUT /admin/players/2/login': { ...player(2, 'Twin'), username: 'twin1', must_change_password: true },
       'PUT /admin/players/1/login': fail(409, 'That username is taken'),
       'DELETE /admin/players/1/login': player(1, 'Aarav'),
@@ -179,7 +191,7 @@ describe('players tab', () => {
   })
 
   it('shows a refused file', async () => {
-    mockApi({ 'GET /admin/players': [], 'POST /admin/players/import?preview=true': fail(400, 'Missing columns: first_name') })
+    mockApi({ 'GET /admin/players': [], 'GET /admin/volunteers': [], 'POST /admin/players/import?preview=true': fail(400, 'Missing columns: first_name') })
     const user = userEvent.setup()
     renderAt('/admin/players', ADMIN)
     await user.click(await screen.findByRole('button', { name: 'Check file' }))
@@ -196,6 +208,7 @@ describe('teams tab', () => {
     const { sent } = mockApi({
       'GET /admin/teams': [teamRow],
       'GET /admin/players': [player(3, 'Jay'), player(4, 'Om'), player(1, 'Aarav', { id: 7, name: 'Net Ninjas' })],
+      'GET /admin/volunteers': [],
       'GET /admin/requests': [{ id: 5, team_name: 'Pending Pair', status: 'pending', from: player(3, 'Jay'), to: player(4, 'Om'), created_at: '' }],
       'PATCH /admin/teams/7': teamRow,
       'DELETE /admin/teams/7': null,

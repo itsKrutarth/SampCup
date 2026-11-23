@@ -10,8 +10,16 @@ from pydantic import BaseModel, Field
 
 from app.api.deps import Admin, Db
 from app.api.public import ordered
-from app.api.serializers import Lookup, announcement_out, iso, staff_out
-from app.models import Announcement, Delay, Match, PartnerRequest, ScoreAudit, StaffUser
+from app.api.serializers import Lookup, announcement_out, iso, staff_out, volunteer_out
+from app.models import (
+    Announcement,
+    Delay,
+    Match,
+    PartnerRequest,
+    ScoreAudit,
+    StaffUser,
+    Volunteer,
+)
 from app.services import accounts, auth, players, schedule, scoring, teams
 from app.services.errors import NotFound, ServiceError
 from app.services.sheet_import import import_games
@@ -206,6 +214,13 @@ def list_players(_: Admin, store: Db) -> list[dict[str, Any]]:
     look = Lookup(store)
     rows = sorted(look.players.values(), key=lambda p: (p.center, p.first_name, p.last_name))
     return [look.player(p, admin=True) for p in rows]
+
+
+@router.get("/volunteers")
+def list_volunteers(_: Admin, store: Db) -> list[dict[str, Any]]:
+    """Volunteers from the registration file (not players)."""
+    rows = sorted(store.all(Volunteer), key=lambda v: (v.center, v.first_name, v.last_name))
+    return [volunteer_out(v) for v in rows]
 
 
 @router.put("/players/{player_id}/login")

@@ -195,6 +195,10 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   with it once; the center comes from the registration. A player without a center can't pick
   a partner until an admin sets it in the Players tab. Then they invite a same-center partner
   who accepts; after that only admins can change the team. Cap 42 active teams, then a waitlist.
+  No email or code verification: players still choose their own username and password.
+- **Volunteers (owner, 2026-11-23):** rows whose Volunteer column says Yes (judges, water,
+  app admins) are not players. They go to a Volunteers list under Players (admin only) that
+  follows the latest file; a file without the column leaves the list alone.
 - **Announcements:** in-app banner only (no email or SMS is sent, though the export now has
   emails).
 - **Auth:** sessions stored in DynamoDB with TTL (random bearer token, SHA-256 stored), scrypt
@@ -243,7 +247,10 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   `feature/claim-by-email`. Players saved as "No center provided" read as blank. Preview of
   the real file against live data with the new code: 72 recognised by name + email (all
   "updated": email, card name and date filled in), 0 new, 0 off, 0 center changes, 2 without
-  a center, 0 without an email.
+  a center, 0 without an email. Owner asked to erase the two removed duplicates (Kirtan Patel,
+  Toronto; Parth Patel, Charlotte: no login, team or requests): snapshot saved in ~/dev, then
+  deleted from prod (72 players, all active, 4 logins). Then: a Volunteer column (Yes = not a
+  player) feeds a new Volunteers list; `GET /admin/volunteers`.
 - 2026-11-23: Owner uploaded the newer registration export (no MISID values; BAPSId, email)
   with the old importer at 10:46 AM: every row was skipped and all 59 players were switched
   off (nothing else changed). Branch `feature/import-without-misid`: the key is first name +

@@ -77,6 +77,32 @@ class Player(Record):
 
 
 @dataclasses.dataclass(kw_only=True)
+class Volunteer(Record):
+    """Someone the registration file marks Volunteer = Yes (judges, water, app admins): not a
+    player. The list follows the latest file (app.services.players). Admins only."""
+
+    KIND = "VOLUNTEER"
+    id: int
+    first_name: str
+    last_name: str
+    center: str = ""
+    email: str = ""
+    email_key: str = ""
+    mis_id: str = ""
+    baps_id: str = ""
+    card_name: str = ""
+    registered_at: str = ""
+    zone: str = ""
+    region: str = ""
+    gender: str = ""
+    tshirt_size: str = ""
+
+    @property
+    def full_name(self) -> str:
+        return f"{self.first_name} {self.last_name}"
+
+
+@dataclasses.dataclass(kw_only=True)
 class Team(Record):
     KIND = "TEAM"
     id: int

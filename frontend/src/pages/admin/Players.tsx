@@ -27,6 +27,18 @@ export type AdminPlayer = {
   must_change_password: boolean
 }
 
+export type Volunteer = {
+  id: number
+  first_name: string
+  last_name: string
+  center: string
+  email: string
+  mis_id: string
+  baps_id: string
+  card_name: string
+  registered_at: string
+}
+
 type Report = {
   preview?: boolean
   added: number
@@ -42,6 +54,9 @@ type Report = {
   possible_duplicates: string[]
   skipped: { row: number; reason: string }[]
   teams_with_removed_players: string[]
+  volunteers?: number | null
+  volunteers_added?: string[]
+  volunteers_removed?: string[]
 }
 
 function Names({ title, names }: { title: string; names?: string[] }) {
@@ -80,6 +95,13 @@ function ImportReport({ report }: { report: Report }) {
       {report.skipped.length > 0 && <p>Skipped rows: {report.skipped.map((s) => `${s.row} (${s.reason})`).join(', ')}</p>}
       {report.possible_duplicates.length > 0 && <p>Same name at one center (check they are different people): {report.possible_duplicates.join(', ')}</p>}
       {report.teams_with_removed_players.length > 0 && <p>Teams with removed players: {report.teams_with_removed_players.join(', ')}</p>}
+      {report.volunteers != null && (
+        <>
+          <p>Volunteers in the file: {report.volunteers} (not players; listed under Volunteers).</p>
+          <Names title={will ? 'New volunteers' : 'Volunteers added'} names={report.volunteers_added} />
+          <Names title={will ? 'Would leave the volunteers list' : 'Left the volunteers list'} names={report.volunteers_removed} />
+        </>
+      )}
     </>
   )
 }
@@ -160,6 +182,7 @@ function Account({ player, onChange }: { player: AdminPlayer; onChange: () => vo
 export default function Players() {
   const { token, message, setMessage } = useAction()
   const { data, loading, error, reload } = useApi<AdminPlayer[]>('/admin/players', token)
+  const volunteers = useApi<Volunteer[]>('/admin/volunteers', token)
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<Report | null>(null)
   const [report, setReport] = useState<Report | null>(null)
@@ -192,13 +215,15 @@ export default function Players() {
       setPreview(null)
       setReport(done)
       reload()
+      volunteers.reload()
     }
   }
-  const shown = (data ?? []).filter((p) =>
+  const matches = (p: Pick<Volunteer, 'first_name' | 'last_name' | 'center' | 'mis_id'> & Partial<Volunteer>) =>
     `${p.first_name} ${p.last_name} ${p.center} ${p.email ?? ''} ${p.card_name ?? ''} ${p.mis_id} ${p.baps_id ?? ''}`
       .toLowerCase()
-      .includes(filter.toLowerCase()),
-  )
+      .includes(filter.toLowerCase())
+  const shown = (data ?? []).filter(matches)
+  const helpers = (volunteers.data ?? []).filter(matches)
   return (
     <>
       <form onSubmit={check} className="stack">
@@ -206,7 +231,8 @@ export default function Players() {
         <p className="hint">
           Upload the registration export (.xlsx or .csv); every column is kept. Players are recognised by first name, last name and email,
           and create their account with them. Rows without an email are matched by name and center. You see every change before it is
-          saved, and nobody is deleted.
+          saved, and no player is deleted. Rows with Volunteer = Yes are not players: they are listed under Volunteers, which always
+          follows the latest file.
         </p>
         <input
           name="file"
@@ -285,6 +311,38 @@ export default function Players() {
           </tbody>
         </table>
       </div>
+      <h2>Volunteers ({volunteers.data?.length ?? 0})</h2>
+      <Status loading={volunteers.loading} error={volunteers.error} />
+      {volunteers.data?.length === 0 ? (
+        <p className="hint">None yet: rows with Volunteer = Yes in the registration file show here.</p>
+      ) : (
+        <div className="table-wrap">
+          <table aria-label="Volunteers">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Center</th>
+                <th>Email</th>
+                <th>ID</th>
+                <th>Registered</th>
+              </tr>
+            </thead>
+            <tbody>
+              {helpers.map((v) => (
+                <tr key={v.id}>
+                  <td>
+                    {v.first_name} {v.last_name}
+                  </td>
+                  <td>{v.center || <span className="warning-text">{NO_CENTER}</span>}</td>
+                  <td>{v.email}</td>
+                  <td>{v.mis_id || v.baps_id}</td>
+                  <td>{v.registered_at}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </>
   )
 }
