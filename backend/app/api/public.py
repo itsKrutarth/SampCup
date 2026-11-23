@@ -5,7 +5,7 @@ from typing import Any
 from fastapi import APIRouter
 
 from app.api.deps import Db
-from app.api.serializers import Lookup, announcement_out, team_brief
+from app.api.serializers import Lookup, announcement_out, iso, team_brief
 from app.models import Announcement, Match, Team
 from app.services import scoring
 from app.services.errors import NotFound
@@ -122,7 +122,12 @@ def teams(store: Db) -> list[dict[str, Any]]:
         key=lambda t: (t.team_number is None, t.team_number or 0, t.name),
     )
     return [
-        {**(team_brief(t) or {}), "center": t.center, "players": look.team(t)["players"]}
+        {
+            **(team_brief(t) or {}),
+            "center": t.center,
+            "players": look.team(t)["players"],
+            "lunch_start": iso(t.lunch_start),  # the backup sheet lists each team's lunch
+        }
         for t in rows
     ]
 

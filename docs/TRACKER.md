@@ -21,6 +21,17 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   block). Plans checked: foundation 1 import + tag change, app 0 destroy. Apply
   `infra/deploy.sh apply` and `infra/foundation.sh apply` (either order), then delete the
   foundation's one-time `import` block (it would fail in a brand-new account).
+  2026-11-22: `deploy.sh apply` done (log group kept, no longer in the app state);
+  `foundation.sh apply` still to run.
+- **Backup sheet (owner: "a backup plan if the app goes down"), branch
+  `backup/google-sheet`:** a Google Sheet whose own Apps Script (`tools/backup-sheet/Code.gs`)
+  copies the public pages every minute (teams, players, lunch, every game, standings) and
+  keeps the last good copy. Manual mode: organizers type results; "Recompute" ranks groups
+  exactly like `ranking.py` (except lots: number order), fills knockout teams and settles
+  the Final. Tested in `backend/tests/test_backup_sheet.py` (3,000 groups vs `ranking.py`, a
+  whole simulated day, and the menus on a fake Google Sheet). Also: `/public/teams` now
+  includes `lunch_start`, and Admin > Results > Correct takes a game time (for results
+  entered after an outage). Owner sets the sheet up once (README there, ~5 minutes).
 - **Second mock (2026-11-21, `--speed 30`, ~20 s a game, 32 teams, 145 games):** the app held
   up; the mock tool did not:
   - Real players have started forming teams, so the mock now leaves real teams out (never

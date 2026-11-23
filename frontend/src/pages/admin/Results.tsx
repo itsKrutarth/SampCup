@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 
 import { teamLabel } from '../../components/MatchCard'
 import Status from '../../components/Status'
-import { time } from '../../lib/format'
+import { clock, time } from '../../lib/format'
 import { useApi } from '../../lib/live'
 import type { Match } from '../../lib/types'
 import { Message, useAction } from './common'
@@ -17,11 +17,15 @@ export default function Results() {
   const correct = async (event: FormEvent<HTMLFormElement>, match: Match) => {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
+    // game time counts for tiebreaks: set it when a result is entered after the fact
+    const gameTime = String(form.get('game_time') ?? '').trim()
+    const [minutes, seconds] = gameTime.split(':').map(Number)
     const body = {
       score_a: Number(form.get('score_a')),
       score_b: Number(form.get('score_b')),
       end_reason: form.get('end_reason'),
       reason: form.get('reason'),
+      ...(gameTime ? { seconds: minutes * 60 + seconds } : {}),
     }
     const result = await run<Match>(`/admin/matches/${match.id}/correct`, 'POST', body, (r) =>
       `${match.code} corrected.${r.warnings?.length ? ` Check: ${r.warnings.join('; ')}` : ''}`,
@@ -58,6 +62,14 @@ export default function Results() {
                     <select name="end_reason" defaultValue={m.end_reason ?? 'reached_11'} aria-label="How it ended">
                       {REASONS.map((r) => <option key={r}>{r}</option>)}
                     </select>
+                    <input
+                      name="game_time"
+                      placeholder="m:ss"
+                      pattern="\d{1,2}:[0-5]\d"
+                      defaultValue={m.seconds !== null ? clock(m.seconds) : ''}
+                      aria-label="Game time"
+                      title="First serve to the 11th point (m:ss). It counts for tiebreaks."
+                    />
                     <input name="reason" required placeholder="Why" aria-label="Reason" />
                     <button type="submit">Save</button>
                     <button type="button" className="link" onClick={() => setEditing(null)}>Cancel</button>
