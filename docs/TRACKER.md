@@ -259,6 +259,8 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   3:30 PM, then asked to release all logins: no player accounts now, only admins `imgp004` and
   `ravi_admin`; the 9 court-N judge accounts (no games or audits yet) were deleted with their
   username locks and sessions. Court logins will be court1..court9, made by an admin.
+  Later: owner's test staff `aalay` (admin) and `allu` (judge) removed; the one pending
+  invitation (Harshil Patel -> Dev Gujarathi) cancelled at the owner's request.
 - 2026-11-23: Owner uploaded the newer registration export (no MISID values; BAPSId, email)
   with the old importer at 10:46 AM: every row was skipped and all 59 players were switched
   off (nothing else changed). Branch `feature/import-without-misid`: the key is first name +
