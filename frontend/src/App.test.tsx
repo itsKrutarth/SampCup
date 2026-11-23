@@ -8,5 +8,5 @@ import { mockApi } from './test/utils'
 it('boots the real app at the home page', async () => {
   mockApi({ 'GET /public/overview': overview() })
   render(<App />)
-  expect(await screen.findByRole('heading', { name: 'SAMP Cup 2026' })).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { level: 1, name: /^SAMP Cup 2026/ })).toBeInTheDocument()
 })

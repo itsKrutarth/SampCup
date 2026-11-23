@@ -81,7 +81,7 @@ describe('home page states', () => {
     })
     renderAt('/')
     expect(await screen.findByText('Group play under way')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'SAMP Cup' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'SAMP Cup · Yuvak Mandal Pickleball Tournament' })).toBeInTheDocument()
     expect(screen.queryByRole('timer')).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Full schedule' })).toHaveAttribute('href', '/schedule')
     expect(screen.getByText('NP')).toBeInTheDocument() // initials before the draw
