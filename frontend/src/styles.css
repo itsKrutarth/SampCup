@@ -464,6 +464,21 @@ a {
   font-style: normal;
 }
 
+/* During play the venue moves below the leaderboard, as a card */
+.venue-card {
+  text-align: center;
+}
+
+.venue-card .venue {
+  margin: 0;
+}
+
+/* A logged-in player's own game (home page and schedule) stands out in gold */
+.your-game .match {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px var(--gold), var(--shadow);
+}
+
 .event-kind {
   margin: 0.6rem 0 0;
   font-family: var(--font-display);

@@ -1,8 +1,8 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
-import { groups, match, overview } from '../../test/data'
+import { groups, match, overview, team, teamPage } from '../../test/data'
 import { ADMIN, fail, JUDGE, mockApi, PLAYER, renderAt } from '../../test/utils'
 
 const tempJudge = { username: 'court-3', display_name: 'Court 3 judge', role: 'judge', court: 3, must_change_password: true }
@@ -70,7 +70,7 @@ describe('choosing your own password', () => {
 })
 
 describe('home page states', () => {
-  it('hides the countdown once play has started and offers the schedule', async () => {
+  it('is about play once games start: short hero, courts first, the venue further down', async () => {
     mockApi({
       'GET /public/overview': overview({
         phase: 'group_play',
@@ -80,11 +80,65 @@ describe('home page states', () => {
       }),
     })
     renderAt('/')
-    expect(await screen.findByText('Group play under way')).toBeInTheDocument()
+    const courts = await screen.findByRole('region', { name: 'Courts' })
     expect(screen.getByRole('heading', { name: 'SAMP Cup' })).toBeInTheDocument()
+    expect(screen.getByText('Unity in every rally')).toBeInTheDocument()
+    // the hero stops at the tagline: no date, countdown or buttons (the tab bar has them)
+    expect(screen.queryByText('January 1')).not.toBeInTheDocument()
     expect(screen.queryByRole('timer')).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Full schedule' })).toHaveAttribute('href', '/schedule')
+    expect(screen.queryByRole('link', { name: 'Full schedule' })).not.toBeInTheDocument()
+    const venue = screen.getByRole('region', { name: 'Venue' })
+    expect(courts.compareDocumentPosition(venue) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Directions' })).toBeInTheDocument()
     expect(screen.getByText('NP')).toBeInTheDocument() // initials before the draw
+  })
+
+  it("shows a logged-in player their own next game, then the one they're playing", async () => {
+    const mine = team(1, 'Net Ninjas')
+    let playing = false
+    mockApi({
+      'GET /public/overview': overview({ phase: 'scheduled' }),
+      'GET /player/me': { player: {}, team: teamPage(), incoming: [], outgoing: null },
+      'GET /public/schedule?team=1': () => [
+        match({ id: 1, status: 'completed', score_a: 11, score_b: 3, winner_id: 1 }),
+        match({ id: 2, code: 'G009', court: 4, status: playing ? 'in_progress' : 'scheduled', team_a: mine }),
+        match({ id: 3, code: 'G020', team_b: mine }),
+      ],
+    })
+    const page = renderAt('/', PLAYER)
+    const game = await screen.findByRole('region', { name: 'Your game' })
+    expect(within(game).getByRole('heading', { name: 'Your next game' })).toBeInTheDocument()
+    expect(within(game).getByRole('article', { name: /G009/ })).toBeInTheDocument()
+    expect(within(game).getByRole('link', { name: 'Your whole day' })).toHaveAttribute('href', '/schedule')
+    expect(screen.getByText('December 12')).toBeInTheDocument() // before play: the full hero stays
+    page.unmount()
+    playing = true
+    renderAt('/', PLAYER)
+    expect(await screen.findByRole('heading', { name: 'Your game now' })).toBeInTheDocument()
+  })
+
+  it('opens a logged-in player on their own schedule, and lets them see everyone', async () => {
+    const mine = team(1, 'Net Ninjas')
+    const { calls } = mockApi({
+      'GET /player/me': { player: {}, team: teamPage(), incoming: [], outgoing: null },
+      'GET /public/teams': [mine, team(2, 'Dink Squad')],
+      'GET /public/schedule?team=1': [match({ id: 2, code: 'G009', team_a: mine }), match({ id: 3, code: 'G020', team_b: mine })],
+      'GET /public/schedule': [match(), match({ id: 7, code: 'G007', team_a: team(2, 'Dink Squad'), team_b: team(3, 'Lob Stars') })],
+    })
+    const user = userEvent.setup()
+    renderAt('/schedule', PLAYER)
+    expect(await screen.findByRole('heading', { name: 'Your schedule' })).toBeInTheDocument()
+    const game = await screen.findByRole('region', { name: 'Your game' })
+    expect(within(game).getByRole('article', { name: /G009/ })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Your whole day' })).toBeInTheDocument()
+    expect(calls.some((c) => c.path === '/public/schedule?')).toBe(false) // never everyone's games first
+    const teamPick = await screen.findByRole('combobox', { name: 'Team' })
+    expect(teamPick).toHaveValue('1')
+    expect(within(teamPick).getByRole('option', { name: '#1 Net Ninjas (your team)' })).toBeInTheDocument()
+    await user.selectOptions(teamPick, 'All teams')
+    expect(await screen.findByRole('heading', { name: 'Schedule' })).toBeInTheDocument()
+    expect(await screen.findByText('Lob Stars')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Your game' })).not.toBeInTheDocument()
   })
 
   it('works before the date is set and when registration is closed', async () => {

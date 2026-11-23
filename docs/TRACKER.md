@@ -223,6 +223,22 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   local stack (DynamoDB Local), secret scan.
 
 ## Session log
+- 2026-11-22 (late): Owner's feedback after the mock, branch `home/live-layout`: once play
+  starts (group play, knockout, finished) the home hero stops at "Unity in every rally";
+  then the logged-in player's own game, Courts, Up next, Leaderboard, the venue card
+  (address, Directions), then the rest. A logged-in player sees their next game on the home
+  page as soon as the schedule is out, and the Schedule page opens on their own team ("Your
+  game now/next", then "Your whole day"; "All teams" shows everyone). Owner confirmed the
+  layout choices (asked first). Also removed the owner's test data: logins jay123 and parth1
+  released, team "admins" deleted (snapshot before: `~/dev/sampcup-snapshot-2026-11-22-before-test-cleanup.json`).
+- 2026-11-22 (night): Owner deployed the logos and backup-sheet changes (`foundation.sh apply`
+  did not take: foundation state still from 11-18; rerun it). Third mock, `--speed 30`: 145
+  games in ~18 min, champion Mock Team 13, Final 2-0; mock clock drove the header and the
+  court-1 judge screen (G037 scored there, game time 6:19 mock); 0 server errors, 0
+  throttles, no alarms. Owner added five 15-minute delays on purpose (testing), which moved
+  the Final to 7:10-7:40 PM. Restored with `mock_restore.py`, keeping the owner's test
+  logins jay123 (player 20) and parth1 (player 42) and 2 released logins (players 11, 37);
+  asked the owner whether to release the test logins and remove team "admins".
 - 2026-11-22: Owner redeployed; restored the 2026-11-21 snapshot (110 items). Branch
   `fix/final-series-and-judge-message`: Final kept together with series score, clearer judge
   message for a game finished on another phone, and the mock clock (owner: the header showed

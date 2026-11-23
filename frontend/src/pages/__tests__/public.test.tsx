@@ -46,7 +46,8 @@ describe('home page', () => {
       }),
     })
     renderAt('/')
-    expect(await screen.findByText('Tournament complete')).toBeInTheDocument()
+    expect(await screen.findByText('Champions')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Venue' })).toBeInTheDocument() // short hero after the final too
     const banner = await screen.findByRole('region', { name: 'Announcements' })
     expect(within(banner).getByText('Awards at 6:45')).toBeInTheDocument()
     expect(screen.getByText('Champions')).toBeInTheDocument()
