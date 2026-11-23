@@ -3,7 +3,6 @@ import { Link } from 'react-router'
 
 import CourtBoard from '../components/CourtBoard'
 import Countdown from '../components/Countdown'
-import Logo from '../components/Logo'
 import MatchCard from '../components/MatchCard'
 import Status from '../components/Status'
 import TeamAvatar from '../components/TeamAvatar'
@@ -123,21 +122,21 @@ export default function Home() {
   if (!data) return <Status loading={loading} error={error} />
   const { tournament } = data
   const live = data.phase === 'group_play' || data.phase === 'knockout'
-  // "SAMP Cup 2026": the year gets the lime highlight
-  const [, name, year] = tournament.name.match(/^(.*?)(\d{4})?$/) ?? ['', tournament.name, '']
   return (
     <>
       {data.live.length > 0 && <Ticker matches={data.live} />}
       <section className="hero">
         <img className="murti" src="/brand/swaminarayan.webp" width={497} height={332} alt="Bhagwan Swaminarayan" />
         <div className="hero-top">
-          <Logo size={96} />
-          <h1 className="wordmark">
-            {name}
-            {year && <span className="year">{year}</span>}
+          {/* the official logo (owner, 2026-11-22); the earlier drawn hero is git tag home-before-logo */}
+          <h1 className="hero-logo">
+            <img
+              src="/brand/samp-cup-logo.webp"
+              width={532}
+              height={642}
+              alt={`${tournament.name} · Yuvak Mandal Pickleball Tournament`}
+            />
           </h1>
-          {tournament.subtitle && <p className="ribbon">{tournament.subtitle}</p>}
-          <p className="event-kind">Pickleball Tournament</p>
           <p className="tagline">{TAGLINE}</p>
         </div>
         <p className="event-date">{tournament.event_date ? monthDay(tournament.event_date) : 'Date to be announced'}</p>

@@ -10,11 +10,11 @@ describe('home page', () => {
   it('invites players to join while registration is open', async () => {
     mockApi({ 'GET /public/overview': overview({ waitlist: 2 }) })
     renderAt('/')
-    expect(await screen.findByRole('heading', { name: 'SAMP Cup 2026' })).toBeInTheDocument()
+    // the official logo is the page title (its words are the image's description)
+    const title = await screen.findByRole('heading', { level: 1, name: 'SAMP Cup 2026 · Yuvak Mandal Pickleball Tournament' })
+    expect(title.querySelector('img')).toHaveAttribute('src', '/brand/samp-cup-logo.webp')
     expect(screen.getByText('December 12')).toBeInTheDocument()
     expect(screen.getByText('Saturday · Age 22-35')).toBeInTheDocument()
-    expect(screen.getByText('Yuvak Mandal')).toBeInTheDocument()
-    expect(screen.getByText('Pickleball Tournament')).toBeInTheDocument()
     expect(screen.getByText('Rt. 12 Pickle')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Directions' })).toHaveAttribute(
       'href',

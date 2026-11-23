@@ -380,45 +380,17 @@ a {
   gap: 0.25rem;
 }
 
-/* SAMP CUP: cream letters with a navy outline, like the flyer */
-.wordmark {
+/* The official SAMP Cup logo: it already carries the name, ribbon and year */
+.hero-logo {
   margin: 0.25rem 0 0;
-  font-family: var(--font-wordmark);
-  font-size: clamp(3.4rem, 15vw, 6rem);
-  font-weight: 400;
-  letter-spacing: 0.01em;
-  line-height: 0.95;
-  text-transform: uppercase;
-  color: var(--cream);
-  -webkit-text-stroke: 5px var(--navy-950);
-  paint-order: stroke fill;
-  text-shadow: 0 5px 0 var(--navy-950), 0 10px 30px rgb(0 0 0 / 50%);
+  line-height: 0;
 }
 
-.wordmark .year {
-  display: block;
-  margin-top: 0.4rem;
-  font-family: var(--font-display);
-  font-size: 0.42em;
-  letter-spacing: 0.18em;
-  -webkit-text-stroke: 0;
-  text-shadow: none;
-  color: var(--cream);
-}
-
-.ribbon {
-  position: relative;
-  display: inline-block;
-  margin: 0.35rem 0 0;
-  padding: 0.3rem 2rem;
-  color: var(--cream);
-  background: var(--red);
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  font-size: clamp(0.8rem, 3vw, 1rem);
-  clip-path: polygon(0 0, 100% 0, 96% 50%, 100% 100%, 0 100%, 4% 50%);
-  box-shadow: 0 6px 18px rgb(216 40 60 / 35%);
+.hero-logo img {
+  width: min(18rem, 72vw);
+  height: auto;
+  /* a faint cream halo lifts the logo's navy shield off the navy hero */
+  filter: drop-shadow(0 0 14px rgb(244 234 210 / 22%)) drop-shadow(0 10px 28px rgb(0 0 0 / 45%));
 }
 
 .tagline {
@@ -449,13 +421,6 @@ a {
   font-style: normal;
 }
 
-.event-kind {
-  margin: 0.6rem 0 0;
-  font-family: var(--font-display);
-  font-size: clamp(1.5rem, 6vw, 2rem);
-  letter-spacing: 0.1em;
-  color: var(--cream);
-}
 
 .venue strong {
   display: block;
