@@ -3,7 +3,6 @@ import { Link } from 'react-router'
 
 import CourtBoard from '../components/CourtBoard'
 import Countdown from '../components/Countdown'
-import Logo from '../components/Logo'
 import MatchCard from '../components/MatchCard'
 import Status from '../components/Status'
 import TeamAvatar from '../components/TeamAvatar'
@@ -131,7 +130,8 @@ export default function Home() {
       <section className="hero">
         <img className="murti" src="/brand/swaminarayan.webp" width={497} height={332} alt="Bhagwan Swaminarayan" />
         <div className="hero-top">
-          <Logo size={96} />
+          {/* the official logo (owner, 2026-11-22) in place of the drawn crest */}
+          <img className="hero-logo" src="/brand/samp-cup-logo.webp" width={532} height={642} alt="" />
           <h1 className="wordmark">
             {name}
             {year && <span className="year">{year}</span>}

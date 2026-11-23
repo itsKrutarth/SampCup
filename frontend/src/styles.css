@@ -380,6 +380,14 @@ a {
   gap: 0.25rem;
 }
 
+/* The official SAMP Cup logo above the wordmark; a faint cream halo lifts its navy shield
+   off the navy hero */
+.hero-logo {
+  width: auto;
+  height: clamp(7rem, 30vw, 8.5rem);
+  filter: drop-shadow(0 0 12px rgb(244 234 210 / 22%)) drop-shadow(0 8px 20px rgb(0 0 0 / 45%));
+}
+
 /* SAMP CUP: cream letters with a navy outline, like the flyer */
 .wordmark {
   margin: 0.25rem 0 0;

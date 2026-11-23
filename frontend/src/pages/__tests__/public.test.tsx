@@ -11,6 +11,7 @@ describe('home page', () => {
     mockApi({ 'GET /public/overview': overview({ waitlist: 2 }) })
     renderAt('/')
     expect(await screen.findByRole('heading', { name: 'SAMP Cup 2026' })).toBeInTheDocument()
+    expect(document.querySelector('.hero-logo')).toHaveAttribute('src', '/brand/samp-cup-logo.webp')
     expect(screen.getByText('December 12')).toBeInTheDocument()
     expect(screen.getByText('Saturday · Age 22-35')).toBeInTheDocument()
     expect(screen.getByText('Yuvak Mandal')).toBeInTheDocument()
