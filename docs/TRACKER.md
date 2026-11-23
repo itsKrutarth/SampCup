@@ -16,13 +16,11 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   After a deploy, check the table: a fresh one holds only the default settings until restored.
 - **Deployed 2026-11-22 (owner):** mock clock, Final as one series, clearer judge message
   (commit ce776b4, branch `fix/final-series-and-judge-message`).
-- **Branch `infra/keep-api-logs` (owner: "keep logs"):** the API log group moves to
-  `infra/foundation`; the app stack reads it and forgets it without deleting it (`removed`
-  block). Plans checked: foundation 1 import + tag change, app 0 destroy. Apply
-  `infra/deploy.sh apply` and `infra/foundation.sh apply` (either order), then delete the
-  foundation's one-time `import` block (it would fail in a brand-new account).
-  2026-11-22: `deploy.sh apply` done (log group kept, no longer in the app state);
-  `foundation.sh apply` still to run.
+- **Logs kept through teardowns (owner: "keep logs"), done 2026-11-22:** the API log group
+  lives in `infra/foundation` (applied by the owner; plan now "No changes"); the app stack
+  only reads it (data source). The one-time `import` and `removed` blocks are deleted.
+- **Deployed 2026-11-22 (owner), all on `main`:** logos, backup-sheet support, home page
+  during play and player defaults (`home/live-layout`).
 - **Backup sheet (owner: "a backup plan if the app goes down"), branch
   `backup/google-sheet`:** a Google Sheet whose own Apps Script (`tools/backup-sheet/Code.gs`)
   copies the public pages every minute (teams, players, lunch, every game, standings) and
@@ -37,8 +35,6 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   wordmark and in the header (same 38 px height); nothing else changes. The earlier version
   is tag `home-before-logo`. Branch `home/real-logo` (logo replacing the whole title block)
   was a misread; kept, unused. The drawn crest is still on Join, Logins and the projector.
-- **Stack to deploy (all in the owner's working copy, `home/logo-in-hero`):** keep-logs ->
-  backup sheet -> logo. Merge into `main` after the deploy.
 - **Second mock (2026-11-21, `--speed 30`, ~20 s a game, 32 teams, 145 games):** the app held
   up; the mock tool did not:
   - Real players have started forming teams, so the mock now leaves real teams out (never

@@ -92,12 +92,6 @@ resource "aws_cloudwatch_log_group" "api" {
   retention_in_days = var.log_retention_days
 }
 
-# One-time move (2026-11-22): adopt the log group the app stack created, logs and all.
-# Delete this block once applied.
-import {
-  to = aws_cloudwatch_log_group.api
-  id = "/aws/lambda/sampcup-prod-api"
-}
 
 output "api_log_group" {
   value = aws_cloudwatch_log_group.api.name

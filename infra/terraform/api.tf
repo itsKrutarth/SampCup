@@ -6,14 +6,6 @@ data "aws_cloudwatch_log_group" "api" {
   name = "/aws/lambda/${local.name}-api"
 }
 
-# It used to be created here: forget it without deleting it (infra/foundation owns it now).
-removed {
-  from = aws_cloudwatch_log_group.api
-  lifecycle {
-    destroy = false
-  }
-}
-
 data "aws_iam_policy_document" "lambda_assume" {
   statement {
     actions = ["sts:AssumeRole"]
