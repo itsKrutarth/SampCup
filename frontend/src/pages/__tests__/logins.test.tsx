@@ -16,10 +16,12 @@ describe('player login', () => {
     })
     const user = userEvent.setup()
     renderAt('/login')
-    await user.type(screen.getByLabelText('Username'), 'aarav_t')
+    await user.type(screen.getByLabelText('Phone number'), '+1 (508) 555-1234')
     await user.type(screen.getByLabelText('Password'), 'secret1')
     await user.click(screen.getByRole('button', { name: 'Log in' }))
     expect(await screen.findByRole('heading', { name: 'Pick your partner' })).toBeInTheDocument()
+    // the phone number is the username, as digits only
+    expect(sent('POST', '/auth/player-login')[0].body).toEqual({ username: '5085551234', password: 'secret1' })
     expect(sent('GET', '/player/me')[0].headers).toEqual({ Authorization: 'Bearer t-player' })
     await user.click(screen.getByRole('button', { name: 'Log out' }))
     expect(await screen.findByRole('heading', { name: 'Player login' })).toBeInTheDocument()
@@ -35,7 +37,7 @@ describe('player login', () => {
     })
     const user = userEvent.setup()
     renderAt('/login')
-    await user.type(screen.getByLabelText('Username'), 'aarav_t')
+    await user.type(screen.getByLabelText('Phone number'), 'aarav_t') // an older login an admin set
     await user.type(screen.getByLabelText('Password'), 'temp123')
     await user.click(screen.getByRole('button', { name: 'Log in' }))
     expect(await screen.findByText('At least 6 characters.')).toBeInTheDocument()
@@ -45,6 +47,7 @@ describe('player login', () => {
     await user.click(screen.getByRole('button', { name: 'Save and continue' }))
     expect(await screen.findByRole('heading', { name: 'Pick your partner' })).toBeInTheDocument()
     expect(sent('POST', '/auth/change-password')).toHaveLength(1)
+    expect(sent('POST', '/auth/player-login')[0].body).toMatchObject({ username: 'aarav_t' })
     await waitFor(() => expect(JSON.parse(localStorage.getItem('sampcup-auth')!).mustChange).toBe(false))
   })
 
@@ -52,10 +55,10 @@ describe('player login', () => {
     mockApi({ 'POST /auth/player-login': fail(401, 'Username or password is wrong') })
     const user = userEvent.setup()
     renderAt('/login')
-    await user.type(screen.getByLabelText('Username'), 'x')
+    await user.type(screen.getByLabelText('Phone number'), '5085551234')
     await user.type(screen.getByLabelText('Password'), 'y')
     await user.click(screen.getByRole('button', { name: 'Log in' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('wrong')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Phone number or password is wrong')
   })
 })
 

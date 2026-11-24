@@ -197,7 +197,9 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   with it once; the center comes from the registration. A player without a center can't pick
   a partner until an admin sets it in the Players tab. Then they invite a same-center partner
   who accepts; after that only admins can change the team. Cap 42 active teams, then a waitlist.
-  No email or code verification: players still choose their own username and password.
+  No email or code verification. Since 2026-11-23 a player's username is their phone number
+  (digits only, a leading US 1 dropped; the frontend cleans it up), so it is easy to remember
+  on the day; older text usernames still log in.
 - **Volunteers (owner, 2026-11-23):** rows whose Volunteer column says Yes (judges, water,
   app admins) are not players. They go to a Volunteers list under Players (admin only) that
   follows the latest file; a file without the column leaves the list alone.
@@ -263,6 +265,9 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   invitation (Harshil Patel -> Dev Gujarathi) cancelled at the owner's request.
   Fifth mock (`--speed 30`, 36 mock teams, 161 games), stopped early by the owner and
   restored; kept Aalay Limbachiya's account claim (`aalay`) made during the mock.
+  Then: the official logo replaces the drawn crest on the login, create-account and projector
+  pages and as the browser tab and home-screen icons (PNG, made from the same image); phone
+  number replaces Username on create-account, player login and admin Set login.
 - 2026-11-23: Owner uploaded the newer registration export (no MISID values; BAPSId, email)
   with the old importer at 10:46 AM: every row was skipped and all 59 players were switched
   off (nothing else changed). Branch `feature/import-without-misid`: the key is first name +

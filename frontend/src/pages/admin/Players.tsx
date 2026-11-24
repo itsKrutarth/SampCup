@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react'
 import Status from '../../components/Status'
 import { api, ApiError } from '../../lib/api'
 import { useApi } from '../../lib/live'
+import { loginName } from '../../lib/phone'
 import { Message, useAction } from './common'
 
 // rows imported without a center come in blank (an admin sets it below, or teams them up)
@@ -146,7 +147,8 @@ function Account({ player, onChange }: { player: AdminPlayer; onChange: () => vo
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
-    const body = { username: form.get('username') || null, password: form.get('password') || null }
+    const username = loginName(String(form.get('username') ?? ''))
+    const body = { username: username || null, password: form.get('password') || null }
     if (await run(url, 'PUT', body, () => 'Login saved. The password is temporary.')) {
       setOpen(false)
       onChange()
@@ -163,7 +165,7 @@ function Account({ player, onChange }: { player: AdminPlayer; onChange: () => vo
       </span>
       {open ? (
         <form className="inline-form" onSubmit={save} aria-label={`Login for ${player.first_name} ${player.last_name}`}>
-          <input name="username" defaultValue={player.username ?? ''} placeholder="username" aria-label="Username" autoCapitalize="none" />
+          <input name="username" defaultValue={player.username ?? ''} placeholder="phone number" aria-label="Phone number (login)" autoCapitalize="none" />
           <input name="password" placeholder="temporary password" aria-label="Temporary password" autoComplete="off" minLength={6} />
           <button type="submit">Save</button>
           <button type="button" className="link" onClick={() => setOpen(false)}>Cancel</button>

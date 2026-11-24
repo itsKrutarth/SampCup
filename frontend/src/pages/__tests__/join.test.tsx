@@ -28,9 +28,12 @@ describe('creating your account', () => {
     await user.type(screen.getByLabelText('First name'), 'aarav')
     await user.type(screen.getByLabelText('Last name'), 'tester')
     await user.type(screen.getByLabelText('Registration email'), 'Aarav@Example.com')
-    await user.type(screen.getByLabelText('Username'), 'aarav_t')
+    await user.type(screen.getByLabelText(/^Phone number/), '508-555')
     await user.type(screen.getByLabelText('Password'), 'secret1')
     await user.type(screen.getByLabelText('Password again'), 'secret2')
+    await user.click(screen.getByRole('button', { name: 'Create account' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('10-digit phone number')
+    await user.type(screen.getByLabelText(/^Phone number/), '-1234')
     await user.click(screen.getByRole('button', { name: 'Create account' }))
     expect(screen.getByRole('alert')).toHaveTextContent('do not match')
     await user.clear(screen.getByLabelText('Password again'))
@@ -38,7 +41,7 @@ describe('creating your account', () => {
     await user.click(screen.getByRole('button', { name: 'Create account' }))
     expect(await screen.findByText(/^Hi/)).toBeInTheDocument()
     expect(sent('POST', '/players/claim')[0].body).toEqual({
-      first_name: 'aarav', last_name: 'tester', email: 'Aarav@Example.com', username: 'aarav_t', password: 'secret1',
+      first_name: 'aarav', last_name: 'tester', email: 'Aarav@Example.com', username: '5085551234', password: 'secret1',
     })
   })
 
@@ -54,11 +57,14 @@ describe('creating your account', () => {
     await user.type(screen.getByLabelText('First name'), 'x')
     await user.type(screen.getByLabelText('Last name'), 'y')
     await user.type(screen.getByLabelText('Registration email'), 'x@example.com')
-    await user.type(screen.getByLabelText('Username'), 'xy_123')
+    await user.type(screen.getByLabelText(/^Phone number/), '(617) 555 0000')
     await user.type(screen.getByLabelText('Password'), 'secret1')
     await user.type(screen.getByLabelText('Password again'), 'secret1')
     await user.click(screen.getByRole('button', { name: 'Create account' }))
     expect(await screen.findByText(/couldn't find/)).toBeInTheDocument()
+    mockApi({ 'GET /registration/status': { open: true, team_cap: 42, loaded: true }, 'POST /players/claim': fail(409, 'That username is taken') })
+    await user.click(screen.getByRole('button', { name: 'Create account' }))
+    expect(await screen.findByText(/This phone number already has an account/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/login')
   })
 

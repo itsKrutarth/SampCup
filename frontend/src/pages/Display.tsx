@@ -14,7 +14,7 @@ export default function Display() {
   return (
     <div className="display">
       <header className="display-head">
-        <Logo size={64} />
+        <Logo size={84} />
         <div>
           <h1>{data?.tournament.name ?? 'SAMP Cup'}</h1>
           <p className="muted">{TAGLINE}</p>

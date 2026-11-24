@@ -5,6 +5,7 @@ import { Navigate, useNavigate } from 'react-router'
 import Logo from '../components/Logo'
 import { api, ApiError } from '../lib/api'
 import { useAuth, type Auth } from '../lib/auth'
+import { loginName } from '../lib/phone'
 
 type StaffUser = { username: string; display_name: string; role: 'admin' | 'judge'; court: number | null; must_change_password: boolean }
 
@@ -25,7 +26,7 @@ function AuthCard({ title, subtitle, children }: { title: string; subtitle: stri
   return (
     <section className="auth">
       <header>
-        <Logo size={56} />
+        <Logo size={110} />
         <h1>{title}</h1>
         <p className="muted">{subtitle}</p>
       </header>
@@ -53,18 +54,20 @@ export function PlayerLogin() {
   const { error, onSubmit } = useSubmit(async (form) => {
     const result = await api<{ token: string; player: PlayerUser }>('/auth/player-login', {
       method: 'POST',
-      body: { username: form.get('username'), password: form.get('password') },
+      body: { username: loginName(String(form.get('username') ?? '')), password: form.get('password') },
+    }).catch((e: ApiError) => {
+      throw e.status === 401 ? new ApiError(401, 'Phone number or password is wrong') : e
     })
     const { player } = result
     signIn({ token: result.token, kind: 'player', name: player.first_name, mustChange: player.must_change_password })
     navigate(player.must_change_password ? '/account/password' : '/my-team')
   })
   return (
-    <AuthCard title="Player login" subtitle="Log in with the username and password you created.">
+    <AuthCard title="Player login" subtitle="Log in with your phone number and the password you created.">
       <form onSubmit={onSubmit} className="stack">
         <label>
-          Username
-          <input name="username" required autoComplete="username" autoCapitalize="none" />
+          Phone number
+          <input name="username" type="tel" inputMode="tel" required autoComplete="username" autoCapitalize="none" />
         </label>
         <label>
           Password

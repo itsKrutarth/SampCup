@@ -6,6 +6,7 @@ import Logo from '../components/Logo'
 import { api, ApiError } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { useApi } from '../lib/live'
+import { isPhone, loginName } from '../lib/phone'
 
 type Claimed = { token: string; player: { id: number; first_name: string } }
 
@@ -19,6 +20,11 @@ export default function Join() {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
+    const phone = String(form.get('phone') ?? '')
+    if (!isPhone(phone)) {
+      setError('Enter your 10-digit phone number')
+      return
+    }
     if (form.get('password') !== form.get('confirm')) {
       setError('The two passwords do not match')
       return
@@ -30,20 +36,21 @@ export default function Join() {
           first_name: form.get('first_name'),
           last_name: form.get('last_name'),
           email: form.get('email'),
-          username: form.get('username'),
+          username: loginName(phone), // the phone number is the username
           password: form.get('password'),
         },
       })
       signIn({ token: result.token, kind: 'player', name: result.player.first_name })
       navigate('/my-team')
     } catch (e) {
-      setError((e as ApiError).message)
+      const message = (e as ApiError).message
+      setError(/username is taken/i.test(message) ? 'This phone number already has an account. Log in with it, or ask an admin.' : message)
     }
   }
   return (
     <section className="auth">
       <header>
-        <Logo size={56} />
+        <Logo size={110} />
         <h1>Create your account</h1>
         <p className="muted">Use your name and the email you registered with on MySatsang.</p>
       </header>
@@ -65,8 +72,9 @@ export default function Join() {
           <input name="email" type="email" required maxLength={254} autoCapitalize="none" autoComplete="email" />
         </label>
         <label>
-          Username
-          <input name="username" required minLength={3} maxLength={30} autoCapitalize="none" autoComplete="username" />
+          Phone number
+          <input name="phone" type="tel" inputMode="tel" required maxLength={20} autoComplete="tel" placeholder="508 555 1234" />
+          <small className="hint">You log in with this number and your password.</small>
         </label>
         <label>
           Password
