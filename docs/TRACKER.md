@@ -261,6 +261,8 @@ Requirements live in `Tournament Resources/`; milestones below follow `04_BUILD_
   username locks and sessions. Court logins will be court1..court9, made by an admin.
   Later: owner's test staff `aalay` (admin) and `allu` (judge) removed; the one pending
   invitation (Harshil Patel -> Dev Gujarathi) cancelled at the owner's request.
+  Fifth mock (`--speed 30`, 36 mock teams, 161 games), stopped early by the owner and
+  restored; kept Aalay Limbachiya's account claim (`aalay`) made during the mock.
 - 2026-11-23: Owner uploaded the newer registration export (no MISID values; BAPSId, email)
   with the old importer at 10:46 AM: every row was skipped and all 59 players were switched
   off (nothing else changed). Branch `feature/import-without-misid`: the key is first name +
